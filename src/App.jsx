@@ -17,6 +17,18 @@ const USER_CUSTOM_TOKEN_ADDRESS = "0x54552f2EC52423D2fBE94c25f0BAd61b9108AAE8";
 // Yeni Deploy Ettiğiniz Sakasena Havuz (DEX) Sözleşme Adresi
 const SAKASENA_POOL_ADDRESS = import.meta.env.VITE_SAKASENA_POOL_ADDRESS || "0xbE0f19F85A5cD1Cac56E6f31c85f6cAe805e56C3";
 
+// JavaScript Temporal Dead Zone hatasını önlemek için en üstte tanımlanan Kur Oranları
+const TOKEN_PRICES = {
+  USDC: 1.00,
+  EURC: 1.08,
+  cirBTC: 67450.00,
+  USDS: 1.00,
+  AAA: 5.40,
+  MYTOKEN: 5.40, // anaraydinli AAA ile eşlendi
+  USDT: 1.00,
+  DAI: 1.00
+};
+
 // Başlangıç Token Listesi
 const INITIAL_TOKENS = {
   USDC: { 
@@ -84,7 +96,8 @@ export default function App() {
 
   useEffect(() => {
     if (window.ethereum) {
-      const web3Provider = new ethers.providers.Web3Provider(window.ethereum);
+      // ETHERS V6: Web3Provider yerine BrowserProvider kullanılmaktadır
+      const web3Provider = new ethers.BrowserProvider(window.ethereum);
       setProvider(web3Provider);
       
       window.ethereum.request({ method: 'eth_chainId' })
@@ -112,7 +125,7 @@ export default function App() {
     }
   }, [account, chainId, provider]);
 
-  // Dinamik Fiyatlama ve Swap Çıktısı Hesaplama (Havuz Rezervlerine Göre x * y = k)
+  // ETHERS V6: Dinamik Fiyatlama ve Swap Çıktısı Hesaplama
   useEffect(() => {
     const calculateSwapOutput = async () => {
       if (!amountIn || isNaN(amountIn) || parseFloat(amountIn) <= 0) {
@@ -126,13 +139,12 @@ export default function App() {
         const poolContract = new ethers.Contract(SAKASENA_POOL_ADDRESS, poolABI, provider);
         const tokenInAddress = tokens[fromToken].address;
 
-        if (tokenInAddress && tokenInAddress !== ethers.constants.AddressZero) {
-          const amountInParsed = ethers.utils.parseUnits(amountIn, tokens[fromToken].decimals);
+        if (tokenInAddress && tokenInAddress !== ethers.ZeroAddress) { // Ethers v6: ZeroAddress
+          const amountInParsed = ethers.parseUnits(amountIn, tokens[fromToken].decimals); // Ethers v6: utils yok
           const rawAmountOut = await poolContract.getAmountOut(tokenInAddress, amountInParsed);
-          const formattedAmountOut = ethers.utils.formatUnits(rawAmountOut, tokens[toToken].decimals);
+          const formattedAmountOut = ethers.formatUnits(rawAmountOut, tokens[toToken].decimals); // Ethers v6: utils yok
           setAmountOut(parseFloat(formattedAmountOut).toFixed(tokens[toToken].decimals === 8 ? 6 : 4));
         } else {
-          // Desteklenmeyen veya simüle tokenler için fallback hesaplama
           setAmountOut((parseFloat(amountIn) * 0.997).toFixed(4));
         }
       } catch (err) {
@@ -206,7 +218,7 @@ export default function App() {
           ...updated.MYTOKEN,
           symbol: symbol,
           name: `${name} (Your Token)`,
-          decimals: decimals
+          decimals: Number(decimals)
         };
         return updated;
       });
@@ -215,6 +227,7 @@ export default function App() {
     }
   };
 
+  // ETHERS V6: Bakiye sorgulama
   const fetchBalances = async () => {
     if (!provider || !account) return;
     try {
@@ -223,11 +236,11 @@ export default function App() {
 
       for (const key of Object.keys(tokens)) {
         const token = tokens[key];
-        if (token.address && token.address !== ethers.constants.AddressZero) {
+        if (token.address && token.address !== ethers.ZeroAddress) { // Ethers v6: ZeroAddress
           try {
             const contract = new ethers.Contract(token.address, minABI, provider);
             const raw = await contract.balanceOf(account);
-            const formatted = parseFloat(ethers.utils.formatUnits(raw, token.decimals));
+            const formatted = parseFloat(ethers.formatUnits(raw, token.decimals)); // Ethers v6: formatUnits
             const decimalsToShow = token.symbol === "cirBTC" ? 4 : 2;
             newBalances[key] = formatted.toFixed(decimalsToShow);
           } catch (err) {
@@ -244,9 +257,9 @@ export default function App() {
     }
   };
 
-  // Havuz Rezervlerini On-Chain Sorgulama Fonksiyonu
+  // ETHERS V6: Havuz Rezervlerini On-Chain Sorgulama
   const fetchPoolReserves = async () => {
-    if (!provider || SAKASENA_POOL_ADDRESS === ethers.constants.AddressZero) return;
+    if (!provider || SAKASENA_POOL_ADDRESS === ethers.ZeroAddress) return;
     try {
       const poolABI = [
         "function reserveUSDC() view returns (uint256)",
@@ -261,8 +274,8 @@ export default function App() {
       ]);
 
       setPoolReserves({
-        USDC: parseFloat(ethers.utils.formatUnits(resUSDC, 6)).toFixed(2),
-        AAA: parseFloat(ethers.utils.formatUnits(resAAA, 18)).toFixed(2),
+        USDC: parseFloat(ethers.formatUnits(resUSDC, 6)).toFixed(2), // Ethers v6
+        AAA: parseFloat(ethers.formatUnits(resAAA, 18)).toFixed(2),  // Ethers v6
         totalShares: shares.toString()
       });
     } catch (err) {
@@ -270,25 +283,26 @@ export default function App() {
     }
   };
 
-  // GERÇEK ZİNCİR ÜSTÜ İŞLEMLER (SWAP & ADD LIQUIDITY)
+  // ETHERS V6: GERÇEK ZİNCİR ÜSTÜ İŞLEMLER (SWAP & ADD LIQUIDITY)
   const handleAction = async (type) => {
     if (chainId !== ARC_CHAIN_ID) {
       await checkAndSwitchNetwork();
       return;
     }
 
-    if (!SAKASENA_POOL_ADDRESS || SAKASENA_POOL_ADDRESS === ethers.constants.AddressZero) {
+    if (!SAKASENA_POOL_ADDRESS || SAKASENA_POOL_ADDRESS === ethers.ZeroAddress) {
       alert("Havuz sözleşme adresi tanımlı değil.");
       return;
     }
 
     setTxLoading(true);
     try {
-      const signer = provider.getSigner();
+      // ETHERS V6: getSigner artık asenkrondur ve await ile çağrılmalıdır
+      const signer = await provider.getSigner(); 
 
       if (type === "swap") {
         const tokenInObj = tokens[fromToken];
-        const amountInParsed = ethers.utils.parseUnits(amountIn, tokenInObj.decimals);
+        const amountInParsed = ethers.parseUnits(amountIn, tokenInObj.decimals); // Ethers v6
 
         // 1. ERC-20 Approve Kontrolü ve Yetkilendirme
         const erc20ABI = [
@@ -298,7 +312,8 @@ export default function App() {
         const tokenInContract = new ethers.Contract(tokenInObj.address, erc20ABI, signer);
         const currentAllowance = await tokenInContract.allowance(account, SAKASENA_POOL_ADDRESS);
         
-        if (currentAllowance.lt(amountInParsed)) {
+        // ETHERS V6: Yerel BigInt kullanıldığı için .lt() yerine doğrudan < ve > operatörleri kullanılır
+        if (currentAllowance < amountInParsed) { 
           alert(`Lütfen önce ${tokenInObj.symbol} harcama yetkisini (Approve) onaylayın.`);
           const approveTx = await tokenInContract.approve(SAKASENA_POOL_ADDRESS, amountInParsed);
           await approveTx.wait();
@@ -325,8 +340,8 @@ export default function App() {
           return;
         }
 
-        const usdcParsed = ethers.utils.parseUnits(lpUSDC, 6);
-        const aaaParsed = ethers.utils.parseUnits(lpAAA, 18);
+        const usdcParsed = ethers.parseUnits(lpUSDC, 6);
+        const aaaParsed = ethers.parseUnits(lpAAA, 18);
 
         const erc20ABI = [
           "function allowance(address owner, address spender) view returns (uint256)",
@@ -335,17 +350,17 @@ export default function App() {
         const usdcContract = new ethers.Contract(ARC_USDC_ADDRESS, erc20ABI, signer);
         const aaaContract = new ethers.Contract(USER_CUSTOM_TOKEN_ADDRESS, erc20ABI, signer);
 
-        // USDC Approve Kontrolü
+        // USDC Approve Kontrolü (Ethers v6 BigInt karşılaştırma)
         const allowanceUSDC = await usdcContract.allowance(account, SAKASENA_POOL_ADDRESS);
-        if (allowanceUSDC.lt(usdcParsed)) {
+        if (allowanceUSDC < usdcParsed) {
           alert("Lütfen USDC harcama yetkisini onaylayın.");
           const txApp = await usdcContract.approve(SAKASENA_POOL_ADDRESS, usdcParsed);
           await txApp.wait();
         }
 
-        // AAA Approve Kontrolü
+        // AAA Approve Kontrolü (Ethers v6 BigInt karşılaştırma)
         const allowanceAAA = await aaaContract.allowance(account, SAKASENA_POOL_ADDRESS);
-        if (allowanceAAA.lt(aaaParsed)) {
+        if (allowanceAAA < aaaParsed) {
           alert(`Lütfen ${tokens.MYTOKEN.symbol} harcama yetkisini onaylayın.`);
           const txApp = await aaaContract.approve(SAKASENA_POOL_ADDRESS, aaaParsed);
           await txApp.wait();
@@ -393,7 +408,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col justify-between bg-[#0b0914] text-[#f3f4f6]">
+    <div className="min-h-screen flex flex-col justify-between">
       <header className="border-b border-gray-800 bg-[#0d0b1a] px-6 py-4 flex items-center justify-between">
         <div className="flex items-center space-x-3">
           <span className="text-2xl font-bold bg-gradient-to-r from-violet-400 to-indigo-400 bg-clip-text text-transparent">
@@ -681,7 +696,7 @@ export default function App() {
                   <div className="flex justify-between"><span>💵 10,000 USDC</span><span className="text-emerald-400 font-medium">Ready</span></div>
                   <div className="flex justify-between"><span>💶 10,000 EURC</span><span className="text-emerald-400 font-medium">Ready</span></div>
                   <div className="flex justify-between"><span>₿ 1.5 cirBTC</span><span className="text-emerald-400 font-medium">Ready</span></div>
-                  <div className="flex justify-between"><span>⭐ 500 {tokens.MYTOKEN.symbol}</span><span className="text-emerald-400 font-medium">Ready</span></div>
+                  <div className="flex justify-between"><span>🚀 250 {tokens.MYTOKEN.symbol}</span><span className="text-emerald-400 font-medium">Ready</span></div>
                   <div className="flex justify-between"><span>🟢 10,000 USDT</span><span className="text-emerald-400 font-medium">Ready</span></div>
                   <div className="flex justify-between"><span>🟡 10,000 DAI</span><span className="text-emerald-400 font-medium">Ready</span></div>
                 </div>
@@ -705,15 +720,3 @@ export default function App() {
     </div>
   );
 }
-
-// Statik veya dinamik kur oranları (Fallbacks için)
-const TOKEN_PRICES = {
-  USDC: 1.00,
-  EURC: 1.08,
-  cirBTC: 67450.00,
-  USDS: 1.00,
-  AAA: 5.40,
-  MYTOKEN: 5.40, // anaraydinli AAA ile eslendi
-  USDT: 1.00,
-  DAI: 1.00
-};
