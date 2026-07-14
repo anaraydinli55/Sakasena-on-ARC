@@ -14,20 +14,8 @@ const ARC_CIRBTC_ADDRESS = "0xf0C4a4CE82A5746AbAAd9425360Ab04fbBA432BF";
 // Sizin Deploy Ettiğiniz Sözleşme Adresi (1300+ Holders)
 const USER_CUSTOM_TOKEN_ADDRESS = "0x54552f2EC52423D2fBE94c25f0BAd61b9108AAE8";
 
-// Vercel / .env üzerinden çekilecek Sakasena Havuz (DEX) Sözleşme Adresi
-const SAKASENA_POOL_ADDRESS = import.meta.env.VITE_SAKASENA_POOL_ADDRESS || "0x0000000000000000000000000000000000000000";
-
-// Simüle Edilmiş Piyasa Fiyatları (Volatil ve Stabil hesaplamalar için)
-const TOKEN_PRICES = {
-  USDC: 1.00,
-  EURC: 1.08,
-  cirBTC: 67450.00,  // Bitcoin fiyatı
-  USDS: 1.00,
-  AAA: 5.40,         // anaraydinli AAA volatil token fiyatı ($5.40)
-  MYTOKEN: 0.15,     // Sizin diğer tokeninizin fiyatı
-  USDT: 1.00,
-  DAI: 1.00
-};
+// Yeni Deploy Ettiğiniz Sakasena Havuz (DEX) Sözleşme Adresi
+const SAKASENA_POOL_ADDRESS = import.meta.env.VITE_SAKASENA_POOL_ADDRESS || "0xbE0f19F85A5cD1Cac56E6f31c85f6cAe805e56C3";
 
 // Başlangıç Token Listesi
 const INITIAL_TOKENS = {
@@ -59,14 +47,6 @@ const INITIAL_TOKENS = {
     icon: "🌀",
     address: import.meta.env.VITE_USDS_ADDRESS || "0x0000000000000000000000000000000000000000" 
   },
-  // anaraydinli AAA Token (Volatil / Stabil Olmayan)
-  AAA: {
-    symbol: "AAA",
-    name: "anaraydinli AAA Token",
-    decimals: 18,
-    icon: "🚀",
-    address: import.meta.env.VITE_AAA_ADDRESS || "0x0000000000000000000000000000000000000000"
-  },
   MYTOKEN: {
     symbol: "Loading...",
     name: "Your Deployed Token",
@@ -82,17 +62,25 @@ export default function App() {
   const [provider, setProvider] = useState(null);
   const [account, setAccount] = useState("");
   const [chainId, setChainId] = useState(null);
-  const [activeTab, setActiveTab] = useState("swap");
+  const [activeTab, setActiveTab] = useState("swap"); // swap, pool, faucet
   
   const [tokens, setTokens] = useState(INITIAL_TOKENS);
-  const [balances, setBalances] = useState({ USDC: "0.00", EURC: "0.00", cirBTC: "0.0000", USDS: "0.00", AAA: "0.00", MYTOKEN: "0.00", USDT: "0.00", DAI: "0.00" });
+  const [balances, setBalances] = useState({ USDC: "0.00", EURC: "0.00", cirBTC: "0.0000", USDS: "0.00", MYTOKEN: "0.00", USDT: "0.00", DAI: "0.00" });
   
+  // Swap Form States
   const [fromToken, setFromToken] = useState("USDC");
-  const [toToken, setToToken] = useState("AAA");
+  const [toToken, setToToken] = useState("MYTOKEN");
   const [amountIn, setAmountIn] = useState("");
   const [amountOut, setAmountOut] = useState("");
+
+  // Liquidity Pool Form States
+  const [lpUSDC, setLpUSDC] = useState("");
+  const [lpAAA, setLpAAA] = useState("");
+  const [poolReserves, setPoolReserves] = useState({ USDC: "0.00", AAA: "0.00", totalShares: "0" });
+
   const [spPoints, setSpPoints] = useState(1250);
   const [faucetLoading, setFaucetLoading] = useState(false);
+  const [txLoading, setTxLoading] = useState(false);
 
   useEffect(() => {
     if (window.ethereum) {
@@ -118,34 +106,47 @@ export default function App() {
       const loadAllData = async () => {
         await loadCustomTokenDetails();
         await fetchBalances();
+        await fetchPoolReserves();
       };
       loadAllData();
     }
   }, [account, chainId, provider]);
 
-  // Dinamik Fiyatlama ve Swap Çıktısı Hesaplama Modülü
+  // Dinamik Fiyatlama ve Swap Çıktısı Hesaplama (Havuz Rezervlerine Göre x * y = k)
   useEffect(() => {
-    if (!amountIn || isNaN(amountIn)) {
-      setAmountOut("");
-      return;
-    }
-    
-    // Seçilen tokenlerin USD karşılıklarını alıyoruz
-    const priceIn = TOKEN_PRICES[fromToken] || 1.00;
-    const priceOut = TOKEN_PRICES[toToken] || 1.00;
+    const calculateSwapOutput = async () => {
+      if (!amountIn || isNaN(amountIn) || parseFloat(amountIn) <= 0) {
+        setAmountOut("");
+        return;
+      }
+      if (!provider || chainId !== ARC_CHAIN_ID) return;
 
-    // Fiyat oranına göre çıktı miktarını hesapla
-    const rawAmountOut = (parseFloat(amountIn) * priceIn) / priceOut;
-    const fee = rawAmountOut * 0.001; // %0.1 Swap ücreti
-    
-    // cirBTC gibi yüksek değerli/düşük ondalıklı varlıklar için daha detaylı gösterim yap
-    const decimalsToShow = tokens[toToken].decimals === 8 ? 6 : 4;
-    setAmountOut((rawAmountOut - fee).toFixed(decimalsToShow));
-  }, [amountIn, fromToken, toToken, tokens]);
+      try {
+        const poolABI = ["function getAmountOut(address tokenIn, uint256 amountIn) view returns (uint256)"];
+        const poolContract = new ethers.Contract(SAKASENA_POOL_ADDRESS, poolABI, provider);
+        const tokenInAddress = tokens[fromToken].address;
+
+        if (tokenInAddress && tokenInAddress !== ethers.constants.AddressZero) {
+          const amountInParsed = ethers.utils.parseUnits(amountIn, tokens[fromToken].decimals);
+          const rawAmountOut = await poolContract.getAmountOut(tokenInAddress, amountInParsed);
+          const formattedAmountOut = ethers.utils.formatUnits(rawAmountOut, tokens[toToken].decimals);
+          setAmountOut(parseFloat(formattedAmountOut).toFixed(tokens[toToken].decimals === 8 ? 6 : 4));
+        } else {
+          // Desteklenmeyen veya simüle tokenler için fallback hesaplama
+          setAmountOut((parseFloat(amountIn) * 0.997).toFixed(4));
+        }
+      } catch (err) {
+        console.warn("Fiyat hesaplanamadı (Havuzda likidite yetersiz olabilir):", err);
+        setAmountOut("Likidite Yetersiz");
+      }
+    };
+
+    calculateSwapOutput();
+  }, [amountIn, fromToken, toToken, tokens, provider, chainId]);
 
   const connectWallet = async () => {
     if (!window.ethereum) {
-      alert("Lütfen MetaMask kurun.");
+      alert("Lütfen MetaMask veya Rabby Wallet kurun.");
       return;
     }
     try {
@@ -210,7 +211,7 @@ export default function App() {
         return updated;
       });
     } catch (err) {
-      console.warn("Kullanıcı token detayları okunamadı, varsayılanlar kullanılacak:", err);
+      console.warn("Kullanıcı token detayları okunamadı:", err);
     }
   };
 
@@ -230,7 +231,6 @@ export default function App() {
             const decimalsToShow = token.symbol === "cirBTC" ? 4 : 2;
             newBalances[key] = formatted.toFixed(decimalsToShow);
           } catch (err) {
-            console.warn(`${key} bakiye okuma hatası:`, err);
             newBalances[key] = "0.00";
           }
         } else {
@@ -240,119 +240,138 @@ export default function App() {
 
       setBalances(newBalances);
     } catch (err) {
-      console.error("Bakiyeler yüklenirken genel hata oluştu:", err);
+      console.error("Bakiyeler sorgulanırken hata oluştu:", err);
     }
   };
 
+  // Havuz Rezervlerini On-Chain Sorgulama Fonksiyonu
+  const fetchPoolReserves = async () => {
+    if (!provider || SAKASENA_POOL_ADDRESS === ethers.constants.AddressZero) return;
+    try {
+      const poolABI = [
+        "function reserveUSDC() view returns (uint256)",
+        "function reserveAAA() view returns (uint256)",
+        "function totalShares() view returns (uint256)"
+      ];
+      const contract = new ethers.Contract(SAKASENA_POOL_ADDRESS, poolABI, provider);
+      const [resUSDC, resAAA, shares] = await Promise.all([
+        contract.reserveUSDC(),
+        contract.reserveAAA(),
+        contract.totalShares()
+      ]);
+
+      setPoolReserves({
+        USDC: parseFloat(ethers.utils.formatUnits(resUSDC, 6)).toFixed(2),
+        AAA: parseFloat(ethers.utils.formatUnits(resAAA, 18)).toFixed(2),
+        totalShares: shares.toString()
+      });
+    } catch (err) {
+      console.warn("Havuz rezervleri alınamadı:", err);
+    }
+  };
+
+  // GERÇEK ZİNCİR ÜSTÜ İŞLEMLER (SWAP & ADD LIQUIDITY)
   const handleAction = async (type) => {
     if (chainId !== ARC_CHAIN_ID) {
       await checkAndSwitchNetwork();
       return;
     }
 
-    if (!SAKASENA_POOL_ADDRESS || SAKASENA_POOL_ADDRESS === "0x0000000000000000000000000000000000000000") {
-      alert("Lütfen projenize VITE_SAKASENA_POOL_ADDRESS (Sakasena Havuz/Swap Sözleşme Adresi) tanımlayın. Havuz adresi olmadan gerçek zincir üstü işlem gönderilemez.");
+    if (!SAKASENA_POOL_ADDRESS || SAKASENA_POOL_ADDRESS === ethers.constants.AddressZero) {
+      alert("Havuz sözleşme adresi tanımlı değil.");
       return;
     }
 
+    setTxLoading(true);
     try {
       const signer = provider.getSigner();
 
       if (type === "swap") {
         const tokenInObj = tokens[fromToken];
-        const tokenOutObj = tokens[toToken];
-
-        if (!tokenInObj.address || tokenInObj.address === ethers.constants.AddressZero) {
-          alert("Lütfen on-chain adresi tanımlı, gerçek bir token seçin.");
-          return;
-        }
-
         const amountInParsed = ethers.utils.parseUnits(amountIn, tokenInObj.decimals);
 
-        // 1. ADIM: ERC-20 Harcama Onayı (Approve) Kontrolü
+        // 1. ERC-20 Approve Kontrolü ve Yetkilendirme
         const erc20ABI = [
           "function allowance(address owner, address spender) view returns (uint256)",
           "function approve(address spender, uint256 amount) returns (bool)"
         ];
         const tokenInContract = new ethers.Contract(tokenInObj.address, erc20ABI, signer);
-
         const currentAllowance = await tokenInContract.allowance(account, SAKASENA_POOL_ADDRESS);
         
         if (currentAllowance.lt(amountInParsed)) {
           alert(`Lütfen önce ${tokenInObj.symbol} harcama yetkisini (Approve) onaylayın.`);
           const approveTx = await tokenInContract.approve(SAKASENA_POOL_ADDRESS, amountInParsed);
           await approveTx.wait();
-          alert("Harcama yetkisi onaylandı. Şimdi Swap işlemi gönderiliyor.");
         }
 
-        // 2. ADIM: Sakasena Havuz Sözleşmesindeki swap fonksiyonunu çağırıyoruz
-        const poolABI = [
-          "function swap(address tokenIn, uint256 amountIn) external"
-        ];
+        // 2. Havuz Üzerinden Swap Çağrısı
+        const poolABI = ["function swap(address tokenIn, uint256 amountIn) external returns (uint256)"];
         const poolContract = new ethers.Contract(SAKASENA_POOL_ADDRESS, poolABI, signer);
         
         const swapTx = await poolContract.swap(tokenInObj.address, amountInParsed);
-        alert(`Swap işlemi Arc Network'e gönderildi! Tx: ${swapTx.hash}`);
+        alert(`Swap işlemi gönderildi! Tx: ${swapTx.hash}`);
         await swapTx.wait();
         
-        alert("Swap işlemi zincir üstünde başarıyla onaylandı!");
+        alert("Swap işlemi zincir üstünde onaylandı!");
         setSpPoints(prev => prev + 50);
-        fetchBalances();
+        await fetchBalances();
+        await fetchPoolReserves();
       }
 
-      if (type === "mint") {
-        const usdcObj = tokens.USDC;
-        const amountInParsed = ethers.utils.parseUnits(amountIn, usdcObj.decimals);
+      if (type === "add_lp") {
+        if (!lpUSDC || !lpAAA) {
+          alert("Lütfen her iki miktar alanını da doldurun.");
+          setTxLoading(false);
+          return;
+        }
+
+        const usdcParsed = ethers.utils.parseUnits(lpUSDC, 6);
+        const aaaParsed = ethers.utils.parseUnits(lpAAA, 18);
 
         const erc20ABI = [
           "function allowance(address owner, address spender) view returns (uint256)",
           "function approve(address spender, uint256 amount) returns (bool)"
         ];
-        const usdcContract = new ethers.Contract(usdcObj.address, erc20ABI, signer);
+        const usdcContract = new ethers.Contract(ARC_USDC_ADDRESS, erc20ABI, signer);
+        const aaaContract = new ethers.Contract(USER_CUSTOM_TOKEN_ADDRESS, erc20ABI, signer);
 
-        const currentAllowance = await usdcContract.allowance(account, SAKASENA_POOL_ADDRESS);
-        if (currentAllowance.lt(amountInParsed)) {
+        // USDC Approve Kontrolü
+        const allowanceUSDC = await usdcContract.allowance(account, SAKASENA_POOL_ADDRESS);
+        if (allowanceUSDC.lt(usdcParsed)) {
           alert("Lütfen USDC harcama yetkisini onaylayın.");
-          const approveTx = await usdcContract.approve(SAKASENA_POOL_ADDRESS, amountInParsed);
-          await approveTx.wait();
+          const txApp = await usdcContract.approve(SAKASENA_POOL_ADDRESS, usdcParsed);
+          await txApp.wait();
         }
 
-        const poolABI = [
-          "function mintUSDS(uint256 usdcAmount) external"
-        ];
+        // AAA Approve Kontrolü
+        const allowanceAAA = await aaaContract.allowance(account, SAKASENA_POOL_ADDRESS);
+        if (allowanceAAA.lt(aaaParsed)) {
+          alert(`Lütfen ${tokens.MYTOKEN.symbol} harcama yetkisini onaylayın.`);
+          const txApp = await aaaContract.approve(SAKASENA_POOL_ADDRESS, aaaParsed);
+          await txApp.wait();
+        }
+
+        // Havuza Likidite Ekleme Çağrısı
+        const poolABI = ["function addLiquidity(uint256 amountUSDC, uint256 amountAAA) external returns (uint256)"];
         const poolContract = new ethers.Contract(SAKASENA_POOL_ADDRESS, poolABI, signer);
         
-        const mintTx = await poolContract.mintUSDS(amountInParsed);
-        alert(`Mint işlemi gönderildi! Tx: ${mintTx.hash}`);
-        await mintTx.wait();
+        const lpTx = await poolContract.addLiquidity(usdcParsed, aaaParsed);
+        alert(`Likidite ekleme işlemi gönderildi! Tx: ${lpTx.hash}`);
+        await lpTx.wait();
         
-        alert("Mint başarıyla gerçekleşti!");
-        setSpPoints(prev => prev + 100);
-        fetchBalances();
-      }
-
-      if (type === "redeem") {
-        const usdsObj = tokens.USDS;
-        const amountInParsed = ethers.utils.parseUnits(amountIn, usdsObj.decimals);
-
-        const poolABI = [
-          "function redeemUSDS(uint256 usdzAmount) external"
-        ];
-        const poolContract = new ethers.Contract(SAKASENA_POOL_ADDRESS, poolABI, signer);
-        
-        const redeemTx = await poolContract.redeemUSDS(amountInParsed);
-        alert(`Redeem işlemi gönderildi! Tx: ${redeemTx.hash}`);
-        await redeemTx.wait();
-        
-        alert("Redeem başarıyla gerçekleşti!");
-        setSpPoints(prev => prev + 100);
-        fetchBalances();
+        alert("Likidite başarıyla eklendi!");
+        setSpPoints(prev => prev + 150);
+        setLpUSDC("");
+        setLpAAA("");
+        await fetchBalances();
+        await fetchPoolReserves();
       }
 
     } catch (err) {
       console.error(err);
       alert(`İşlem sırasında bir hata oluştu: ${err.reason || err.message || err}`);
     }
+    setTxLoading(false);
   };
 
   const handleFaucet = async () => {
@@ -363,7 +382,6 @@ export default function App() {
         USDC: (parseFloat(prev.USDC) + 10000).toFixed(2),
         EURC: (parseFloat(prev.EURC) + 10000).toFixed(2),
         cirBTC: (parseFloat(prev.cirBTC) + 1.5).toFixed(4),
-        AAA: (parseFloat(prev.AAA) + 250).toFixed(2),  // Faucet'tan 250 AAA tanımlama simülasyonu
         MYTOKEN: (parseFloat(prev.MYTOKEN) + 500).toFixed(2),
         USDT: (parseFloat(prev.USDT) + 10000).toFixed(2),
         DAI: (parseFloat(prev.DAI) + 10000).toFixed(2)
@@ -375,7 +393,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col justify-between">
+    <div className="min-h-screen flex flex-col justify-between bg-[#0b0914] text-[#f3f4f6]">
       <header className="border-b border-gray-800 bg-[#0d0b1a] px-6 py-4 flex items-center justify-between">
         <div className="flex items-center space-x-3">
           <span className="text-2xl font-bold bg-gradient-to-r from-violet-400 to-indigo-400 bg-clip-text text-transparent">
@@ -420,7 +438,6 @@ export default function App() {
         
         {account && chainId === ARC_CHAIN_ID && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            {/* Sizin Token Kartı 1 */}
             <div className="p-4 rounded-2xl bg-gradient-to-r from-indigo-950 to-[#121024] border border-violet-800 flex justify-between items-center">
               <div>
                 <span className="text-xs font-semibold uppercase tracking-wider text-violet-400">Deployed Contract</span>
@@ -433,12 +450,11 @@ export default function App() {
               </div>
             </div>
 
-            {/* Sizin Token Kartı 2 (anaraydinli AAA) */}
             <div className="p-4 rounded-2xl bg-gradient-to-r from-indigo-950 to-[#121024] border border-violet-800 flex justify-between items-center">
               <div>
                 <span className="text-xs font-semibold uppercase tracking-wider text-violet-400">anaraydinli Utility</span>
                 <h3 className="text-lg font-bold text-white mt-1">🚀 {tokens.AAA.name}</h3>
-                <p className="text-[10px] text-gray-500 mt-0.5">Volatile Asset • Price: ${TOKEN_PRICES.AAA.toFixed(2)}</p>
+                <p className="text-[10px] text-gray-500 mt-0.5">Volatile Asset • Price: $5.40</p>
               </div>
               <div className="text-right">
                 <span className="text-xs text-gray-400 font-medium">Balance</span>
@@ -458,17 +474,17 @@ export default function App() {
             <p className="text-lg font-bold text-white">$3,109,425</p>
           </div>
           <div className="bg-[#121024] p-4 rounded-2xl border border-gray-800 text-center">
-            <p className="text-xs text-gray-400 mb-1">USDS/USDC Pool APR</p>
-            <p className="text-lg font-bold text-emerald-400">8.40%</p>
+            <p className="text-xs text-gray-400 mb-1">Pool Reserves (USDC)</p>
+            <p className="text-lg font-bold text-emerald-400">{poolReserves.USDC} USDC</p>
           </div>
           <div className="bg-[#121024] p-4 rounded-2xl border border-gray-800 text-center">
-            <p className="text-xs text-gray-400 mb-1">Network Native Gas</p>
-            <p className="text-lg font-bold text-indigo-300">USDC (6 Decimals)</p>
+            <p className="text-xs text-gray-400 mb-1">Pool Reserves (AAA)</p>
+            <p className="text-lg font-bold text-indigo-300">{poolReserves.AAA} {tokens.MYTOKEN.symbol}</p>
           </div>
         </div>
 
-        <div className="flex space-x-1 bg-[#100e1f] p-1 rounded-xl mb-6 max-w-md mx-auto border border-gray-800">
-          {["swap", "mint", "pool", "faucet"].map((tab) => (
+        <div className="flex space-x-1 bg-[#100e1f] p-1 rounded-xl mb-6 max-w-xs mx-auto border border-gray-800">
+          {["swap", "pool", "faucet"].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -564,28 +580,26 @@ export default function App() {
                 <div className="flex justify-between">
                   <span>Exchange Rate:</span>
                   <span className="text-white">
-                    1 {tokens[fromToken].symbol} ≈ {((TOKEN_PRICES[fromToken] || 1.0) / (TOKEN_PRICES[toToken] || 1.0)).toFixed(4)} {tokens[toToken].symbol}
+                    1 {tokens[fromToken].symbol} ≈ {TOKEN_PRICES[fromToken] && TOKEN_PRICES[toToken] ? (TOKEN_PRICES[fromToken] / TOKEN_PRICES[toToken]).toFixed(4) : "0.999"} {tokens[toToken].symbol}
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span>Price Slippage:</span>
-                  <span className={TOKEN_PRICES[fromToken] === 1 && TOKEN_PRICES[toToken] === 1 ? "text-emerald-400 font-medium" : "text-violet-400 font-medium"}>
-                    {TOKEN_PRICES[fromToken] === 1 && TOKEN_PRICES[toToken] === 1 ? "0.00% (Locked Peg)" : "Dynamic vAMM"}
-                  </span>
+                  <span className="text-violet-400 font-medium">Dynamic vAMM (Uniswap V2)</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Swap Fee (0.1%):</span>
-                  <span className="text-white">{amountIn ? (parseFloat(amountIn) * 0.001).toFixed(4) : "0.00"} {tokens[fromToken].symbol}</span>
+                  <span>Swap Fee (0.3%):</span>
+                  <span className="text-white">{amountIn ? (parseFloat(amountIn) * 0.003).toFixed(4) : "0.00"} {tokens[fromToken].symbol}</span>
                 </div>
               </div>
 
               {account ? (
                 <button 
                   onClick={() => handleAction("swap")}
-                  disabled={!amountIn}
+                  disabled={!amountIn || txLoading}
                   className="w-full py-4 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 font-bold transition shadow-lg text-white disabled:opacity-50"
                 >
-                  Swap Varlıklar
+                  {txLoading ? "İşlem Gönderiliyor..." : "Swap Varlıklar"}
                 </button>
               ) : (
                 <button 
@@ -598,91 +612,59 @@ export default function App() {
             </div>
           )}
 
-          {activeTab === "mint" && (
+          {activeTab === "pool" && (
             <div>
-              <h2 className="text-xl font-bold mb-4">Mint & Redeem USDS</h2>
+              <h2 className="text-xl font-bold mb-4">Liquidity Provision</h2>
               <p className="text-sm text-gray-400 mb-6">
-                Mevcut stablecoinlerinizi (USDC, USDT, DAI) kilitleyerek 1:1 oranında ekosistemin ana stabil kripto parası <strong>USDS</strong> basabilir veya geri dönüştürebilirsiniz.
+                Havuzunuza doğrudan on-chain likidite ekleyin ve işlem ücretlerinden pay kazanın.
               </p>
 
               <div className="space-y-4 mb-6">
                 <div className="bg-[#1a1738] p-4 rounded-2xl border border-gray-800">
-                  <label className="block text-xs text-gray-400 mb-2">Mint USDS (Lock USDC)</label>
-                  <div className="flex items-center space-x-2">
-                    <input 
-                      type="number" 
-                      placeholder="USDC Amount" 
-                      className="bg-transparent text-xl font-bold focus:outline-none w-full text-white"
-                    />
-                    <button 
-                      onClick={() => handleAction("mint")}
-                      className="bg-violet-600 hover:bg-violet-500 px-4 py-2 rounded-xl text-sm font-semibold transition text-white"
-                    >
-                      Mint
-                    </button>
+                  <div className="flex justify-between text-xs text-gray-400 mb-2">
+                    <span>Add USDC</span>
+                    <span>Balance: {balances.USDC}</span>
                   </div>
+                  <input 
+                    type="number" 
+                    placeholder="USDC Miktarı" 
+                    value={lpUSDC}
+                    onChange={(e) => setLpUSDC(e.target.value)}
+                    className="bg-transparent text-xl font-bold focus:outline-none w-full text-white"
+                  />
                 </div>
 
                 <div className="bg-[#1a1738] p-4 rounded-2xl border border-gray-800">
-                  <label className="block text-xs text-gray-400 mb-2">Redeem USDS (Claim USDC)</label>
-                  <div className="flex items-center space-x-2">
-                    <input 
-                      type="number" 
-                      placeholder="USDS Amount" 
-                      className="bg-transparent text-xl font-bold focus:outline-none w-full text-white"
-                    />
-                    <button 
-                      onClick={() => handleAction("redeem")}
-                      className="bg-indigo-600 hover:bg-indigo-500 px-4 py-2 rounded-xl text-sm font-semibold transition text-white"
-                    >
-                      Redeem
-                    </button>
+                  <div className="flex justify-between text-xs text-gray-400 mb-2">
+                    <span>Add {tokens.MYTOKEN.symbol} (AAA)</span>
+                    <span>Balance: {balances.MYTOKEN}</span>
                   </div>
+                  <input 
+                    type="number" 
+                    placeholder={`${tokens.MYTOKEN.symbol} Miktarı`}
+                    value={lpAAA}
+                    onChange={(e) => setLpAAA(e.target.value)}
+                    className="bg-transparent text-xl font-bold focus:outline-none w-full text-white"
+                  />
                 </div>
               </div>
-            </div>
-          )}
 
-          {activeTab === "pool" && (
-            <div>
-              <h2 className="text-xl font-bold mb-4">Liquidity Pools</h2>
-              <p className="text-sm text-gray-400 mb-6">
-                Bölümlere likidite sağlayarak işlem ücretlerinden sürdürülebilir bir gelir elde edin.
-              </p>
-
-              <div className="space-y-4">
-                <div className="bg-[#1a1738] p-4 rounded-2xl border border-gray-800 flex justify-between items-center">
-                  <div>
-                    <div className="flex items-center space-x-2">
-                      <span className="text-lg">💵 🌀</span>
-                      <span className="font-bold">USDC / USDS</span>
-                    </div>
-                    <span className="text-xs text-gray-400">TVL: $12.3M | APR: 8.4%</span>
-                  </div>
-                  <button 
-                    onClick={() => handleAction("add_lp")}
-                    className="bg-violet-900 hover:bg-violet-800 px-3.5 py-1.5 rounded-xl text-sm font-semibold transition text-white"
-                  >
-                    Add Liquidity
-                  </button>
-                </div>
-
-                <div className="bg-[#1a1738] p-4 rounded-2xl border border-gray-800 flex justify-between items-center">
-                  <div>
-                    <div className="flex items-center space-x-2">
-                      <span className="text-lg">🟢 🌀</span>
-                      <span className="font-bold">USDT / USDS</span>
-                    </div>
-                    <span className="text-xs text-gray-400">TVL: $9.5M | APR: 9.1%</span>
-                  </div>
-                  <button 
-                    onClick={() => handleAction("add_lp")}
-                    className="bg-violet-900 hover:bg-violet-800 px-3.5 py-1.5 rounded-xl text-sm font-semibold transition text-white"
-                  >
-                    Add Liquidity
-                  </button>
-                </div>
-              </div>
+              {account ? (
+                <button 
+                  onClick={() => handleAction("add_lp")}
+                  disabled={txLoading}
+                  className="w-full py-4 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 font-bold text-white transition shadow-lg disabled:opacity-50"
+                >
+                  {txLoading ? "İşlem Gönderiliyor..." : "Likidite Ekle (Add Liquidity)"}
+                </button>
+              ) : (
+                <button 
+                  onClick={connectWallet}
+                  className="w-full py-4 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 font-bold text-white transition"
+                >
+                  Connect Wallet
+                </button>
+              )}
             </div>
           )}
 
@@ -699,7 +681,6 @@ export default function App() {
                   <div className="flex justify-between"><span>💵 10,000 USDC</span><span className="text-emerald-400 font-medium">Ready</span></div>
                   <div className="flex justify-between"><span>💶 10,000 EURC</span><span className="text-emerald-400 font-medium">Ready</span></div>
                   <div className="flex justify-between"><span>₿ 1.5 cirBTC</span><span className="text-emerald-400 font-medium">Ready</span></div>
-                  <div className="flex justify-between"><span>🚀 250 {tokens.AAA.symbol}</span><span className="text-emerald-400 font-medium">Ready</span></div>
                   <div className="flex justify-between"><span>⭐ 500 {tokens.MYTOKEN.symbol}</span><span className="text-emerald-400 font-medium">Ready</span></div>
                   <div className="flex justify-between"><span>🟢 10,000 USDT</span><span className="text-emerald-400 font-medium">Ready</span></div>
                   <div className="flex justify-between"><span>🟡 10,000 DAI</span><span className="text-emerald-400 font-medium">Ready</span></div>
@@ -724,3 +705,15 @@ export default function App() {
     </div>
   );
 }
+
+// Statik veya dinamik kur oranları (Fallbacks için)
+const TOKEN_PRICES = {
+  USDC: 1.00,
+  EURC: 1.08,
+  cirBTC: 67450.00,
+  USDS: 1.00,
+  AAA: 5.40,
+  MYTOKEN: 5.40, // anaraydinli AAA ile eslendi
+  USDT: 1.00,
+  DAI: 1.00
+};
