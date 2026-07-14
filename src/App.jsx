@@ -107,7 +107,7 @@ export default function App() {
       setBalances(prev => ({
         ...prev,
         USDC: parseFloat(formattedUsdc).toFixed(2),
-        USDZ: (Math.random() * 500 + 100).toFixed(2),
+        USDS: (Math.random() * 500 + 100).toFixed(2),
         USDT: (Math.random() * 300 + 50).toFixed(2),
         DAI: (Math.random() * 1000 + 200).toFixed(2)
       }));
@@ -206,7 +206,7 @@ export default function App() {
             <p className="text-lg font-bold text-white">$3,109,425</p>
           </div>
           <div className="bg-[#121024] p-4 rounded-2xl border border-gray-800 text-center">
-            <p className="text-xs text-gray-400 mb-1">USDZ/USDC Pool APR</p>
+            <p className="text-xs text-gray-400 mb-1">USDS/USDC Pool APR</p>
             <p className="text-lg font-bold text-emerald-400">8.40%</p>
           </div>
           <div className="bg-[#121024] p-4 rounded-2xl border border-gray-800 text-center">
