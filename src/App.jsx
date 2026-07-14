@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
 
@@ -14,17 +15,18 @@ const ARC_CIRBTC_ADDRESS = "0xf0C4a4CE82A5746AbAAd9425360Ab04fbBA432BF";
 // Sizin Deploy Ettiğiniz Sözleşme Adresi (1300+ Holders)
 const USER_CUSTOM_TOKEN_ADDRESS = "0x54552f2EC52423D2fBE94c25f0BAd61b9108AAE8";
 
-// Aktif Olan Sakasena Havuz Adresiniz (Vercel veya .env'den dinamik çekilir)
-const SAKASENA_POOL_ADDRESS = import.meta.env.VITE_SAKASENA_POOL_ADDRESS || "0xbE0f19F85A5cD1Cac56E6f31c85f6cAe805e56C3";
+// Havuz Sözleşme Adresleri (Dinamik Yönlendirme İçin)
+const SAKASENA_USDC_POOL_ADDRESS = import.meta.env.VITE_SAKASENA_USDC_POOL_ADDRESS || "0xbE0f19F85A5cD1Cac56E6f31c85f6cAe805e56C3";
+const SAKASENA_EURC_POOL_ADDRESS = import.meta.env.VITE_SAKASENA_EURC_POOL_ADDRESS || "0xbbc6cD33291eDfE9e4e927129901Db0e58Ba705B";
 
-// JavaScript Temporal Dead Zone hatasını önlemek için en üstte tanımlanan Kur Oranları
+// Kur Oranları
 const TOKEN_PRICES = {
   USDC: 1.00,
   EURC: 1.08,
   cirBTC: 67450.00,
   USDS: 1.00,
   AAA: 5.40,
-  MYTOKEN: 5.40, // anaraydinli AAA ile eşlendi
+  MYTOKEN: 5.40, 
   USDT: 1.00,
   DAI: 1.00
 };
@@ -63,6 +65,20 @@ const getSignerInstance = async (providerInstance) => {
 
 const isLessThan = (a, b) => {
   return BigInt(a.toString()) < BigInt(b.toString());
+};
+
+// Dinamik Havuz Yönlendirici Yardımcı Fonksiyonu
+const getPoolAddress = (token1, token2) => {
+  const t1 = token1.toLowerCase();
+  const t2 = token2.toLowerCase();
+  
+  const isUSDC = t1 === "usdc" || t2 === "usdc";
+  const isEURC = t1 === "eurc" || t2 === "eurc";
+  
+  if (isUSDC) return SAKASENA_USDC_POOL_ADDRESS;
+  if (isEURC) return SAKASENA_EURC_POOL_ADDRESS;
+  
+  return ZERO_ADDRESS;
 };
 
 // Başlangıç Token Listesi
@@ -131,7 +147,7 @@ export default function App() {
   // Liquidity Pool Form States
   const [lpUSDC, setLpUSDC] = useState("");
   const [lpAAA, setLpAAA] = useState("");
-  const [poolReserves, setPoolReserves] = useState({ USDC: "0.00", AAA: "0.00", totalShares: "0" });
+  const [poolReserves, setPoolReserves] = useState({ stableAmount: "0.00", aaaAmount: "0.00", stableSymbol: "USDC", totalShares: "0" });
 
   const [spPoints, setSpPoints] = useState(1250);
   const [faucetLoading, setFaucetLoading] = useState(false);
@@ -165,9 +181,9 @@ export default function App() {
       };
       loadAllData();
     }
-  }, [account, chainId, provider]);
+  }, [account, chainId, provider, fromToken, toToken]); // Token değişiminde rezervleri güncelle
 
-  // Dinamik Fiyatlama ve Swap Çıktısı Hesaplama
+  // Dinamik Fiyatlama Hesaplama (Yönlendirilen Havuza Göre)
   useEffect(() => {
     const calculateSwapOutput = async () => {
       if (!amountIn || isNaN(amountIn) || parseFloat(amountIn) <= 0) {
@@ -176,9 +192,15 @@ export default function App() {
       }
       if (!provider || chainId !== ARC_CHAIN_ID) return;
 
+      const activePool = getPoolAddress(fromToken, toToken);
+      if (activePool === ZERO_ADDRESS) {
+        setAmountOut("Havuz Bulunamadı");
+        return;
+      }
+
       try {
         const poolABI = ["function getAmountOut(address tokenIn, uint256 amountIn) view returns (uint256)"];
-        const poolContract = new ethers.Contract(SAKASENA_POOL_ADDRESS, poolABI, provider);
+        const poolContract = new ethers.Contract(activePool, poolABI, provider);
         const tokenInAddress = tokens[fromToken].address;
 
         if (tokenInAddress && tokenInAddress !== ZERO_ADDRESS) { 
@@ -190,7 +212,7 @@ export default function App() {
           setAmountOut((parseFloat(amountIn) * 0.997).toFixed(4));
         }
       } catch (err) {
-        console.warn("Fiyat hesaplanamadı (Havuzda likidite yetersiz olabilir):", err);
+        console.warn("Fiyat hesaplanamadı:", err);
         setAmountOut("Likidite Yetersiz");
       }
     };
@@ -298,9 +320,12 @@ export default function App() {
     }
   };
 
-  // Dinamik Havuz Rezerv Sorgulayıcı (Generic reserveA/B ve reserveUSDC/AAA uyumluluğu)
+  // Dinamik Rezerv Sorgulayıcı (Seçili Çifte Göre USDC veya EURC havuzunu çeker)
   const fetchPoolReserves = async () => {
-    if (!provider || SAKASENA_POOL_ADDRESS === ZERO_ADDRESS) return;
+    if (!provider) return;
+    const activePool = getPoolAddress(fromToken, toToken);
+    if (activePool === ZERO_ADDRESS) return;
+
     try {
       const genericABI = [
         "function tokenA() view returns (address)",
@@ -309,9 +334,8 @@ export default function App() {
         "function reserveB() view returns (uint256)",
         "function totalShares() view returns (uint256)"
       ];
-      const contract = new ethers.Contract(SAKASENA_POOL_ADDRESS, genericABI, provider);
+      const contract = new ethers.Contract(activePool, genericABI, provider);
       
-      // On-chain generic rezerv verilerini alıyoruz
       const [tA, tB, resA, resB, shares] = await Promise.all([
         contract.tokenA(),
         contract.tokenB(),
@@ -329,20 +353,25 @@ export default function App() {
       const formattedResA = parseFloat(formatUnits(resA, decimalsA)).toFixed(2);
       const formattedResB = parseFloat(formatUnits(resB, decimalsB)).toFixed(2);
 
+      const stableSymbol = (isAEURC || isAUSDC) 
+        ? (isAEURC ? "EURC" : "USDC") 
+        : (tB.toLowerCase() === ARC_EURC_ADDRESS.toLowerCase() ? "EURC" : "USDC");
+
       setPoolReserves({
-        USDC: (isAEURC || isAUSDC) ? formattedResA : formattedResB, // Stablecoin rezervi (EURC / USDC)
-        AAA: (isAEURC || isAUSDC) ? formattedResB : formattedResA,  // AAA rezervi
+        stableAmount: (isAEURC || isAUSDC) ? formattedResA : formattedResB,
+        aaaAmount: (isAEURC || isAUSDC) ? formattedResB : formattedResA,
+        stableSymbol: stableSymbol,
         totalShares: shares.toString()
       });
     } catch (err) {
-      // Eğer generic havuz değilse, eski USDC/AAA havuz rezerv sorgulama metoduna geri dönülür (Fallback)
+      // Legacy Fallback (Eski USDC havuz yapısı için)
       try {
         const oldABI = [
           "function reserveUSDC() view returns (uint256)",
           "function reserveAAA() view returns (uint256)",
           "function totalShares() view returns (uint256)"
         ];
-        const oldContract = new ethers.Contract(SAKASENA_POOL_ADDRESS, oldABI, provider);
+        const oldContract = new ethers.Contract(activePool, oldABI, provider);
         const [resUSDC, resAAA, shares] = await Promise.all([
           oldContract.reserveUSDC(),
           oldContract.reserveAAA(),
@@ -350,8 +379,9 @@ export default function App() {
         ]);
 
         setPoolReserves({
-          USDC: parseFloat(formatUnits(resUSDC, 6)).toFixed(2),
-          AAA: parseFloat(formatUnits(resAAA, 18)).toFixed(2),
+          stableAmount: parseFloat(formatUnits(resUSDC, 6)).toFixed(2),
+          aaaAmount: parseFloat(formatUnits(resAAA, 18)).toFixed(2),
+          stableSymbol: "USDC",
           totalShares: shares.toString()
         });
       } catch (oldErr) {
@@ -366,8 +396,9 @@ export default function App() {
       return;
     }
 
-    if (!SAKASENA_POOL_ADDRESS || SAKASENA_POOL_ADDRESS === ZERO_ADDRESS) {
-      alert("Havuz sözleşme adresi tanımlı değil.");
+    const activePool = getPoolAddress(fromToken, toToken);
+    if (activePool === ZERO_ADDRESS) {
+      alert("Takas için geçerli havuz adresi bulunamadı.");
       return;
     }
 
@@ -385,17 +416,17 @@ export default function App() {
           "function approve(address spender, uint256 amount) returns (bool)"
         ];
         const tokenInContract = new ethers.Contract(tokenInObj.address, erc20ABI, signer);
-        const currentAllowance = await tokenInContract.allowance(account, SAKASENA_POOL_ADDRESS);
+        const currentAllowance = await tokenInContract.allowance(account, activePool);
         
         if (isLessThan(currentAllowance, amountInParsed)) { 
           alert(`Lütfen önce ${tokenInObj.symbol} harcama yetkisini (Approve) onaylayın.`);
-          const approveTx = await tokenInContract.approve(SAKASENA_POOL_ADDRESS, amountInParsed);
+          const approveTx = await tokenInContract.approve(activePool, amountInParsed);
           await approveTx.wait();
         }
 
         // 2. Havuz Üzerinden Swap Çağrısı
         const poolABI = ["function swap(address tokenIn, uint256 amountIn) external returns (uint256)"];
-        const poolContract = new ethers.Contract(SAKASENA_POOL_ADDRESS, poolABI, signer);
+        const poolContract = new ethers.Contract(activePool, poolABI, signer);
         
         const swapTx = await poolContract.swap(tokenInObj.address, amountInParsed);
         alert(`Swap işlemi gönderildi! Tx: ${swapTx.hash}`);
@@ -414,10 +445,10 @@ export default function App() {
           return;
         }
 
-        const stableTokenAddress = tokens[fromToken].decimals === 6 ? tokens[fromToken].address : tokens[toToken].address;
-        const stableDecimals = 6;
+        const stableSymbol = fromToken === "USDC" || toToken === "USDC" ? "USDC" : "EURC";
+        const stableTokenAddress = stableSymbol === "USDC" ? ARC_USDC_ADDRESS : ARC_EURC_ADDRESS;
 
-        const usdcParsed = parseUnits(lpUSDC, stableDecimals);
+        const usdcParsed = parseUnits(lpUSDC, 6);
         const aaaParsed = parseUnits(lpAAA, 18);
 
         const erc20ABI = [
@@ -428,26 +459,26 @@ export default function App() {
         const aaaContract = new ethers.Contract(USER_CUSTOM_TOKEN_ADDRESS, erc20ABI, signer);
 
         // Stablecoin Approve Kontrolü
-        const allowanceUSDC = await stableContract.allowance(account, SAKASENA_POOL_ADDRESS);
+        const allowanceUSDC = await stableContract.allowance(account, activePool);
         if (isLessThan(allowanceUSDC, usdcParsed)) {
-          alert("Lütfen Stablecoin harcama yetkisini onaylayın.");
-          const txApp = await stableContract.approve(SAKASENA_POOL_ADDRESS, usdcParsed);
+          alert(`Lütfen ${stableSymbol} harcama yetkisini onaylayın.`);
+          const txApp = await stableContract.approve(activePool, usdcParsed);
           await txApp.wait();
         }
 
         // AAA Approve Kontrolü
-        const allowanceAAA = await aaaContract.allowance(account, SAKASENA_POOL_ADDRESS);
+        const allowanceAAA = await aaaContract.allowance(account, activePool);
         if (isLessThan(allowanceAAA, aaaParsed)) {
           alert(`Lütfen ${tokens.MYTOKEN.symbol} harcama yetkisini onaylayın.`);
-          const txApp = await aaaContract.approve(SAKASENA_POOL_ADDRESS, aaaParsed);
+          const txApp = await aaaContract.approve(activePool, aaaParsed);
           await txApp.wait();
         }
 
-        // Havuza Likidite Ekleme Çağrısı (Generic parameter sorting)
-        const poolContract = new ethers.Contract(SAKASENA_POOL_ADDRESS, [
+        // Havuza Likidite Ekleme Çağrısı (Dinamik parametre sıralama)
+        const poolContract = new ethers.Contract(activePool, [
           "function tokenA() view returns (address)",
           "function addLiquidity(uint256 amountA, uint256 amountB) external returns (uint256)",
-          "function addLiquidity(uint256 amountUSDC, uint256 amountAAA) external returns (uint256)" // Fallback
+          "function addLiquidity(uint256 amountUSDC, uint256 amountAAA) external returns (uint256)" // Legacy fallback
         ], signer);
 
         let lpTx;
@@ -456,14 +487,11 @@ export default function App() {
           const isTAStable = tA.toLowerCase() === ARC_EURC_ADDRESS.toLowerCase() || tA.toLowerCase() === ARC_USDC_ADDRESS.toLowerCase();
           
           if (isTAStable) {
-            // tokenA stablecoin, tokenB AAA
             lpTx = await poolContract.addLiquidity(usdcParsed, aaaParsed);
           } else {
-            // tokenA AAA, tokenB stablecoin
             lpTx = await poolContract.addLiquidity(aaaParsed, usdcParsed);
           }
         } catch (err) {
-          // Fallback legacy method
           lpTx = await poolContract.addLiquidity(usdcParsed, aaaParsed);
         }
         
@@ -502,6 +530,8 @@ export default function App() {
       alert("Testnet Tokenleri başarıyla tanımlandı!");
     }, 1500);
   };
+
+  const activeStableSymbol = fromToken === "USDC" || toToken === "USDC" ? "USDC" : "EURC";
 
   return (
     <div className="min-h-screen flex flex-col justify-between bg-[#0b0914] text-[#f3f4f6]">
@@ -585,12 +615,12 @@ export default function App() {
             <p className="text-lg font-bold text-white">$3,109,425</p>
           </div>
           <div className="bg-[#121024] p-4 rounded-2xl border border-gray-800 text-center">
-            <p className="text-xs text-gray-400 mb-1">Pool Reserves (Stable)</p>
-            <p className="text-lg font-bold text-emerald-400">{poolReserves.USDC} {fromToken === "USDC" ? "USDC" : "EURC"}</p>
+            <p className="text-xs text-gray-400 mb-1">Pool Reserves ({poolReserves.stableSymbol || "Stable"})</p>
+            <p className="text-lg font-bold text-emerald-400">{poolReserves.stableAmount} {poolReserves.stableSymbol}</p>
           </div>
           <div className="bg-[#121024] p-4 rounded-2xl border border-gray-800 text-center">
             <p className="text-xs text-gray-400 mb-1">Pool Reserves (AAA)</p>
-            <p className="text-lg font-bold text-indigo-300">{poolReserves.AAA} {tokens.MYTOKEN.symbol}</p>
+            <p className="text-lg font-bold text-indigo-300">{poolReserves.aaaAmount} {tokens.MYTOKEN.symbol}</p>
           </div>
         </div>
 
@@ -707,7 +737,7 @@ export default function App() {
               {account ? (
                 <button 
                   onClick={() => handleAction("swap")}
-                  disabled={!amountIn || txLoading || amountOut === "Likidite Yetersiz"}
+                  disabled={!amountIn || txLoading || amountOut === "Likidite Yetersiz" || amountOut === "Havuz Bulunamadı"}
                   className="w-full py-4 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 font-bold transition shadow-lg text-white disabled:opacity-50"
                 >
                   {txLoading ? "İşlem Gönderiliyor..." : "Swap Varlıklar"}
@@ -733,12 +763,12 @@ export default function App() {
               <div className="space-y-4 mb-6">
                 <div className="bg-[#1a1738] p-4 rounded-2xl border border-gray-800">
                   <div className="flex justify-between text-xs text-gray-400 mb-2">
-                    <span>Add {fromToken === "USDC" ? "USDC" : "EURC"}</span>
-                    <span>Balance: {balances[fromToken === "USDC" ? "USDC" : "EURC"]}</span>
+                    <span>Add {activeStableSymbol}</span>
+                    <span>Balance: {balances[activeStableSymbol]}</span>
                   </div>
                   <input 
                     type="number" 
-                    placeholder={`${fromToken === "USDC" ? "USDC" : "EURC"} Miktarı`}
+                    placeholder={`${activeStableSymbol} Miktarı`}
                     value={lpUSDC}
                     onChange={(e) => setLpUSDC(e.target.value)}
                     className="bg-transparent text-xl font-bold focus:outline-none w-full text-white"
