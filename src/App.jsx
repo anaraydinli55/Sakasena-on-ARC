@@ -29,6 +29,43 @@ const TOKEN_PRICES = {
   DAI: 1.00
 };
 
+// ETHERS V5 VE V6 ÇİFT SÜRÜM UYUMLULUK KATMANI (COKME ENGELLER)
+const isV6 = typeof ethers.BrowserProvider !== 'undefined';
+
+const getProviderInstance = () => {
+  if (typeof window === 'undefined' || !window.ethereum) return null;
+  return isV6 
+    ? new ethers.BrowserProvider(window.ethereum) 
+    : new ethers.providers.Web3Provider(window.ethereum);
+};
+
+const ZERO_ADDRESS = isV6 
+  ? ethers.ZeroAddress 
+  : (ethers.constants ? ethers.constants.AddressZero : "0x0000000000000000000000000000000000000000");
+
+const formatUnits = (value, decimals) => {
+  return isV6 
+    ? ethers.formatUnits(value, decimals) 
+    : ethers.utils.formatUnits(value, decimals);
+};
+
+const parseUnits = (value, decimals) => {
+  return isV6 
+    ? ethers.parseUnits(value, decimals) 
+    : ethers.utils.parseUnits(value, decimals);
+};
+
+const getSignerInstance = async (providerInstance) => {
+  return isV6 
+    ? await providerInstance.getSigner() 
+    : providerInstance.getSigner();
+};
+
+const isLessThan = (a, b) => {
+  // BigInt dönüşümü hem v5 BigNumber'ı hem v6 BigInt'i sorunsuz karşılaştırır
+  return BigInt(a.toString()) < BigInt(b.toString());
+};
+
 // Başlangıç Token Listesi
 const INITIAL_TOKENS = {
   USDC: { 
@@ -59,6 +96,13 @@ const INITIAL_TOKENS = {
     icon: "🌀",
     address: import.meta.env.VITE_USDS_ADDRESS || "0x0000000000000000000000000000000000000000" 
   },
+  AAA: {
+    symbol: "AAA",
+    name: "anaraydinli AAA Token",
+    decimals: 18,
+    icon: "🚀",
+    address: import.meta.env.VITE_AAA_ADDRESS || "0x0000000000000000000000000000000000000000"
+  },
   MYTOKEN: {
     symbol: "Loading...",
     name: "Your Deployed Token",
@@ -77,7 +121,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState("swap"); // swap, pool, faucet
   
   const [tokens, setTokens] = useState(INITIAL_TOKENS);
-  const [balances, setBalances] = useState({ USDC: "0.00", EURC: "0.00", cirBTC: "0.0000", USDS: "0.00", MYTOKEN: "0.00", USDT: "0.00", DAI: "0.00" });
+  const [balances, setBalances] = useState({ USDC: "0.00", EURC: "0.00", cirBTC: "0.0000", USDS: "0.00", AAA: "0.00", MYTOKEN: "0.00", USDT: "0.00", DAI: "0.00" });
   
   // Swap Form States
   const [fromToken, setFromToken] = useState("USDC");
@@ -96,8 +140,7 @@ export default function App() {
 
   useEffect(() => {
     if (window.ethereum) {
-      // ETHERS V6: Web3Provider yerine BrowserProvider kullanılmaktadır
-      const web3Provider = new ethers.BrowserProvider(window.ethereum);
+      const web3Provider = getProviderInstance();
       setProvider(web3Provider);
       
       window.ethereum.request({ method: 'eth_chainId' })
@@ -125,7 +168,7 @@ export default function App() {
     }
   }, [account, chainId, provider]);
 
-  // ETHERS V6: Dinamik Fiyatlama ve Swap Çıktısı Hesaplama
+  // Dinamik Fiyatlama ve Swap Çıktısı Hesaplama
   useEffect(() => {
     const calculateSwapOutput = async () => {
       if (!amountIn || isNaN(amountIn) || parseFloat(amountIn) <= 0) {
@@ -139,10 +182,10 @@ export default function App() {
         const poolContract = new ethers.Contract(SAKASENA_POOL_ADDRESS, poolABI, provider);
         const tokenInAddress = tokens[fromToken].address;
 
-        if (tokenInAddress && tokenInAddress !== ethers.ZeroAddress) { // Ethers v6: ZeroAddress
-          const amountInParsed = ethers.parseUnits(amountIn, tokens[fromToken].decimals); // Ethers v6: utils yok
+        if (tokenInAddress && tokenInAddress !== ZERO_ADDRESS) { 
+          const amountInParsed = parseUnits(amountIn, tokens[fromToken].decimals); 
           const rawAmountOut = await poolContract.getAmountOut(tokenInAddress, amountInParsed);
-          const formattedAmountOut = ethers.formatUnits(rawAmountOut, tokens[toToken].decimals); // Ethers v6: utils yok
+          const formattedAmountOut = formatUnits(rawAmountOut, tokens[toToken].decimals); 
           setAmountOut(parseFloat(formattedAmountOut).toFixed(tokens[toToken].decimals === 8 ? 6 : 4));
         } else {
           setAmountOut((parseFloat(amountIn) * 0.997).toFixed(4));
@@ -227,7 +270,6 @@ export default function App() {
     }
   };
 
-  // ETHERS V6: Bakiye sorgulama
   const fetchBalances = async () => {
     if (!provider || !account) return;
     try {
@@ -236,11 +278,11 @@ export default function App() {
 
       for (const key of Object.keys(tokens)) {
         const token = tokens[key];
-        if (token.address && token.address !== ethers.ZeroAddress) { // Ethers v6: ZeroAddress
+        if (token.address && token.address !== ZERO_ADDRESS) { 
           try {
             const contract = new ethers.Contract(token.address, minABI, provider);
             const raw = await contract.balanceOf(account);
-            const formatted = parseFloat(ethers.formatUnits(raw, token.decimals)); // Ethers v6: formatUnits
+            const formatted = parseFloat(formatUnits(raw, token.decimals)); 
             const decimalsToShow = token.symbol === "cirBTC" ? 4 : 2;
             newBalances[key] = formatted.toFixed(decimalsToShow);
           } catch (err) {
@@ -257,9 +299,8 @@ export default function App() {
     }
   };
 
-  // ETHERS V6: Havuz Rezervlerini On-Chain Sorgulama
   const fetchPoolReserves = async () => {
-    if (!provider || SAKASENA_POOL_ADDRESS === ethers.ZeroAddress) return;
+    if (!provider || SAKASENA_POOL_ADDRESS === ZERO_ADDRESS) return;
     try {
       const poolABI = [
         "function reserveUSDC() view returns (uint256)",
@@ -274,8 +315,8 @@ export default function App() {
       ]);
 
       setPoolReserves({
-        USDC: parseFloat(ethers.formatUnits(resUSDC, 6)).toFixed(2), // Ethers v6
-        AAA: parseFloat(ethers.formatUnits(resAAA, 18)).toFixed(2),  // Ethers v6
+        USDC: parseFloat(formatUnits(resUSDC, 6)).toFixed(2), 
+        AAA: parseFloat(formatUnits(resAAA, 18)).toFixed(2),  
         totalShares: shares.toString()
       });
     } catch (err) {
@@ -283,26 +324,24 @@ export default function App() {
     }
   };
 
-  // ETHERS V6: GERÇEK ZİNCİR ÜSTÜ İŞLEMLER (SWAP & ADD LIQUIDITY)
   const handleAction = async (type) => {
     if (chainId !== ARC_CHAIN_ID) {
       await checkAndSwitchNetwork();
       return;
     }
 
-    if (!SAKASENA_POOL_ADDRESS || SAKASENA_POOL_ADDRESS === ethers.ZeroAddress) {
+    if (!SAKASENA_POOL_ADDRESS || SAKASENA_POOL_ADDRESS === ZERO_ADDRESS) {
       alert("Havuz sözleşme adresi tanımlı değil.");
       return;
     }
 
     setTxLoading(true);
     try {
-      // ETHERS V6: getSigner artık asenkrondur ve await ile çağrılmalıdır
-      const signer = await provider.getSigner(); 
+      const signer = await getSignerInstance(provider); 
 
       if (type === "swap") {
         const tokenInObj = tokens[fromToken];
-        const amountInParsed = ethers.parseUnits(amountIn, tokenInObj.decimals); // Ethers v6
+        const amountInParsed = parseUnits(amountIn, tokenInObj.decimals); 
 
         // 1. ERC-20 Approve Kontrolü ve Yetkilendirme
         const erc20ABI = [
@@ -312,8 +351,7 @@ export default function App() {
         const tokenInContract = new ethers.Contract(tokenInObj.address, erc20ABI, signer);
         const currentAllowance = await tokenInContract.allowance(account, SAKASENA_POOL_ADDRESS);
         
-        // ETHERS V6: Yerel BigInt kullanıldığı için .lt() yerine doğrudan < ve > operatörleri kullanılır
-        if (currentAllowance < amountInParsed) { 
+        if (isLessThan(currentAllowance, amountInParsed)) { 
           alert(`Lütfen önce ${tokenInObj.symbol} harcama yetkisini (Approve) onaylayın.`);
           const approveTx = await tokenInContract.approve(SAKASENA_POOL_ADDRESS, amountInParsed);
           await approveTx.wait();
@@ -340,8 +378,8 @@ export default function App() {
           return;
         }
 
-        const usdcParsed = ethers.parseUnits(lpUSDC, 6);
-        const aaaParsed = ethers.parseUnits(lpAAA, 18);
+        const usdcParsed = parseUnits(lpUSDC, 6);
+        const aaaParsed = parseUnits(lpAAA, 18);
 
         const erc20ABI = [
           "function allowance(address owner, address spender) view returns (uint256)",
@@ -350,23 +388,20 @@ export default function App() {
         const usdcContract = new ethers.Contract(ARC_USDC_ADDRESS, erc20ABI, signer);
         const aaaContract = new ethers.Contract(USER_CUSTOM_TOKEN_ADDRESS, erc20ABI, signer);
 
-        // USDC Approve Kontrolü (Ethers v6 BigInt karşılaştırma)
         const allowanceUSDC = await usdcContract.allowance(account, SAKASENA_POOL_ADDRESS);
-        if (allowanceUSDC < usdcParsed) {
+        if (isLessThan(allowanceUSDC, usdcParsed)) {
           alert("Lütfen USDC harcama yetkisini onaylayın.");
           const txApp = await usdcContract.approve(SAKASENA_POOL_ADDRESS, usdcParsed);
           await txApp.wait();
         }
 
-        // AAA Approve Kontrolü (Ethers v6 BigInt karşılaştırma)
         const allowanceAAA = await aaaContract.allowance(account, SAKASENA_POOL_ADDRESS);
-        if (allowanceAAA < aaaParsed) {
+        if (isLessThan(allowanceAAA, aaaParsed)) {
           alert(`Lütfen ${tokens.MYTOKEN.symbol} harcama yetkisini onaylayın.`);
           const txApp = await aaaContract.approve(SAKASENA_POOL_ADDRESS, aaaParsed);
           await txApp.wait();
         }
 
-        // Havuza Likidite Ekleme Çağrısı
         const poolABI = ["function addLiquidity(uint256 amountUSDC, uint256 amountAAA) external returns (uint256)"];
         const poolContract = new ethers.Contract(SAKASENA_POOL_ADDRESS, poolABI, signer);
         
@@ -408,7 +443,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col justify-between">
+    <div className="min-h-screen flex flex-col justify-between bg-[#0b0914] text-[#f3f4f6]">
       <header className="border-b border-gray-800 bg-[#0d0b1a] px-6 py-4 flex items-center justify-between">
         <div className="flex items-center space-x-3">
           <span className="text-2xl font-bold bg-gradient-to-r from-violet-400 to-indigo-400 bg-clip-text text-transparent">
@@ -599,7 +634,7 @@ export default function App() {
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Price Slippage:</span>
+                  <span>Price Impact / Slippage:</span>
                   <span className="text-violet-400 font-medium">Dynamic vAMM (Uniswap V2)</span>
                 </div>
                 <div className="flex justify-between">
@@ -697,6 +732,7 @@ export default function App() {
                   <div className="flex justify-between"><span>💶 10,000 EURC</span><span className="text-emerald-400 font-medium">Ready</span></div>
                   <div className="flex justify-between"><span>₿ 1.5 cirBTC</span><span className="text-emerald-400 font-medium">Ready</span></div>
                   <div className="flex justify-between"><span>🚀 250 {tokens.MYTOKEN.symbol}</span><span className="text-emerald-400 font-medium">Ready</span></div>
+                  <div className="flex justify-between"><span>⭐ 500 {tokens.MYTOKEN.symbol}</span><span className="text-emerald-400 font-medium">Ready</span></div>
                   <div className="flex justify-between"><span>🟢 10,000 USDT</span><span className="text-emerald-400 font-medium">Ready</span></div>
                   <div className="flex justify-between"><span>🟡 10,000 DAI</span><span className="text-emerald-400 font-medium">Ready</span></div>
                 </div>
