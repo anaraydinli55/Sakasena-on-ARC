@@ -7,7 +7,7 @@ const ARC_RPC_URL = "https://rpc.testnet.arc.network";
 
 const TOKENS = {
   USDC: { symbol: "USDC", name: "USD Coin (Gas Token)", decimals: 6, icon: "💵" },
-  USDZ: { symbol: "USDZ", name: "Stabilizer USD", decimals: 18, icon: "🌀" },
+  USDS: { symbol: "USDS", name: "Sakasena USD", decimals: 18, icon: "🌀" },
   USDT: { symbol: "USDT", name: "Tether USD", decimals: 6, icon: "🟢" },
   DAI: { symbol: "DAI", name: "Dai Stablecoin", decimals: 18, icon: "🟡" }
 };
@@ -17,10 +17,10 @@ export default function App() {
   const [account, setAccount] = useState("");
   const [chainId, setChainId] = useState(null);
   const [activeTab, setActiveTab] = useState("swap");
-  const [balances, setBalances] = useState({ USDC: "0.00", USDZ: "0.00", USDT: "0.00", DAI: "0.00" });
+  const [balances, setBalances] = useState({ USDC: "0.00", USDS: "0.00", USDT: "0.00", DAI: "0.00" });
   
   const [fromToken, setFromToken] = useState("USDC");
-  const [toToken, setToToken] = useState("USDZ");
+  const [toToken, setToToken] = useState("USDS");
   const [amountIn, setAmountIn] = useState("");
   const [amountOut, setAmountOut] = useState("");
   const [spPoints, setSpPoints] = useState(1250);
@@ -344,14 +344,14 @@ export default function App() {
 
           {activeTab === "mint" && (
             <div>
-              <h2 className="text-xl font-bold mb-4">Mint & Redeem USDZ</h2>
+              <h2 className="text-xl font-bold mb-4">Mint & Redeem USDS</h2>
               <p className="text-sm text-gray-400 mb-6">
-                Mevcut stablecoinlerinizi (USDC, USDT, DAI) kilitleyerek 1:1 oranında ekosistemin ana stabil kripto parası <strong>USDZ</strong> basabilir veya geri dönüştürebilirsiniz.
+                Mevcut stablecoinlerinizi (USDC, USDT, DAI) kilitleyerek 1:1 oranında ekosistemin ana stabil kripto parası <strong>USDS</strong> basabilir veya geri dönüştürebilirsiniz.
               </p>
 
               <div className="space-y-4 mb-6">
                 <div className="bg-[#1a1738] p-4 rounded-2xl border border-gray-800">
-                  <label className="block text-xs text-gray-400 mb-2">Mint USDZ (Lock USDC)</label>
+                  <label className="block text-xs text-gray-400 mb-2">Mint USDS (Lock USDC)</label>
                   <div className="flex items-center space-x-2">
                     <input 
                       type="number" 
@@ -368,11 +368,11 @@ export default function App() {
                 </div>
 
                 <div className="bg-[#1a1738] p-4 rounded-2xl border border-gray-800">
-                  <label className="block text-xs text-gray-400 mb-2">Redeem USDZ (Claim USDC)</label>
+                  <label className="block text-xs text-gray-400 mb-2">Redeem USDS (Claim USDC)</label>
                   <div className="flex items-center space-x-2">
                     <input 
                       type="number" 
-                      placeholder="USDZ Amount" 
+                      placeholder="USDS Amount" 
                       className="bg-transparent text-xl font-bold focus:outline-none w-full text-white"
                     />
                     <button 
@@ -399,7 +399,7 @@ export default function App() {
                   <div>
                     <div className="flex items-center space-x-2">
                       <span className="text-lg">💵 🌀</span>
-                      <span className="font-bold">USDC / USDZ</span>
+                      <span className="font-bold">USDC / USDS</span>
                     </div>
                     <span className="text-xs text-gray-400">TVL: $12.3M | APR: 8.4%</span>
                   </div>
@@ -415,7 +415,7 @@ export default function App() {
                   <div>
                     <div className="flex items-center space-x-2">
                       <span className="text-lg">🟢 🌀</span>
-                      <span className="font-bold">USDT / USDZ</span>
+                      <span className="font-bold">USDT / USDS</span>
                     </div>
                     <span className="text-xs text-gray-400">TVL: $9.5M | APR: 9.1%</span>
                   </div>
@@ -459,7 +459,7 @@ export default function App() {
       </main>
 
       <footer className="border-t border-gray-800 bg-[#0d0b1a] px-6 py-4 text-center text-sm text-gray-500">
-        <p>© 2026 ArcStabilizer. Powered by Arc Network (Chain ID: 5042002).</p>
+        <p>© 2026 ArcSakasena. Powered by Arc Network (Chain ID: 5042002).</p>
       </footer>
     </div>
   );
