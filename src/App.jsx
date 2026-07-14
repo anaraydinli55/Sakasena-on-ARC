@@ -14,6 +14,21 @@ const ARC_CIRBTC_ADDRESS = "0xf0C4a4CE82A5746AbAAd9425360Ab04fbBA432BF";
 // Sizin Deploy Ettiğiniz Sözleşme Adresi (1300+ Holders)
 const USER_CUSTOM_TOKEN_ADDRESS = "0x54552f2EC52423D2fBE94c25f0BAd61b9108AAE8";
 
+// Vercel / .env üzerinden çekilecek Sakasena Havuz (DEX) Sözleşme Adresi
+const SAKASENA_POOL_ADDRESS = import.meta.env.VITE_SAKASENA_POOL_ADDRESS || "0x0000000000000000000000000000000000000000";
+
+// Simüle Edilmiş Piyasa Fiyatları (Volatil ve Stabil hesaplamalar için)
+const TOKEN_PRICES = {
+  USDC: 1.00,
+  EURC: 1.08,
+  cirBTC: 67450.00,  // Bitcoin fiyatı
+  USDS: 1.00,
+  AAA: 5.40,         // anaraydinli AAA volatil token fiyatı ($5.40)
+  MYTOKEN: 0.15,     // Sizin diğer tokeninizin fiyatı
+  USDT: 1.00,
+  DAI: 1.00
+};
+
 // Başlangıç Token Listesi
 const INITIAL_TOKENS = {
   USDC: { 
@@ -44,11 +59,18 @@ const INITIAL_TOKENS = {
     icon: "🌀",
     address: import.meta.env.VITE_USDS_ADDRESS || "0x0000000000000000000000000000000000000000" 
   },
-  // Sizin Tokeniniz (Bilgiler on-chain yüklendikçe güncellenecektir)
+  // anaraydinli AAA Token (Volatil / Stabil Olmayan)
+  AAA: {
+    symbol: "AAA",
+    name: "anaraydinli AAA Token",
+    decimals: 18,
+    icon: "🚀",
+    address: import.meta.env.VITE_AAA_ADDRESS || "0x0000000000000000000000000000000000000000"
+  },
   MYTOKEN: {
     symbol: "Loading...",
     name: "Your Deployed Token",
-    decimals: 18, // Geçici varsayılan, on-chain güncellenir
+    decimals: 18,
     icon: "⭐",
     address: USER_CUSTOM_TOKEN_ADDRESS
   },
@@ -62,12 +84,11 @@ export default function App() {
   const [chainId, setChainId] = useState(null);
   const [activeTab, setActiveTab] = useState("swap");
   
-  // Token listesini ve bakiyeleri state'e alıyoruz
   const [tokens, setTokens] = useState(INITIAL_TOKENS);
-  const [balances, setBalances] = useState({ USDC: "0.00", EURC: "0.00", cirBTC: "0.0000", USDS: "0.00", MYTOKEN: "0.00", USDT: "0.00", DAI: "0.00" });
+  const [balances, setBalances] = useState({ USDC: "0.00", EURC: "0.00", cirBTC: "0.0000", USDS: "0.00", AAA: "0.00", MYTOKEN: "0.00", USDT: "0.00", DAI: "0.00" });
   
   const [fromToken, setFromToken] = useState("USDC");
-  const [toToken, setToToken] = useState("MYTOKEN");
+  const [toToken, setToToken] = useState("AAA");
   const [amountIn, setAmountIn] = useState("");
   const [amountOut, setAmountOut] = useState("");
   const [spPoints, setSpPoints] = useState(1250);
@@ -92,7 +113,6 @@ export default function App() {
     }
   }, []);
 
-  // Cüzdan bağlandığında verileri sırasıyla yükle
   useEffect(() => {
     if (account && chainId === ARC_CHAIN_ID && provider) {
       const loadAllData = async () => {
@@ -103,14 +123,25 @@ export default function App() {
     }
   }, [account, chainId, provider]);
 
+  // Dinamik Fiyatlama ve Swap Çıktısı Hesaplama Modülü
   useEffect(() => {
     if (!amountIn || isNaN(amountIn)) {
       setAmountOut("");
       return;
     }
-    const fee = parseFloat(amountIn) * 0.001;
-    setAmountOut((parseFloat(amountIn) - fee).toFixed(4));
-  }, [amountIn, fromToken, toToken]);
+    
+    // Seçilen tokenlerin USD karşılıklarını alıyoruz
+    const priceIn = TOKEN_PRICES[fromToken] || 1.00;
+    const priceOut = TOKEN_PRICES[toToken] || 1.00;
+
+    // Fiyat oranına göre çıktı miktarını hesapla
+    const rawAmountOut = (parseFloat(amountIn) * priceIn) / priceOut;
+    const fee = rawAmountOut * 0.001; // %0.1 Swap ücreti
+    
+    // cirBTC gibi yüksek değerli/düşük ondalıklı varlıklar için daha detaylı gösterim yap
+    const decimalsToShow = tokens[toToken].decimals === 8 ? 6 : 4;
+    setAmountOut((rawAmountOut - fee).toFixed(decimalsToShow));
+  }, [amountIn, fromToken, toToken, tokens]);
 
   const connectWallet = async () => {
     if (!window.ethereum) {
@@ -152,7 +183,6 @@ export default function App() {
     }
   };
 
-  // Sizin tokeninizin on-chain bilgilerini dinamik olarak çeken fonksiyon
   const loadCustomTokenDetails = async () => {
     if (!provider) return;
     try {
@@ -163,7 +193,6 @@ export default function App() {
       ];
       const contract = new ethers.Contract(USER_CUSTOM_TOKEN_ADDRESS, tokenABI, provider);
       
-      // Paralel olarak isim, sembol ve ondalık değerlerini çekiyoruz
       const [name, symbol, decimals] = await Promise.all([
         contract.name(),
         contract.symbol(),
@@ -185,7 +214,6 @@ export default function App() {
     }
   };
 
-  // Bakiyeleri güncelleyen fonksiyon
   const fetchBalances = async () => {
     if (!provider || !account) return;
     try {
@@ -194,12 +222,11 @@ export default function App() {
 
       for (const key of Object.keys(tokens)) {
         const token = tokens[key];
-        if (token.address) {
+        if (token.address && token.address !== ethers.constants.AddressZero) {
           try {
             const contract = new ethers.Contract(token.address, minABI, provider);
             const raw = await contract.balanceOf(account);
             const formatted = parseFloat(ethers.utils.formatUnits(raw, token.decimals));
-            // cirBTC için 4 hane, diğerleri için 2 hane göster
             const decimalsToShow = token.symbol === "cirBTC" ? 4 : 2;
             newBalances[key] = formatted.toFixed(decimalsToShow);
           } catch (err) {
@@ -207,7 +234,6 @@ export default function App() {
             newBalances[key] = "0.00";
           }
         } else {
-          // USDT ve DAI simüle kalmaya devam eder
           newBalances[key] = (Math.random() * 300 + 50).toFixed(2);
         }
       }
@@ -223,20 +249,109 @@ export default function App() {
       await checkAndSwitchNetwork();
       return;
     }
+
+    if (!SAKASENA_POOL_ADDRESS || SAKASENA_POOL_ADDRESS === "0x0000000000000000000000000000000000000000") {
+      alert("Lütfen projenize VITE_SAKASENA_POOL_ADDRESS (Sakasena Havuz/Swap Sözleşme Adresi) tanımlayın. Havuz adresi olmadan gerçek zincir üstü işlem gönderilemez.");
+      return;
+    }
+
     try {
       const signer = provider.getSigner();
-      const tx = await signer.sendTransaction({
-        to: account,
-        value: ethers.utils.parseUnits("0", 6)
-      });
-      alert(`İşlem Gönderildi: ${tx.hash}`);
-      await tx.wait();
-      alert("İşlem Onaylandı!");
-      setSpPoints(prev => prev + 50);
-      fetchBalances();
+
+      if (type === "swap") {
+        const tokenInObj = tokens[fromToken];
+        const tokenOutObj = tokens[toToken];
+
+        if (!tokenInObj.address || tokenInObj.address === ethers.constants.AddressZero) {
+          alert("Lütfen on-chain adresi tanımlı, gerçek bir token seçin.");
+          return;
+        }
+
+        const amountInParsed = ethers.utils.parseUnits(amountIn, tokenInObj.decimals);
+
+        // 1. ADIM: ERC-20 Harcama Onayı (Approve) Kontrolü
+        const erc20ABI = [
+          "function allowance(address owner, address spender) view returns (uint256)",
+          "function approve(address spender, uint256 amount) returns (bool)"
+        ];
+        const tokenInContract = new ethers.Contract(tokenInObj.address, erc20ABI, signer);
+
+        const currentAllowance = await tokenInContract.allowance(account, SAKASENA_POOL_ADDRESS);
+        
+        if (currentAllowance.lt(amountInParsed)) {
+          alert(`Lütfen önce ${tokenInObj.symbol} harcama yetkisini (Approve) onaylayın.`);
+          const approveTx = await tokenInContract.approve(SAKASENA_POOL_ADDRESS, amountInParsed);
+          await approveTx.wait();
+          alert("Harcama yetkisi onaylandı. Şimdi Swap işlemi gönderiliyor.");
+        }
+
+        // 2. ADIM: Sakasena Havuz Sözleşmesindeki swap fonksiyonunu çağırıyoruz
+        const poolABI = [
+          "function swap(address tokenIn, uint256 amountIn) external"
+        ];
+        const poolContract = new ethers.Contract(SAKASENA_POOL_ADDRESS, poolABI, signer);
+        
+        const swapTx = await poolContract.swap(tokenInObj.address, amountInParsed);
+        alert(`Swap işlemi Arc Network'e gönderildi! Tx: ${swapTx.hash}`);
+        await swapTx.wait();
+        
+        alert("Swap işlemi zincir üstünde başarıyla onaylandı!");
+        setSpPoints(prev => prev + 50);
+        fetchBalances();
+      }
+
+      if (type === "mint") {
+        const usdcObj = tokens.USDC;
+        const amountInParsed = ethers.utils.parseUnits(amountIn, usdcObj.decimals);
+
+        const erc20ABI = [
+          "function allowance(address owner, address spender) view returns (uint256)",
+          "function approve(address spender, uint256 amount) returns (bool)"
+        ];
+        const usdcContract = new ethers.Contract(usdcObj.address, erc20ABI, signer);
+
+        const currentAllowance = await usdcContract.allowance(account, SAKASENA_POOL_ADDRESS);
+        if (currentAllowance.lt(amountInParsed)) {
+          alert("Lütfen USDC harcama yetkisini onaylayın.");
+          const approveTx = await usdcContract.approve(SAKASENA_POOL_ADDRESS, amountInParsed);
+          await approveTx.wait();
+        }
+
+        const poolABI = [
+          "function mintUSDZ(uint256 usdcAmount) external"
+        ];
+        const poolContract = new ethers.Contract(SAKASENA_POOL_ADDRESS, poolABI, signer);
+        
+        const mintTx = await poolContract.mintUSDZ(amountInParsed);
+        alert(`Mint işlemi gönderildi! Tx: ${mintTx.hash}`);
+        await mintTx.wait();
+        
+        alert("Mint başarıyla gerçekleşti!");
+        setSpPoints(prev => prev + 100);
+        fetchBalances();
+      }
+
+      if (type === "redeem") {
+        const usdsObj = tokens.USDS;
+        const amountInParsed = ethers.utils.parseUnits(amountIn, usdsObj.decimals);
+
+        const poolABI = [
+          "function redeemUSDZ(uint256 usdzAmount) external"
+        ];
+        const poolContract = new ethers.Contract(SAKASENA_POOL_ADDRESS, poolABI, signer);
+        
+        const redeemTx = await poolContract.redeemUSDZ(amountInParsed);
+        alert(`Redeem işlemi gönderildi! Tx: ${redeemTx.hash}`);
+        await redeemTx.wait();
+        
+        alert("Redeem başarıyla gerçekleşti!");
+        setSpPoints(prev => prev + 100);
+        fetchBalances();
+      }
+
     } catch (err) {
       console.error(err);
-      alert("İşlem başarısız oldu veya reddedildi.");
+      alert(`İşlem sırasında bir hata oluştu: ${err.reason || err.message || err}`);
     }
   };
 
@@ -248,7 +363,8 @@ export default function App() {
         USDC: (parseFloat(prev.USDC) + 10000).toFixed(2),
         EURC: (parseFloat(prev.EURC) + 10000).toFixed(2),
         cirBTC: (parseFloat(prev.cirBTC) + 1.5).toFixed(4),
-        MYTOKEN: (parseFloat(prev.MYTOKEN) + 500).toFixed(2), // Faucet'tan sizin tokeninizden de 500 adet ekleme simülasyonu
+        AAA: (parseFloat(prev.AAA) + 250).toFixed(2),  // Faucet'tan 250 AAA tanımlama simülasyonu
+        MYTOKEN: (parseFloat(prev.MYTOKEN) + 500).toFixed(2),
         USDT: (parseFloat(prev.USDT) + 10000).toFixed(2),
         DAI: (parseFloat(prev.DAI) + 10000).toFixed(2)
       }));
@@ -302,22 +418,32 @@ export default function App() {
 
       <main className="flex-grow max-w-4xl w-full mx-auto px-4 py-10">
         
-        {/* Sizin Token Bilgilendirme Kartı */}
         {account && chainId === ARC_CHAIN_ID && (
-          <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-indigo-950 to-[#121024] border border-violet-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
-            <div>
-              <span className="text-xs font-semibold uppercase tracking-wider text-violet-400">Connected Contract Details</span>
-              <h3 className="text-lg font-bold text-white flex items-center gap-2 mt-1">
-                ⭐ {tokens.MYTOKEN.name} ({tokens.MYTOKEN.symbol})
-              </h3>
-              <p className="text-xs text-gray-400 mt-1 break-all">Address: {USER_CUSTOM_TOKEN_ADDRESS}</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            {/* Sizin Token Kartı 1 */}
+            <div className="p-4 rounded-2xl bg-gradient-to-r from-indigo-950 to-[#121024] border border-violet-800 flex justify-between items-center">
+              <div>
+                <span className="text-xs font-semibold uppercase tracking-wider text-violet-400">Deployed Contract</span>
+                <h3 className="text-lg font-bold text-white mt-1">⭐ {tokens.MYTOKEN.name}</h3>
+                <p className="text-[10px] text-gray-500 truncate max-w-[180px] mt-0.5">{USER_CUSTOM_TOKEN_ADDRESS}</p>
+              </div>
+              <div className="text-right">
+                <span className="text-xs text-gray-400 font-medium">Balance</span>
+                <p className="text-xl font-bold text-violet-300 mt-1">{balances.MYTOKEN} {tokens.MYTOKEN.symbol}</p>
+              </div>
             </div>
-            <div className="text-right">
-              <span className="text-xs text-gray-400">Your Token Balance</span>
-              <p className="text-xl font-bold text-violet-300 mt-1">{balances.MYTOKEN} {tokens.MYTOKEN.symbol}</p>
-              <span className="text-[10px] bg-violet-900/40 text-violet-300 px-2 py-0.5 rounded-full mt-1 inline-block border border-violet-800">
-                1300+ Holders on Arcscan
-              </span>
+
+            {/* Sizin Token Kartı 2 (anaraydinli AAA) */}
+            <div className="p-4 rounded-2xl bg-gradient-to-r from-indigo-950 to-[#121024] border border-violet-800 flex justify-between items-center">
+              <div>
+                <span className="text-xs font-semibold uppercase tracking-wider text-violet-400">anaraydinli Utility</span>
+                <h3 className="text-lg font-bold text-white mt-1">🚀 {tokens.AAA.name}</h3>
+                <p className="text-[10px] text-gray-500 mt-0.5">Volatile Asset • Price: ${TOKEN_PRICES.AAA.toFixed(2)}</p>
+              </div>
+              <div className="text-right">
+                <span className="text-xs text-gray-400 font-medium">Balance</span>
+                <p className="text-xl font-bold text-violet-300 mt-1">{balances.AAA} {tokens.AAA.symbol}</p>
+              </div>
             </div>
           </div>
         )}
@@ -361,8 +487,8 @@ export default function App() {
           {activeTab === "swap" && (
             <div>
               <h2 className="text-xl font-bold mb-4 flex items-center justify-between">
-                <span>Zero-Slippage Swap</span>
-                <span className="text-xs text-emerald-400 bg-emerald-950 px-2 py-1 rounded">Constant-Sum AMM</span>
+                <span>Multi-Asset Swap</span>
+                <span className="text-xs text-violet-400 bg-violet-950 px-2 py-1 rounded">Dynamic Price DEX</span>
               </h2>
 
               <div className="bg-[#1a1738] p-4 rounded-2xl mb-3 border border-gray-800">
@@ -436,12 +562,16 @@ export default function App() {
 
               <div className="space-y-2 mb-6 text-sm text-gray-400 bg-[#100e21] p-3 rounded-xl border border-gray-900">
                 <div className="flex justify-between">
-                  <span>Rate:</span>
-                  <span className="text-white">1 {tokens[fromToken].symbol} ≈ 0.999 {tokens[toToken].symbol}</span>
+                  <span>Exchange Rate:</span>
+                  <span className="text-white">
+                    1 {tokens[fromToken].symbol} ≈ {((TOKEN_PRICES[fromToken] || 1.0) / (TOKEN_PRICES[toToken] || 1.0)).toFixed(4)} {tokens[toToken].symbol}
+                  </span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Price Impact / Slippage:</span>
-                  <span className="text-emerald-400 font-medium">0.00% (Locked Peg)</span>
+                  <span>Price Slippage:</span>
+                  <span className={TOKEN_PRICES[fromToken] === 1 && TOKEN_PRICES[toToken] === 1 ? "text-emerald-400 font-medium" : "text-violet-400 font-medium"}>
+                    {TOKEN_PRICES[fromToken] === 1 && TOKEN_PRICES[toToken] === 1 ? "0.00% (Locked Peg)" : "Dynamic vAMM"}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span>Swap Fee (0.1%):</span>
@@ -455,7 +585,7 @@ export default function App() {
                   disabled={!amountIn}
                   className="w-full py-4 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 font-bold transition shadow-lg text-white disabled:opacity-50"
                 >
-                  Swap Tokens
+                  Swap Varlıklar
                 </button>
               ) : (
                 <button 
@@ -569,6 +699,7 @@ export default function App() {
                   <div className="flex justify-between"><span>💵 10,000 USDC</span><span className="text-emerald-400 font-medium">Ready</span></div>
                   <div className="flex justify-between"><span>💶 10,000 EURC</span><span className="text-emerald-400 font-medium">Ready</span></div>
                   <div className="flex justify-between"><span>₿ 1.5 cirBTC</span><span className="text-emerald-400 font-medium">Ready</span></div>
+                  <div className="flex justify-between"><span>🚀 250 {tokens.AAA.symbol}</span><span className="text-emerald-400 font-medium">Ready</span></div>
                   <div className="flex justify-between"><span>⭐ 500 {tokens.MYTOKEN.symbol}</span><span className="text-emerald-400 font-medium">Ready</span></div>
                   <div className="flex justify-between"><span>🟢 10,000 USDT</span><span className="text-emerald-400 font-medium">Ready</span></div>
                   <div className="flex justify-between"><span>🟡 10,000 DAI</span><span className="text-emerald-400 font-medium">Ready</span></div>
