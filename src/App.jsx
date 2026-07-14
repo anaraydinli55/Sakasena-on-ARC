@@ -6,11 +6,16 @@ const ARC_CHAIN_ID = 5042002;
 const ARC_CHAIN_HEX = "0x4cef52";
 const ARC_RPC_URL = import.meta.env.VITE_ARC_RPC_URL || "https://rpc.testnet.arc.network";
 
-// Dokümantasyondan alınan resmi Arc Testnet USDC Sözleşme Adresi
+// Resmi Sözleşme Adresleri
 const ARC_USDC_ADDRESS = "0x3600000000000000000000000000000000000000";
+const ARC_EURC_ADDRESS = "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a";
+const ARC_CIRBTC_ADDRESS = "0xf0C4a4CE82A5746AbAAd9425360Ab04fbBA432BF";
 
-// Token Yapılandırması
-const TOKENS = {
+// Sizin Deploy Ettiğiniz Sözleşme Adresi (1300+ Holders)
+const USER_CUSTOM_TOKEN_ADDRESS = "0x54552f2EC52423D2fBE94c25f0BAd61b9108AAE8";
+
+// Başlangıç Token Listesi
+const INITIAL_TOKENS = {
   USDC: { 
     symbol: "USDC", 
     name: "USD Coin (Gas Token)", 
@@ -18,12 +23,34 @@ const TOKENS = {
     icon: "💵",
     address: ARC_USDC_ADDRESS
   },
+  EURC: { 
+    symbol: "EURC", 
+    name: "Euro Coin", 
+    decimals: 6, 
+    icon: "💶",
+    address: ARC_EURC_ADDRESS
+  },
+  cirBTC: { 
+    symbol: "cirBTC", 
+    name: "Circle Wrapped Bitcoin", 
+    decimals: 8, 
+    icon: "₿",
+    address: ARC_CIRBTC_ADDRESS
+  },
   USDS: { 
     symbol: "USDS", 
     name: "Sky USDS Stablecoin", 
     decimals: 18, 
     icon: "🌀",
     address: import.meta.env.VITE_USDS_ADDRESS || "0x0000000000000000000000000000000000000000" 
+  },
+  // Sizin Tokeniniz (Bilgiler on-chain yüklendikçe güncellenecektir)
+  MYTOKEN: {
+    symbol: "Loading...",
+    name: "Your Deployed Token",
+    decimals: 18, // Geçici varsayılan, on-chain güncellenir
+    icon: "⭐",
+    address: USER_CUSTOM_TOKEN_ADDRESS
   },
   USDT: { symbol: "USDT", name: "Tether USD", decimals: 6, icon: "🟢" },
   DAI: { symbol: "DAI", name: "Dai Stablecoin", decimals: 18, icon: "🟡" }
@@ -34,10 +61,13 @@ export default function App() {
   const [account, setAccount] = useState("");
   const [chainId, setChainId] = useState(null);
   const [activeTab, setActiveTab] = useState("swap");
-  const [balances, setBalances] = useState({ USDC: "0.00", USDS: "0.00", USDT: "0.00", DAI: "0.00" });
+  
+  // Token listesini ve bakiyeleri state'e alıyoruz
+  const [tokens, setTokens] = useState(INITIAL_TOKENS);
+  const [balances, setBalances] = useState({ USDC: "0.00", EURC: "0.00", cirBTC: "0.0000", USDS: "0.00", MYTOKEN: "0.00", USDT: "0.00", DAI: "0.00" });
   
   const [fromToken, setFromToken] = useState("USDC");
-  const [toToken, setToToken] = useState("USDS");
+  const [toToken, setToToken] = useState("MYTOKEN");
   const [amountIn, setAmountIn] = useState("");
   const [amountOut, setAmountOut] = useState("");
   const [spPoints, setSpPoints] = useState(1250);
@@ -62,11 +92,16 @@ export default function App() {
     }
   }, []);
 
+  // Cüzdan bağlandığında verileri sırasıyla yükle
   useEffect(() => {
-    if (account && chainId === ARC_CHAIN_ID) {
-      fetchBalances();
+    if (account && chainId === ARC_CHAIN_ID && provider) {
+      const loadAllData = async () => {
+        await loadCustomTokenDetails();
+        await fetchBalances();
+      };
+      loadAllData();
     }
-  }, [account, chainId]);
+  }, [account, chainId, provider]);
 
   useEffect(() => {
     if (!amountIn || isNaN(amountIn)) {
@@ -117,49 +152,67 @@ export default function App() {
     }
   };
 
-  // Gerçek zamanlı bakiye sorgulama fonksiyonu
+  // Sizin tokeninizin on-chain bilgilerini dinamik olarak çeken fonksiyon
+  const loadCustomTokenDetails = async () => {
+    if (!provider) return;
+    try {
+      const tokenABI = [
+        "function name() view returns (string)",
+        "function symbol() view returns (string)",
+        "function decimals() view returns (uint8)"
+      ];
+      const contract = new ethers.Contract(USER_CUSTOM_TOKEN_ADDRESS, tokenABI, provider);
+      
+      // Paralel olarak isim, sembol ve ondalık değerlerini çekiyoruz
+      const [name, symbol, decimals] = await Promise.all([
+        contract.name(),
+        contract.symbol(),
+        contract.decimals()
+      ]);
+
+      setTokens(prev => {
+        const updated = { ...prev };
+        updated.MYTOKEN = {
+          ...updated.MYTOKEN,
+          symbol: symbol,
+          name: `${name} (Your Token)`,
+          decimals: decimals
+        };
+        return updated;
+      });
+    } catch (err) {
+      console.warn("Kullanıcı token detayları okunamadı, varsayılanlar kullanılacak:", err);
+    }
+  };
+
+  // Bakiyeleri güncelleyen fonksiyon
   const fetchBalances = async () => {
     if (!provider || !account) return;
     try {
       const minABI = ["function balanceOf(address owner) view returns (uint256)"];
-      
-      // 1. Resmi USDC (ERC-20 interface) Bakiyesini çekiyoruz (6 decimals)
-      let usdcBal = "0.00";
-      try {
-        const usdcContract = new ethers.Contract(ARC_USDC_ADDRESS, minABI, provider);
-        const rawUsdcBalance = await usdcContract.balanceOf(account);
-        usdcBal = parseFloat(ethers.utils.formatUnits(rawUsdcBalance, TOKENS.USDC.decimals)).toFixed(2);
-      } catch (usdcErr) {
-        console.warn("USDC bakiye okuma hatası, yerel sorguya dönülüyor:", usdcErr);
-        // Hata durumunda yerel bakiye (native balance) üzerinden deniyoruz
-        try {
-          const rawNative = await provider.getBalance(account);
-          usdcBal = parseFloat(ethers.utils.formatUnits(rawNative, 18)).toFixed(2);
-        } catch (nativeErr) {
-          console.error("Yerel bakiye de okunamadı:", nativeErr);
+      const newBalances = {};
+
+      for (const key of Object.keys(tokens)) {
+        const token = tokens[key];
+        if (token.address) {
+          try {
+            const contract = new ethers.Contract(token.address, minABI, provider);
+            const raw = await contract.balanceOf(account);
+            const formatted = parseFloat(ethers.utils.formatUnits(raw, token.decimals));
+            // cirBTC için 4 hane, diğerleri için 2 hane göster
+            const decimalsToShow = token.symbol === "cirBTC" ? 4 : 2;
+            newBalances[key] = formatted.toFixed(decimalsToShow);
+          } catch (err) {
+            console.warn(`${key} bakiye okuma hatası:`, err);
+            newBalances[key] = "0.00";
+          }
+        } else {
+          // USDT ve DAI simüle kalmaya devam eder
+          newBalances[key] = (Math.random() * 300 + 50).toFixed(2);
         }
       }
 
-      // 2. USDS ERC-20 Sözleşme Bakiyesi
-      let usdsBal = "0.00";
-      const usdsAddress = TOKENS.USDS.address;
-      if (usdsAddress && usdsAddress !== ethers.constants.AddressZero) {
-        try {
-          const usdsContract = new ethers.Contract(usdsAddress, minABI, provider);
-          const rawUsdsBalance = await usdsContract.balanceOf(account);
-          usdsBal = parseFloat(ethers.utils.formatUnits(rawUsdsBalance, TOKENS.USDS.decimals)).toFixed(2);
-        } catch (tokenErr) {
-          console.warn("USDS kontratından bakiye okunamadı. Adres yanlış veya ağda henüz yok:", tokenErr);
-        }
-      }
-
-      setBalances(prev => ({
-        ...prev,
-        USDC: usdcBal,
-        USDS: usdsBal,
-        USDT: (Math.random() * 300 + 50).toFixed(2), // USDT ve DAI simüle
-        DAI: (Math.random() * 1000 + 200).toFixed(2)
-      }));
+      setBalances(newBalances);
     } catch (err) {
       console.error("Bakiyeler yüklenirken genel hata oluştu:", err);
     }
@@ -193,12 +246,15 @@ export default function App() {
       setBalances(prev => ({
         ...prev,
         USDC: (parseFloat(prev.USDC) + 10000).toFixed(2),
+        EURC: (parseFloat(prev.EURC) + 10000).toFixed(2),
+        cirBTC: (parseFloat(prev.cirBTC) + 1.5).toFixed(4),
+        MYTOKEN: (parseFloat(prev.MYTOKEN) + 500).toFixed(2), // Faucet'tan sizin tokeninizden de 500 adet ekleme simülasyonu
         USDT: (parseFloat(prev.USDT) + 10000).toFixed(2),
         DAI: (parseFloat(prev.DAI) + 10000).toFixed(2)
       }));
       setSpPoints(prev => prev + 100);
       setFaucetLoading(false);
-      alert("10,000 Testnet Tokeni başarıyla tanımlandı!");
+      alert("Testnet Tokenleri başarıyla tanımlandı!");
     }, 1500);
   };
 
@@ -245,6 +301,27 @@ export default function App() {
       </header>
 
       <main className="flex-grow max-w-4xl w-full mx-auto px-4 py-10">
+        
+        {/* Sizin Token Bilgilendirme Kartı */}
+        {account && chainId === ARC_CHAIN_ID && (
+          <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-indigo-950 to-[#121024] border border-violet-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+            <div>
+              <span className="text-xs font-semibold uppercase tracking-wider text-violet-400">Connected Contract Details</span>
+              <h3 className="text-lg font-bold text-white flex items-center gap-2 mt-1">
+                ⭐ {tokens.MYTOKEN.name} ({tokens.MYTOKEN.symbol})
+              </h3>
+              <p className="text-xs text-gray-400 mt-1 break-all">Address: {USER_CUSTOM_TOKEN_ADDRESS}</p>
+            </div>
+            <div className="text-right">
+              <span className="text-xs text-gray-400">Your Token Balance</span>
+              <p className="text-xl font-bold text-violet-300 mt-1">{balances.MYTOKEN} {tokens.MYTOKEN.symbol}</p>
+              <span className="text-[10px] bg-violet-900/40 text-violet-300 px-2 py-0.5 rounded-full mt-1 inline-block border border-violet-800">
+                1300+ Holders on Arcscan
+              </span>
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           <div className="bg-[#121024] p-4 rounded-2xl border border-gray-800 text-center">
             <p className="text-xs text-gray-400 mb-1">Total Value Locked</p>
@@ -305,12 +382,12 @@ export default function App() {
                     value={fromToken} 
                     onChange={(e) => {
                       setFromToken(e.target.value);
-                      if(e.target.value === toToken) setToToken(Object.keys(TOKENS).find(t => t !== e.target.value));
+                      if(e.target.value === toToken) setToToken(Object.keys(tokens).find(t => t !== e.target.value));
                     }}
                     className="bg-[#211e47] text-white px-3 py-1.5 rounded-xl font-semibold border border-gray-700 focus:outline-none"
                   >
-                    {Object.keys(TOKENS).map(t => (
-                      <option key={t} value={t}>{TOKENS[t].icon} {t}</option>
+                    {Object.keys(tokens).map(t => (
+                      <option key={t} value={t}>{tokens[t].icon} {tokens[t].symbol}</option>
                     ))}
                   </select>
                 </div>
@@ -346,12 +423,12 @@ export default function App() {
                     value={toToken} 
                     onChange={(e) => {
                       setToToken(e.target.value);
-                      if(e.target.value === fromToken) setFromToken(Object.keys(TOKENS).find(t => t !== e.target.value));
+                      if(e.target.value === fromToken) setFromToken(Object.keys(tokens).find(t => t !== e.target.value));
                     }}
                     className="bg-[#211e47] text-white px-3 py-1.5 rounded-xl font-semibold border border-gray-700 focus:outline-none"
                   >
-                    {Object.keys(TOKENS).map(t => (
-                      <option key={t} value={t}>{TOKENS[t].icon} {t}</option>
+                    {Object.keys(tokens).map(t => (
+                      <option key={t} value={t}>{tokens[t].icon} {tokens[t].symbol}</option>
                     ))}
                   </select>
                 </div>
@@ -360,7 +437,7 @@ export default function App() {
               <div className="space-y-2 mb-6 text-sm text-gray-400 bg-[#100e21] p-3 rounded-xl border border-gray-900">
                 <div className="flex justify-between">
                   <span>Rate:</span>
-                  <span className="text-white">1 {fromToken} ≈ 0.999 {toToken}</span>
+                  <span className="text-white">1 {tokens[fromToken].symbol} ≈ 0.999 {tokens[toToken].symbol}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Price Impact / Slippage:</span>
@@ -368,7 +445,7 @@ export default function App() {
                 </div>
                 <div className="flex justify-between">
                   <span>Swap Fee (0.1%):</span>
-                  <span className="text-white">{amountIn ? (parseFloat(amountIn) * 0.001).toFixed(4) : "0.00"} {fromToken}</span>
+                  <span className="text-white">{amountIn ? (parseFloat(amountIn) * 0.001).toFixed(4) : "0.00"} {tokens[fromToken].symbol}</span>
                 </div>
               </div>
 
@@ -483,13 +560,16 @@ export default function App() {
             <div className="text-center">
               <h2 className="text-xl font-bold mb-3">Arc Testnet Faucet</h2>
               <p className="text-sm text-gray-400 mb-6">
-                Arc Test ağı üzerinde platformumuzu denemek için tamamen ücretsiz stablecoin talep edebilirsiniz.
+                Arc Test ağı üzerinde platformumuzu denemek için tamamen ücretsiz stablecoin ve test varlıkları talep edebilirsiniz.
               </p>
               
               <div className="bg-[#100e21] p-4 rounded-2xl border border-gray-900 text-left mb-6">
                 <span className="text-xs text-gray-500 font-semibold block mb-2">CLAIMABLE ASSETS</span>
                 <div className="space-y-1.5 text-sm text-gray-300">
                   <div className="flex justify-between"><span>💵 10,000 USDC</span><span className="text-emerald-400 font-medium">Ready</span></div>
+                  <div className="flex justify-between"><span>💶 10,000 EURC</span><span className="text-emerald-400 font-medium">Ready</span></div>
+                  <div className="flex justify-between"><span>₿ 1.5 cirBTC</span><span className="text-emerald-400 font-medium">Ready</span></div>
+                  <div className="flex justify-between"><span>⭐ 500 {tokens.MYTOKEN.symbol}</span><span className="text-emerald-400 font-medium">Ready</span></div>
                   <div className="flex justify-between"><span>🟢 10,000 USDT</span><span className="text-emerald-400 font-medium">Ready</span></div>
                   <div className="flex justify-between"><span>🟡 10,000 DAI</span><span className="text-emerald-400 font-medium">Ready</span></div>
                 </div>
@@ -500,7 +580,7 @@ export default function App() {
                 disabled={faucetLoading}
                 className="w-full py-4 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 font-bold text-white transition shadow-lg disabled:opacity-50"
               >
-                {faucetLoading ? "Claiming..." : "Claim 10,000 Testnet Tokens"}
+                {faucetLoading ? "Claiming..." : "Claim Testnet Tokens"}
               </button>
             </div>
           )}
@@ -508,7 +588,7 @@ export default function App() {
       </main>
 
       <footer className="border-t border-gray-800 bg-[#0d0b1a] px-6 py-4 text-center text-sm text-gray-500">
-        <p>© 2026 ArcSakasena. Powered by Arc Network (Chain ID: 5042002).</p>
+        <p>© 2026 ArcStabilizer. Powered by Arc Network (Chain ID: 5042002).</p>
       </footer>
     </div>
   );
