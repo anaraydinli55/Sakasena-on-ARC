@@ -6,15 +6,23 @@ const ARC_CHAIN_ID = 5042002;
 const ARC_CHAIN_HEX = "0x4cef52";
 const ARC_RPC_URL = import.meta.env.VITE_ARC_RPC_URL || "https://rpc.testnet.arc.network";
 
+// Dokümantasyondan alınan resmi Arc Testnet USDC Sözleşme Adresi
+const ARC_USDC_ADDRESS = "0x3600000000000000000000000000000000000000";
+
 // Token Yapılandırması
 const TOKENS = {
-  USDC: { symbol: "USDC", name: "USD Coin (Gas Token)", decimals: 6, icon: "💵" },
+  USDC: { 
+    symbol: "USDC", 
+    name: "USD Coin (Gas Token)", 
+    decimals: 6, 
+    icon: "💵",
+    address: ARC_USDC_ADDRESS
+  },
   USDS: { 
     symbol: "USDS", 
     name: "Sky USDS Stablecoin", 
     decimals: 18, 
     icon: "🌀",
-    // Çevre değişkeninden adresi alıyoruz, yoksa sıfır adresi (veya testnet adresinizi) yedek bırakıyoruz
     address: import.meta.env.VITE_USDS_ADDRESS || "0x0000000000000000000000000000000000000000" 
   },
   USDT: { symbol: "USDT", name: "Tether USD", decimals: 6, icon: "🟢" },
@@ -113,18 +121,30 @@ export default function App() {
   const fetchBalances = async () => {
     if (!provider || !account) return;
     try {
-      // 1. Yerel USDC Bakiyesi (Arc Network'te gaz USDC cinsinden ödenir)
-      const rawBalance = await provider.getBalance(account);
-      const formattedUsdc = ethers.utils.formatUnits(rawBalance, TOKENS.USDC.decimals);
+      const minABI = ["function balanceOf(address owner) view returns (uint256)"];
       
-      let usdsBal = "0.00";
-      
+      // 1. Resmi USDC (ERC-20 interface) Bakiyesini çekiyoruz (6 decimals)
+      let usdcBal = "0.00";
+      try {
+        const usdcContract = new ethers.Contract(ARC_USDC_ADDRESS, minABI, provider);
+        const rawUsdcBalance = await usdcContract.balanceOf(account);
+        usdcBal = parseFloat(ethers.utils.formatUnits(rawUsdcBalance, TOKENS.USDC.decimals)).toFixed(2);
+      } catch (usdcErr) {
+        console.warn("USDC bakiye okuma hatası, yerel sorguya dönülüyor:", usdcErr);
+        // Hata durumunda yerel bakiye (native balance) üzerinden deniyoruz
+        try {
+          const rawNative = await provider.getBalance(account);
+          usdcBal = parseFloat(ethers.utils.formatUnits(rawNative, 18)).toFixed(2);
+        } catch (nativeErr) {
+          console.error("Yerel bakiye de okunamadı:", nativeErr);
+        }
+      }
+
       // 2. USDS ERC-20 Sözleşme Bakiyesi
+      let usdsBal = "0.00";
       const usdsAddress = TOKENS.USDS.address;
-      // Adresin tanımlı olduğundan ve sıfır adresi olmadığından emin oluyoruz
       if (usdsAddress && usdsAddress !== ethers.constants.AddressZero) {
         try {
-          const minABI = ["function balanceOf(address owner) view returns (uint256)"];
           const usdsContract = new ethers.Contract(usdsAddress, minABI, provider);
           const rawUsdsBalance = await usdsContract.balanceOf(account);
           usdsBal = parseFloat(ethers.utils.formatUnits(rawUsdsBalance, TOKENS.USDS.decimals)).toFixed(2);
@@ -135,9 +155,9 @@ export default function App() {
 
       setBalances(prev => ({
         ...prev,
-        USDC: parseFloat(formattedUsdc).toFixed(2),
+        USDC: usdcBal,
         USDS: usdsBal,
-        USDT: (Math.random() * 300 + 50).toFixed(2), // USDT ve DAI için şimdilik simüle bakiye
+        USDT: (Math.random() * 300 + 50).toFixed(2), // USDT ve DAI simüle
         DAI: (Math.random() * 1000 + 200).toFixed(2)
       }));
     } catch (err) {
