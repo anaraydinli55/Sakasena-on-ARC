@@ -14,7 +14,7 @@ const ARC_CIRBTC_ADDRESS = "0xf0C4a4CE82A5746AbAAd9425360Ab04fbBA432BF";
 // Sizin Deploy Ettiğiniz Sözleşme Adresi (1300+ Holders)
 const USER_CUSTOM_TOKEN_ADDRESS = "0x54552f2EC52423D2fBE94c25f0BAd61b9108AAE8";
 
-// Yeni Deploy Ettiğiniz Sakasena Havuz (DEX) Sözleşme Adresi
+// Aktif Olan Sakasena Havuz Adresiniz (Vercel veya .env'den dinamik çekilir)
 const SAKASENA_POOL_ADDRESS = import.meta.env.VITE_SAKASENA_POOL_ADDRESS || "0xbE0f19F85A5cD1Cac56E6f31c85f6cAe805e56C3";
 
 // JavaScript Temporal Dead Zone hatasını önlemek için en üstte tanımlanan Kur Oranları
@@ -29,7 +29,7 @@ const TOKEN_PRICES = {
   DAI: 1.00
 };
 
-// ETHERS V5 VE V6 ÇİFT SÜRÜM UYUMLULUK KATMANI (COKME ENGELLER)
+// ETHERS V5 VE V6 ÇİFT SÜRÜM UYUMLULUK KATMANI
 const isV6 = typeof ethers.BrowserProvider !== 'undefined';
 
 const getProviderInstance = () => {
@@ -62,7 +62,6 @@ const getSignerInstance = async (providerInstance) => {
 };
 
 const isLessThan = (a, b) => {
-  // BigInt dönüşümü hem v5 BigNumber'ı hem v6 BigInt'i sorunsuz karşılaştırır
   return BigInt(a.toString()) < BigInt(b.toString());
 };
 
@@ -299,28 +298,65 @@ export default function App() {
     }
   };
 
+  // Dinamik Havuz Rezerv Sorgulayıcı (Generic reserveA/B ve reserveUSDC/AAA uyumluluğu)
   const fetchPoolReserves = async () => {
     if (!provider || SAKASENA_POOL_ADDRESS === ZERO_ADDRESS) return;
     try {
-      const poolABI = [
-        "function reserveUSDC() view returns (uint256)",
-        "function reserveAAA() view returns (uint256)",
+      const genericABI = [
+        "function tokenA() view returns (address)",
+        "function tokenB() view returns (address)",
+        "function reserveA() view returns (uint256)",
+        "function reserveB() view returns (uint256)",
         "function totalShares() view returns (uint256)"
       ];
-      const contract = new ethers.Contract(SAKASENA_POOL_ADDRESS, poolABI, provider);
-      const [resUSDC, resAAA, shares] = await Promise.all([
-        contract.reserveUSDC(),
-        contract.reserveAAA(),
+      const contract = new ethers.Contract(SAKASENA_POOL_ADDRESS, genericABI, provider);
+      
+      // On-chain generic rezerv verilerini alıyoruz
+      const [tA, tB, resA, resB, shares] = await Promise.all([
+        contract.tokenA(),
+        contract.tokenB(),
+        contract.reserveA(),
+        contract.reserveB(),
         contract.totalShares()
       ]);
 
+      const isAEURC = tA.toLowerCase() === ARC_EURC_ADDRESS.toLowerCase();
+      const isAUSDC = tA.toLowerCase() === ARC_USDC_ADDRESS.toLowerCase();
+      
+      const decimalsA = (isAEURC || isAUSDC) ? 6 : 18;
+      const decimalsB = decimalsA === 6 ? 18 : 6;
+
+      const formattedResA = parseFloat(formatUnits(resA, decimalsA)).toFixed(2);
+      const formattedResB = parseFloat(formatUnits(resB, decimalsB)).toFixed(2);
+
       setPoolReserves({
-        USDC: parseFloat(formatUnits(resUSDC, 6)).toFixed(2), 
-        AAA: parseFloat(formatUnits(resAAA, 18)).toFixed(2),  
+        USDC: (isAEURC || isAUSDC) ? formattedResA : formattedResB, // Stablecoin rezervi (EURC / USDC)
+        AAA: (isAEURC || isAUSDC) ? formattedResB : formattedResA,  // AAA rezervi
         totalShares: shares.toString()
       });
     } catch (err) {
-      console.warn("Havuz rezervleri alınamadı:", err);
+      // Eğer generic havuz değilse, eski USDC/AAA havuz rezerv sorgulama metoduna geri dönülür (Fallback)
+      try {
+        const oldABI = [
+          "function reserveUSDC() view returns (uint256)",
+          "function reserveAAA() view returns (uint256)",
+          "function totalShares() view returns (uint256)"
+        ];
+        const oldContract = new ethers.Contract(SAKASENA_POOL_ADDRESS, oldABI, provider);
+        const [resUSDC, resAAA, shares] = await Promise.all([
+          oldContract.reserveUSDC(),
+          oldContract.reserveAAA(),
+          oldContract.totalShares()
+        ]);
+
+        setPoolReserves({
+          USDC: parseFloat(formatUnits(resUSDC, 6)).toFixed(2),
+          AAA: parseFloat(formatUnits(resAAA, 18)).toFixed(2),
+          totalShares: shares.toString()
+        });
+      } catch (oldErr) {
+        console.warn("Havuz rezervleri alınamadı:", oldErr);
+      }
     }
   };
 
@@ -378,23 +414,28 @@ export default function App() {
           return;
         }
 
-        const usdcParsed = parseUnits(lpUSDC, 6);
+        const stableTokenAddress = tokens[fromToken].decimals === 6 ? tokens[fromToken].address : tokens[toToken].address;
+        const stableDecimals = 6;
+
+        const usdcParsed = parseUnits(lpUSDC, stableDecimals);
         const aaaParsed = parseUnits(lpAAA, 18);
 
         const erc20ABI = [
           "function allowance(address owner, address spender) view returns (uint256)",
           "function approve(address spender, uint256 amount) returns (bool)"
         ];
-        const usdcContract = new ethers.Contract(ARC_USDC_ADDRESS, erc20ABI, signer);
+        const stableContract = new ethers.Contract(stableTokenAddress, erc20ABI, signer);
         const aaaContract = new ethers.Contract(USER_CUSTOM_TOKEN_ADDRESS, erc20ABI, signer);
 
-        const allowanceUSDC = await usdcContract.allowance(account, SAKASENA_POOL_ADDRESS);
+        // Stablecoin Approve Kontrolü
+        const allowanceUSDC = await stableContract.allowance(account, SAKASENA_POOL_ADDRESS);
         if (isLessThan(allowanceUSDC, usdcParsed)) {
-          alert("Lütfen USDC harcama yetkisini onaylayın.");
-          const txApp = await usdcContract.approve(SAKASENA_POOL_ADDRESS, usdcParsed);
+          alert("Lütfen Stablecoin harcama yetkisini onaylayın.");
+          const txApp = await stableContract.approve(SAKASENA_POOL_ADDRESS, usdcParsed);
           await txApp.wait();
         }
 
+        // AAA Approve Kontrolü
         const allowanceAAA = await aaaContract.allowance(account, SAKASENA_POOL_ADDRESS);
         if (isLessThan(allowanceAAA, aaaParsed)) {
           alert(`Lütfen ${tokens.MYTOKEN.symbol} harcama yetkisini onaylayın.`);
@@ -402,10 +443,30 @@ export default function App() {
           await txApp.wait();
         }
 
-        const poolABI = ["function addLiquidity(uint256 amountUSDC, uint256 amountAAA) external returns (uint256)"];
-        const poolContract = new ethers.Contract(SAKASENA_POOL_ADDRESS, poolABI, signer);
+        // Havuza Likidite Ekleme Çağrısı (Generic parameter sorting)
+        const poolContract = new ethers.Contract(SAKASENA_POOL_ADDRESS, [
+          "function tokenA() view returns (address)",
+          "function addLiquidity(uint256 amountA, uint256 amountB) external returns (uint256)",
+          "function addLiquidity(uint256 amountUSDC, uint256 amountAAA) external returns (uint256)" // Fallback
+        ], signer);
+
+        let lpTx;
+        try {
+          const tA = await poolContract.tokenA();
+          const isTAStable = tA.toLowerCase() === ARC_EURC_ADDRESS.toLowerCase() || tA.toLowerCase() === ARC_USDC_ADDRESS.toLowerCase();
+          
+          if (isTAStable) {
+            // tokenA stablecoin, tokenB AAA
+            lpTx = await poolContract.addLiquidity(usdcParsed, aaaParsed);
+          } else {
+            // tokenA AAA, tokenB stablecoin
+            lpTx = await poolContract.addLiquidity(aaaParsed, usdcParsed);
+          }
+        } catch (err) {
+          // Fallback legacy method
+          lpTx = await poolContract.addLiquidity(usdcParsed, aaaParsed);
+        }
         
-        const lpTx = await poolContract.addLiquidity(usdcParsed, aaaParsed);
         alert(`Likidite ekleme işlemi gönderildi! Tx: ${lpTx.hash}`);
         await lpTx.wait();
         
@@ -524,8 +585,8 @@ export default function App() {
             <p className="text-lg font-bold text-white">$3,109,425</p>
           </div>
           <div className="bg-[#121024] p-4 rounded-2xl border border-gray-800 text-center">
-            <p className="text-xs text-gray-400 mb-1">Pool Reserves (USDC)</p>
-            <p className="text-lg font-bold text-emerald-400">{poolReserves.USDC} USDC</p>
+            <p className="text-xs text-gray-400 mb-1">Pool Reserves (Stable)</p>
+            <p className="text-lg font-bold text-emerald-400">{poolReserves.USDC} {fromToken === "USDC" ? "USDC" : "EURC"}</p>
           </div>
           <div className="bg-[#121024] p-4 rounded-2xl border border-gray-800 text-center">
             <p className="text-xs text-gray-400 mb-1">Pool Reserves (AAA)</p>
@@ -646,7 +707,7 @@ export default function App() {
               {account ? (
                 <button 
                   onClick={() => handleAction("swap")}
-                  disabled={!amountIn || txLoading}
+                  disabled={!amountIn || txLoading || amountOut === "Likidite Yetersiz"}
                   className="w-full py-4 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 font-bold transition shadow-lg text-white disabled:opacity-50"
                 >
                   {txLoading ? "İşlem Gönderiliyor..." : "Swap Varlıklar"}
@@ -672,12 +733,12 @@ export default function App() {
               <div className="space-y-4 mb-6">
                 <div className="bg-[#1a1738] p-4 rounded-2xl border border-gray-800">
                   <div className="flex justify-between text-xs text-gray-400 mb-2">
-                    <span>Add USDC</span>
-                    <span>Balance: {balances.USDC}</span>
+                    <span>Add {fromToken === "USDC" ? "USDC" : "EURC"}</span>
+                    <span>Balance: {balances[fromToken === "USDC" ? "USDC" : "EURC"]}</span>
                   </div>
                   <input 
                     type="number" 
-                    placeholder="USDC Miktarı" 
+                    placeholder={`${fromToken === "USDC" ? "USDC" : "EURC"} Miktarı`}
                     value={lpUSDC}
                     onChange={(e) => setLpUSDC(e.target.value)}
                     className="bg-transparent text-xl font-bold focus:outline-none w-full text-white"
