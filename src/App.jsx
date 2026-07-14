@@ -336,11 +336,11 @@ export default function App() {
         const amountInParsed = ethers.utils.parseUnits(amountIn, usdsObj.decimals);
 
         const poolABI = [
-          "function redeemUSDZ(uint256 usdzAmount) external"
+          "function redeemUSDS(uint256 usdzAmount) external"
         ];
         const poolContract = new ethers.Contract(SAKASENA_POOL_ADDRESS, poolABI, signer);
         
-        const redeemTx = await poolContract.redeemUSDZ(amountInParsed);
+        const redeemTx = await poolContract.redeemUSDS(amountInParsed);
         alert(`Redeem işlemi gönderildi! Tx: ${redeemTx.hash}`);
         await redeemTx.wait();
         
