@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
 
@@ -15,7 +14,7 @@ const ARC_CIRBTC_ADDRESS = "0xf0C4a4CE82A5746AbAAd9425360Ab04fbBA432BF";
 // Sizin Deploy Ettiğiniz Sözleşme Adresi (1300+ Holders)
 const USER_CUSTOM_TOKEN_ADDRESS = "0x54552f2EC52423D2fBE94c25f0BAd61b9108AAE8";
 
-// Havuz Sözleşme Adresleri (Dinamik Yönlendirme İçin)
+// Havuz Sözleşme Adresleri
 const SAKASENA_USDC_POOL_ADDRESS = import.meta.env.VITE_SAKASENA_USDC_POOL_ADDRESS || "0xbE0f19F85A5cD1Cac56E6f31c85f6cAe805e56C3";
 const SAKASENA_EURC_POOL_ADDRESS = import.meta.env.VITE_SAKASENA_EURC_POOL_ADDRESS || "0xbbc6cD33291eDfE9e4e927129901Db0e58Ba705B";
 
@@ -134,6 +133,7 @@ export default function App() {
   const [account, setAccount] = useState("");
   const [chainId, setChainId] = useState(null);
   const [activeTab, setActiveTab] = useState("swap"); // swap, pool, faucet
+  const [activePoolType, setActivePoolType] = useState("USDC"); // "USDC" veya "EURC" likidite havuzu seçimi
   
   const [tokens, setTokens] = useState(INITIAL_TOKENS);
   const [balances, setBalances] = useState({ USDC: "0.00", EURC: "0.00", cirBTC: "0.0000", USDS: "0.00", AAA: "0.00", MYTOKEN: "0.00", USDT: "0.00", DAI: "0.00" });
@@ -181,7 +181,7 @@ export default function App() {
       };
       loadAllData();
     }
-  }, [account, chainId, provider, fromToken, toToken]); // Token değişiminde rezervleri güncelle
+  }, [account, chainId, provider, fromToken, toToken, activePoolType]); // Havuz seçimlerinde rezervleri anlık güncelle
 
   // Dinamik Fiyatlama Hesaplama (Yönlendirilen Havuza Göre)
   useEffect(() => {
@@ -323,7 +323,12 @@ export default function App() {
   // Dinamik Rezerv Sorgulayıcı (Seçili Çifte Göre USDC veya EURC havuzunu çeker)
   const fetchPoolReserves = async () => {
     if (!provider) return;
-    const activePool = getPoolAddress(fromToken, toToken);
+    
+    // Hangi havuzun aktif olduğunu buluyoruz (Aktif sekme ve seçime göre)
+    const activePool = activeTab === "pool"
+      ? (activePoolType === "USDC" ? SAKASENA_USDC_POOL_ADDRESS : SAKASENA_EURC_POOL_ADDRESS)
+      : getPoolAddress(fromToken, toToken);
+
     if (activePool === ZERO_ADDRESS) return;
 
     try {
@@ -396,9 +401,12 @@ export default function App() {
       return;
     }
 
-    const activePool = getPoolAddress(fromToken, toToken);
+    const activePool = type === "add_lp"
+      ? (activePoolType === "USDC" ? SAKASENA_USDC_POOL_ADDRESS : SAKASENA_EURC_POOL_ADDRESS)
+      : getPoolAddress(fromToken, toToken);
+
     if (activePool === ZERO_ADDRESS) {
-      alert("Takas için geçerli havuz adresi bulunamadı.");
+      alert("İşlem için geçerli havuz adresi bulunamadı.");
       return;
     }
 
@@ -445,7 +453,7 @@ export default function App() {
           return;
         }
 
-        const stableSymbol = fromToken === "USDC" || toToken === "USDC" ? "USDC" : "EURC";
+        const stableSymbol = activePoolType;
         const stableTokenAddress = stableSymbol === "USDC" ? ARC_USDC_ADDRESS : ARC_EURC_ADDRESS;
 
         const usdcParsed = parseUnits(lpUSDC, 6);
@@ -530,8 +538,6 @@ export default function App() {
       alert("Testnet Tokenleri başarıyla tanımlandı!");
     }, 1500);
   };
-
-  const activeStableSymbol = fromToken === "USDC" || toToken === "USDC" ? "USDC" : "EURC";
 
   return (
     <div className="min-h-screen flex flex-col justify-between bg-[#0b0914] text-[#f3f4f6]">
@@ -755,20 +761,41 @@ export default function App() {
 
           {activeTab === "pool" && (
             <div>
-              <h2 className="text-xl font-bold mb-4">Liquidity Provision</h2>
-              <p className="text-sm text-gray-400 mb-6">
-                Havuzunuza doğrudan on-chain likidite ekleyin ve işlem ücretlerinden pay kazanın.
+              <h2 className="text-xl font-bold mb-2">Liquidity Provision</h2>
+              
+              {/* Havuz Seçici Toggle Butonları */}
+              <div className="flex space-x-2 bg-[#100e1f] p-1 rounded-xl mb-6 max-w-xs mx-auto border border-gray-800">
+                <button
+                  onClick={() => setActivePoolType("USDC")}
+                  className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition ${
+                    activePoolType === "USDC" ? "bg-violet-900 text-white" : "text-gray-400 hover:text-gray-200"
+                  }`}
+                >
+                  💵 USDC / AAA
+                </button>
+                <button
+                  onClick={() => setActivePoolType("EURC")}
+                  className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition ${
+                    activePoolType === "EURC" ? "bg-violet-900 text-white" : "text-gray-400 hover:text-gray-200"
+                  }`}
+                >
+                  💶 EURC / AAA
+                </button>
+              </div>
+
+              <p className="text-sm text-gray-400 mb-6 text-center">
+                Seçtiğiniz havuza doğrudan on-chain likidite ekleyin ve işlem ücretlerinden pay kazanın.
               </p>
 
               <div className="space-y-4 mb-6">
                 <div className="bg-[#1a1738] p-4 rounded-2xl border border-gray-800">
                   <div className="flex justify-between text-xs text-gray-400 mb-2">
-                    <span>Add {activeStableSymbol}</span>
-                    <span>Balance: {balances[activeStableSymbol]}</span>
+                    <span>Add {activePoolType}</span>
+                    <span>Balance: {balances[activePoolType]}</span>
                   </div>
                   <input 
                     type="number" 
-                    placeholder={`${activeStableSymbol} Miktarı`}
+                    placeholder={`${activePoolType} Miktarı`}
                     value={lpUSDC}
                     onChange={(e) => setLpUSDC(e.target.value)}
                     className="bg-transparent text-xl font-bold focus:outline-none w-full text-white"
@@ -801,7 +828,7 @@ export default function App() {
               ) : (
                 <button 
                   onClick={connectWallet}
-                  className="w-full py-4 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 font-bold text-white transition"
+                  className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 font-bold text-white transition"
                 >
                   Connect Wallet
                 </button>
