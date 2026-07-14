@@ -263,7 +263,7 @@ export default function App() {
       <header className="border-b border-gray-800 bg-[#0d0b1a] px-6 py-4 flex items-center justify-between">
         <div className="flex items-center space-x-3">
           <span className="text-2xl font-bold bg-gradient-to-r from-violet-400 to-indigo-400 bg-clip-text text-transparent">
-            ArcStabilizer
+            ArcSakasena
           </span>
           <span className="text-xs bg-indigo-900 text-indigo-200 px-2.5 py-0.5 rounded-full font-semibold">
             Arc Chain L1
@@ -588,7 +588,7 @@ export default function App() {
       </main>
 
       <footer className="border-t border-gray-800 bg-[#0d0b1a] px-6 py-4 text-center text-sm text-gray-500">
-        <p>© 2026 ArcStabilizer. Powered by Arc Network (Chain ID: 5042002).</p>
+        <p>© 2026 ArcSakasena. Powered by Arc Network (Chain ID: 5042002).</p>
       </footer>
     </div>
   );
