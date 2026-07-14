@@ -318,11 +318,11 @@ export default function App() {
         }
 
         const poolABI = [
-          "function mintUSDZ(uint256 usdcAmount) external"
+          "function mintUSDS(uint256 usdcAmount) external"
         ];
         const poolContract = new ethers.Contract(SAKASENA_POOL_ADDRESS, poolABI, signer);
         
-        const mintTx = await poolContract.mintUSDZ(amountInParsed);
+        const mintTx = await poolContract.mintUSDS(amountInParsed);
         alert(`Mint işlemi gönderildi! Tx: ${mintTx.hash}`);
         await mintTx.wait();
         
