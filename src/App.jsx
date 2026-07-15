@@ -111,7 +111,7 @@ export default function App() {
   const [provider, setProvider] = useState(null);
   const [account, setAccount] = useState("");
   const [chainId, setChainId] = useState(null);
-  const [activeTab, setActiveTab] = useState("swap"); // swap, pool, mint, savings, faucet
+  const [activeTab, setActiveTab] = useState("swap"); // swap, pool, mint, savings, send, faucet
   const [activePoolType, setActivePoolType] = useState("USDC"); 
   
   const [tokens, setTokens] = useState(INITIAL_TOKENS);
@@ -137,6 +137,11 @@ export default function App() {
   const [stakeAmountInput, setStakeAmountInput] = useState("");
   const [unstakeAmountInput, setUnstakeAmountInput] = useState("");
   const [savingsData, setSavingsData] = useState({ staked: "0.00", pendingRewards: "0.00", requests: [] });
+
+  // Send Token Form States (Çoklu Seçim Destekli)
+  const [sendToken, setSendToken] = useState("AAA"); // "AAA" veya "sakUSD"
+  const [sendRecipient, setSendRecipient] = useState("");
+  const [sendAmount, setSendAmount] = useState("");
 
   const [spPoints, setSpPoints] = useState(1250);
   const [faucetLoading, setFaucetLoading] = useState(false);
@@ -164,6 +169,7 @@ export default function App() {
   useEffect(() => {
     if (account && chainId === ARC_CHAIN_ID && provider) {
       const loadAllData = async () => {
+        await loadCustomTokenDetails();
         await fetchBalances();
         await fetchPoolReserves();
         await fetchSavingsData();
@@ -246,6 +252,37 @@ export default function App() {
           console.error(addError);
         }
       }
+    }
+  };
+
+  const loadCustomTokenDetails = async () => {
+    if (!provider) return;
+    try {
+      const tokenABI = [
+        "function name() view returns (string)",
+        "function symbol() view returns (string)",
+        "function decimals() view returns (uint8)"
+      ];
+      const contract = new ethers.Contract(USER_CUSTOM_TOKEN_ADDRESS, tokenABI, provider);
+      
+      const [name, symbol, decimals] = await Promise.all([
+        contract.name(),
+        contract.symbol(),
+        contract.decimals()
+      ]);
+
+      setTokens(prev => {
+        const updated = { ...prev };
+        updated.MYTOKEN = {
+          ...updated.MYTOKEN,
+          symbol: symbol,
+          name: `${name} (Your Token)`,
+          decimals: Number(decimals)
+        };
+        return updated;
+      });
+    } catch (err) {
+      console.warn("Kullanıcı token detayları okunamadı:", err);
     }
   };
 
@@ -348,7 +385,7 @@ export default function App() {
     }
   };
 
-  // TASARRUF (SAVINGS) BİLGİLERİNİ ON-CHAIN SORGULAMA FONKSİYONU
+  // TASARRUF (SAVINGS) BİLGİLERİNİ SORGULAMA
   const fetchSavingsData = async () => {
     if (!provider || !account || SAKUSD_MINTER_ADDRESS === ZERO_ADDRESS) return;
     try {
@@ -488,7 +525,6 @@ export default function App() {
         await fetchPoolReserves();
       }
 
-      // MULTI-COLLATERAL SAKUSD MINT ETME (KORUMALI)
       if (type === "mint_sakusd") {
         if (!mintAmount || isNaN(mintAmount)) {
           alert("Gecersiz miktar.");
@@ -542,7 +578,6 @@ export default function App() {
         await fetchBalances();
       }
 
-      // sakUSD YAKIP TEMİNATI GERİ ALMA
       if (type === "redeem_sakusd") {
         if (!redeemAmount || isNaN(redeemAmount)) {
           alert("Gecersiz miktar.");
@@ -656,6 +691,43 @@ export default function App() {
         await fetchSavingsData();
       }
 
+      // ==========================================
+      // TRANSFER (SEND) İŞLEMİ (Çoklu Token Destekli & Korumalı)
+      // ==========================================
+      if (type === "send_token") {
+        if (!sendRecipient || !sendAmount || isNaN(sendAmount)) {
+          alert("Lütfen geçerli bir alıcı adresi ve miktar girin.");
+          setTxLoading(false);
+          return;
+        }
+
+        // bad address checksum hatasını önlemek için adresi doğrula
+        const isAddressValid = isV6 ? ethers.isAddress(sendRecipient) : ethers.utils.isAddress(sendRecipient);
+        if (!isAddressValid) {
+          alert("Hata: Geçersiz alıcı adresi. Lütfen adresi kontrol edin.");
+          setTxLoading(false);
+          return;
+        }
+
+        const tokenToTransfer = sendToken === "AAA" ? USER_CUSTOM_TOKEN_ADDRESS : SAKUSD_TOKEN_ADDRESS;
+        const symbolToTransfer = sendToken === "AAA" ? "AAA" : "sakUSD";
+        const amountParsed = parseUnits(sendAmount, 18); // AAA da sakUSD de 18 ondalıklıdır
+
+        const erc20ABI = ["function transfer(address to, uint256 amount) returns (bool)"];
+        const tokenContract = new ethers.Contract(tokenToTransfer, erc20ABI, signer);
+
+        // Direkt on-chain transfer (Approve gerektirmez!)
+        const transferTx = await tokenContract.transfer(sendRecipient, amountParsed);
+        alert(`Transfer işlemi gönderildi! Tx: ${transferTx.hash}`);
+        await transferTx.wait();
+
+        alert(`${sendAmount} ${symbolToTransfer} token, başarıyla ${sendRecipient} adresine gönderildi!`);
+        setSendAmount("");
+        setSendRecipient("");
+        setSpPoints(prev => prev + 50);
+        await fetchBalances();
+      }
+
     } catch (err) {
       console.error(err);
       alert(`İşlem sırasında bir hata oluştu: ${err.reason || err.message || err}`);
@@ -711,9 +783,9 @@ export default function App() {
           </span>
         </div>
         
-        {/* Orta: Navbar Navigasyon Tablari (İstediğiniz gibi en yukarı taşındı!) */}
+        {/* Orta: Navbar Navigasyon Tabları */}
         <div className="flex bg-[#100e1f] p-1 rounded-xl border border-gray-800 shrink-0 w-full md:w-auto max-w-sm md:max-w-none">
-          {["swap", "pool", "mint", "savings", "faucet"].map((tab) => (
+          {["swap", "pool", "mint", "savings", "send", "faucet"].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -723,7 +795,7 @@ export default function App() {
                   : "text-gray-400 hover:text-gray-200"
               }`}
             >
-              {tab === "pool" ? "Liquidity" : (tab === "mint" ? "Mint SakUSD" : (tab === "savings" ? "Savings" : tab))}
+              {tab === "pool" ? "Liquidity" : (tab === "mint" ? "Mint SakUSD" : (tab === "savings" ? "Savings" : (tab === "send" ? "Send" : tab)))}
             </button>
           ))}
         </div>
@@ -770,7 +842,7 @@ export default function App() {
               </h3>
               <p className="text-xs text-gray-400 mt-1">Volatile Asset • Price: $5.40 • <span className="text-emerald-400 font-semibold">1,300+ Active Holders on Arcscan</span></p>
               
-              {/* Adres Kopyalama Alani (bad address checksum hatası tamamen engellendi) */}
+              {/* Adres Kopyalama Alanı */}
               <div className="mt-3 flex items-center space-x-2 bg-[#1b173c]/50 p-2.5 rounded-xl border border-gray-800 w-full max-w-full overflow-hidden">
                 <span className="text-xs text-gray-300 font-mono break-all select-all flex-grow">
                   {USER_CUSTOM_TOKEN_ADDRESS}
@@ -1208,6 +1280,78 @@ export default function App() {
             </div>
           )}
 
+          {/* SAKASENA SEND (CÜZDAN TRANSFER) TAB ALANI */}
+          {activeTab === "send" && (
+            <div>
+              <h2 className="text-xl font-bold mb-2">Send Token</h2>
+              <p className="text-sm text-gray-400 mb-6">
+                AAA veya sakUSD tokenlerinizi doğrudan başka bir cüzdan adresine hızlıca transfer edin.
+              </p>
+
+              {/* Gönderilecek Token Seçimi */}
+              <div className="bg-[#1a1738] p-4 rounded-2xl mb-4 border border-gray-800">
+                <label className="block text-xs text-gray-400 mb-2 font-medium">Gönderilecek Tokeni Seçin (Asset)</label>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-semibold text-gray-300">Seçili Token Bakiyesi: {balances[sendToken]} {sendToken}</span>
+                  <select 
+                    value={sendToken} 
+                    onChange={(e) => setSendToken(e.target.value)}
+                    className="bg-[#211e47] text-white px-3 py-1.5 rounded-xl font-semibold border border-gray-700 focus:outline-none"
+                  >
+                    <option value="AAA">🪙 AAA</option>
+                    <option value="sakUSD">💴 sakUSD</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-4 mb-6">
+                {/* Alıcı Adresi Girişi */}
+                <div className="bg-[#1a1738] p-4 rounded-2xl border border-gray-800">
+                  <label className="block text-xs text-gray-400 mb-2 font-medium">Alıcı Cüzdan Adresi (Recipient Address)</label>
+                  <input 
+                    type="text" 
+                    placeholder="0x..." 
+                    value={sendRecipient}
+                    onChange={(e) => setSendRecipient(e.target.value.toLowerCase())} // bad checksum engelleme
+                    className="bg-transparent text-sm font-mono focus:outline-none w-full text-white"
+                  />
+                </div>
+
+                {/* Miktar Girişi */}
+                <div className="bg-[#1a1738] p-4 rounded-2xl border border-gray-800">
+                  <div className="flex justify-between text-xs text-gray-400 mb-2">
+                    <span>Gönderilecek {sendToken} Miktarı</span>
+                    <span>Mevcut Bakiye: {balances[sendToken]} {sendToken}</span>
+                  </div>
+                  <input 
+                    type="number" 
+                    placeholder="0.0" 
+                    value={sendAmount}
+                    onChange={(e) => setSendAmount(e.target.value)}
+                    className="bg-transparent text-xl font-bold focus:outline-none w-full text-white"
+                  />
+                </div>
+              </div>
+
+              {account ? (
+                <button 
+                  onClick={() => handleAction("send_token")}
+                  disabled={txLoading || !sendRecipient || !sendAmount}
+                  className="w-full py-4 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 font-bold text-white transition shadow-lg disabled:opacity-50"
+                >
+                  {txLoading ? "Gönderiliyor..." : `${sendToken} Gönder (Send)`}
+                </button>
+              ) : (
+                <button 
+                  onClick={connectWallet}
+                  className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 font-bold text-white transition shadow-lg"
+                >
+                  Connect Wallet
+                </button>
+              )}
+            </div>
+          )}
+
           {activeTab === "faucet" && (
             <div className="text-center">
               <h2 className="text-xl font-bold mb-3">Arc Testnet Faucet</h2>
@@ -1250,7 +1394,7 @@ export default function App() {
 
                 {/* Bilgilendirici sakUSD Kartı */}
                 <div className="p-3.5 bg-[#111026] rounded-xl border border-violet-900 text-xs text-violet-300 leading-relaxed">
-                  💴 <strong>sakUSD Nasıl Alınır?</strong> sakUSD basımı (mint) teminata dayalı olduğu için; üstteki butondan Circle Faucet'a giderek ücretsiz test USDC, EURC, cirBTC alabilir, ardından sitemizdeki <strong>Mint sakUSD</strong> sekmesinden 1:1 oranında ücretsiz sakUSD basabilirsiniz!
+                  💴 <strong>sakUSD Nasıl Alınır?</strong> sakUSD basımı (mint) teminata dayalı olduğu için; üstteki butondan Circle Faucet'a giderek ücretsiz test USDC alabilir, ardından sitemizdeki <strong>Mint sakUSD</strong> sekmesinden 1:1 oranında ücretsiz sakUSD basabilirsiniz!
                 </div>
               </div>
             </div>
