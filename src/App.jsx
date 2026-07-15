@@ -1250,7 +1250,7 @@ export default function App() {
 
                 {/* Bilgilendirici sakUSD Kartı */}
                 <div className="p-3.5 bg-[#111026] rounded-xl border border-violet-900 text-xs text-violet-300 leading-relaxed">
-                  💴 <strong>sakUSD Nasıl Alınır?</strong> sakUSD basımı (mint) teminata dayalı olduğu için; üstteki butondan Circle Faucet'a giderek ücretsiz test USDC alabilir, ardından sitemizdeki <strong>Mint sakUSD</strong> sekmesinden 1:1 oranında ücretsiz sakUSD basabilirsiniz!
+                  💴 <strong>sakUSD Nasıl Alınır?</strong> sakUSD basımı (mint) teminata dayalı olduğu için; üstteki butondan Circle Faucet'a giderek ücretsiz test USDC, EURC, cirBTC alabilir, ardından sitemizdeki <strong>Mint sakUSD</strong> sekmesinden 1:1 oranında ücretsiz sakUSD basabilirsiniz!
                 </div>
               </div>
             </div>
