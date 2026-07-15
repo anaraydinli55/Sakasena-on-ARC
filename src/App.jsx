@@ -101,12 +101,11 @@ const INITIAL_TOKENS = {
   USDC: { symbol: "USDC", name: "USD Coin (Gas Token)", decimals: 6, icon: "💵", address: ARC_USDC_ADDRESS },
   EURC: { symbol: "EURC", name: "Euro Coin", decimals: 6, icon: "💶", address: ARC_EURC_ADDRESS },
   cirBTC: { symbol: "cirBTC", name: "Circle Wrapped Bitcoin", decimals: 8, icon: "₿", address: ARC_CIRBTC_ADDRESS },
-  sakUSD: { symbol: "sakUSD", name: "Sakasena USD", decimals: 18, icon: "🛡️", address: SAKUSD_TOKEN_ADDRESS },
-  USDS: { symbol: "USDS", name: "Sky USDS Stablecoin", decimals: 18, icon: "🌀", address: "0x0000000000000000000000000000000000000000" },
-  AAA: { symbol: "AAA", name: "anaraydinli AAA Token", decimals: 18, icon: "🚀", address: USER_CUSTOM_TOKEN_ADDRESS },
-  MYTOKEN: { symbol: "Loading...", name: "Your Deployed Token", decimals: 18, icon: "⭐", address: USER_CUSTOM_TOKEN_ADDRESS },
-  USDT: { symbol: "USDT", name: "Tether USD", decimals: 6, icon: "🟢", address: ARC_USDT_ADDRESS }, 
-  DAI: { symbol: "DAI", name: "Dai Stablecoin", decimals: 18, icon: "🟡", address: "0x0000000000000000000000000000000000000000" }
+  sakUSD: { symbol: "sakUSD", name: "Sakasena USD", decimals: 18, icon: "💴", address: SAKUSD_TOKEN_ADDRESS },
+  WUSDC: { symbol: "WUSDC", name: "Wrapped USDC", decimals: 18, icon: "💸", address: "0x911b4000D3422F482F4062a913885f7b035382Df" },
+  AAA: { symbol: "AAA", name: "anaraydinli AAA Token", decimals: 18, icon: "🪙", address: USER_CUSTOM_TOKEN_ADDRESS },
+  USDT: { symbol: "USDT", name: "Tether USD", decimals: 6, icon: "💲", address: ARC_USDT_ADDRESS }, 
+  DAI: { symbol: "DAI", name: "Dai Stablecoin", decimals: 18, icon: "💷", address: "0x40e899d2aCD26C5FBeE2E1Bda4523E7DEd617589" }
 };
 
 export default function App() {
