@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
 
@@ -7,22 +6,23 @@ const ARC_CHAIN_ID = 5042002;
 const ARC_CHAIN_HEX = "0x4cef52";
 const ARC_RPC_URL = import.meta.env.VITE_ARC_RPC_URL || "https://rpc.testnet.arc.network";
 
-// Resmi Sözleşme Adresleri (Kusursuz çalışma için tamamen küçük harfe dönüştürüldü)
-const ARC_USDC_ADDRESS = "0x3600000000000000000000000000000000000000";
-const ARC_EURC_ADDRESS = "0x89b50855aa3be2f677cd6303cec089b5f319d72a";
-const ARC_CIRBTC_ADDRESS = "0xf0c4a4ce82a5746abaad9425360ab04fbba432bf";
+// Resmi Sözleşme Adresleri (bad address checksum hatasını önlemek için tamamen küçük harfe dönüştürülmüştür)
+const ARC_USDC_ADDRESS = "0x3600000000000000000000000000000000000000".toLowerCase();
+const ARC_EURC_ADDRESS = "0x89b50855aa3be2f677cd6303cec089b5f319d72a".toLowerCase();
+const ARC_CIRBTC_ADDRESS = "0xf0c4a4ce82a5746abaad9425360ab04fbba432bf".toLowerCase();
+const ARC_USDT_ADDRESS = "0x175cdb1d338945f0d851a741ccf787d343e57952".toLowerCase(); // Gerçek USDT (270k+ Holders)
 
 // Sizin Deploy Ettiğiniz Sözleşme Adresi (1300+ Holders)
-const USER_CUSTOM_TOKEN_ADDRESS = "0x54552f2ec52423d2fbe94c25f0bad61b9108aae8";
+const USER_CUSTOM_TOKEN_ADDRESS = "0x54552f2ec52423d2fbe94c25f0bad61b9108aae8".toLowerCase();
 
 // Havuz Sözleşme Adresleri (USDC, EURC ve BTC Havuzlarınız)
-const SAKASENA_USDC_POOL_ADDRESS = import.meta.env.VITE_SAKASENA_USDC_POOL_ADDRESS || "0xbe0f19f85a5cd1cac56e6f31c85f6cae805e56c3";
-const SAKASENA_EURC_POOL_ADDRESS = import.meta.env.VITE_SAKASENA_EURC_POOL_ADDRESS || "0xbbc6cd33291edfe9e4e927129901db0e58ba705b";
-const SAKASENA_BTC_POOL_ADDRESS = import.meta.env.VITE_SAKASENA_BTC_POOL_ADDRESS || "0x1815df186c43506e7d9113e6c1d19326610aa448";
+const SAKASENA_USDC_POOL_ADDRESS = (import.meta.env.VITE_SAKASENA_USDC_POOL_ADDRESS || "0xbe0f19f85a5cd1cac56e6f31c85f6cae805e56c3").toLowerCase();
+const SAKASENA_EURC_POOL_ADDRESS = (import.meta.env.VITE_SAKASENA_EURC_POOL_ADDRESS || "0xbbc6cd33291edfe9e4e927129901db0e58ba705b").toLowerCase();
+const SAKASENA_BTC_POOL_ADDRESS = (import.meta.env.VITE_SAKASENA_BTC_POOL_ADDRESS || "0x1815df186c43506e7d9113e6c1d19326610aa448").toLowerCase();
 
 // Sizin Deploy Ettiğiniz sakUSD Sözleşme Adresleri (Minter ve Token)
-const SAKUSD_MINTER_ADDRESS = import.meta.env.VITE_SAKUSD_MINTER_ADDRESS || "0x0b1e8d54afcba0cdf74aa4f0d1003ea55a5a5423";
-const SAKUSD_TOKEN_ADDRESS = import.meta.env.VITE_SAKUSD_TOKEN_ADDRESS || "0x4186782c45bb90cd24920c4112902fca296df37f";
+const SAKUSD_MINTER_ADDRESS = (import.meta.env.VITE_SAKUSD_MINTER_ADDRESS || "0x0b1e8d54afcba0cdf74aa4f0d1003ea55a5a5423").toLowerCase();
+const SAKUSD_TOKEN_ADDRESS = (import.meta.env.VITE_SAKUSD_TOKEN_ADDRESS || "0x4186782c45bb90cd24920c4112902fca296df37f").toLowerCase();
 
 // Kur Oranları
 const TOKEN_PRICES = {
@@ -30,7 +30,7 @@ const TOKEN_PRICES = {
   EURC: 1.08,
   cirBTC: 67450.00,
   USDS: 1.00,
-  sakUSD: 1.00,
+  sakUSD: 1.00, // Sakasena USD Sabit Parası
   AAA: 5.40,
   MYTOKEN: 5.40, 
   USDT: 1.00,
@@ -75,7 +75,7 @@ const isLessThan = (a, b) => {
 
 const getDecimalsByAddress = (addr) => {
   const a = addr.toLowerCase();
-  if (a === ARC_USDC_ADDRESS.toLowerCase() || a === ARC_EURC_ADDRESS.toLowerCase()) return 6;
+  if (a === ARC_USDC_ADDRESS.toLowerCase() || a === ARC_EURC_ADDRESS.toLowerCase() || a === ARC_USDT_ADDRESS.toLowerCase()) return 6;
   if (a === ARC_CIRBTC_ADDRESS.toLowerCase()) return 8; 
   return 18; 
 };
@@ -105,7 +105,7 @@ const INITIAL_TOKENS = {
   USDS: { symbol: "USDS", name: "Sky USDS Stablecoin", decimals: 18, icon: "🌀", address: "0x0000000000000000000000000000000000000000" },
   AAA: { symbol: "AAA", name: "anaraydinli AAA Token", decimals: 18, icon: "🚀", address: USER_CUSTOM_TOKEN_ADDRESS },
   MYTOKEN: { symbol: "Loading...", name: "Your Deployed Token", decimals: 18, icon: "⭐", address: USER_CUSTOM_TOKEN_ADDRESS },
-  USDT: { symbol: "USDT", name: "Tether USD", decimals: 6, icon: "🟢", address: "0x3c2a93112a14e9168a3551644d9f6961a85f7bdb" }, 
+  USDT: { symbol: "USDT", name: "Tether USD", decimals: 6, icon: "🟢", address: ARC_USDT_ADDRESS }, 
   DAI: { symbol: "DAI", name: "Dai Stablecoin", decimals: 18, icon: "🟡", address: "0x0000000000000000000000000000000000000000" }
 };
 
@@ -302,7 +302,7 @@ export default function App() {
             newBalances[key] = "0.00";
           }
         } else {
-          newBalances[key] = (Math.random() * 300 + 50).toFixed(2);
+          newBalances[key] = "0.00";
         }
       }
 
@@ -522,6 +522,7 @@ export default function App() {
         await fetchPoolReserves();
       }
 
+      // MULTI-COLLATERAL SAKUSD MINT ETME (KORUMALI)
       if (type === "mint_sakusd") {
         if (!mintAmount || isNaN(mintAmount)) {
           alert("Gecersiz miktar.");
@@ -532,17 +533,34 @@ export default function App() {
         const collateralObj = tokens[mintCollateral];
         const amountInParsed = parseUnits(mintAmount, collateralObj.decimals);
 
+        // 1. Teminat Token Harcama Onayı
         const erc20ABI = [
           "function allowance(address owner, address spender) view returns (uint256)",
           "function approve(address spender, uint256 amount) returns (bool)"
         ];
         const collateralContract = new ethers.Contract(collateralObj.address, erc20ABI, signer);
-        const currentAllowance = await collateralContract.allowance(account, SAKUSD_MINTER_ADDRESS);
+        
+        let currentAllowance = 0n;
+        try {
+          currentAllowance = await collateralContract.allowance(account, SAKUSD_MINTER_ADDRESS);
+        } catch (allowanceErr) {
+          console.warn("Allowance check failed:", allowanceErr);
+          alert(`Hata: ${collateralObj.symbol} token sözleşmesi bu adreste on-chain olarak bulunamadı. Lütfen adresi kontrol edin veya başka bir teminat (örneğin gerçek USDC veya EURC) seçin.`);
+          setTxLoading(false);
+          return;
+        }
 
         if (isLessThan(currentAllowance, amountInParsed)) {
           alert(`Lütfen önce ${collateralObj.symbol} harcama onayını (Approve) verin.`);
-          const appTx = await collateralContract.approve(SAKUSD_MINTER_ADDRESS, amountInParsed);
-          await appTx.wait();
+          try {
+            const appTx = await collateralContract.approve(SAKUSD_MINTER_ADDRESS, amountInParsed);
+            await appTx.wait();
+          } catch (approveErr) {
+            console.error("Approval transaction failed:", approveErr);
+            alert("Harcama yetkisi cüzdandan onaylanamadı.");
+            setTxLoading(false);
+            return;
+          }
         }
 
         const minterABI = ["function mint(address collateralToken, uint256 amountIn) external"];
@@ -558,6 +576,7 @@ export default function App() {
         await fetchBalances();
       }
 
+      // sakUSD YAKIP TEMİNATI GERİ ALMA
       if (type === "redeem_sakusd") {
         if (!redeemAmount || isNaN(redeemAmount)) {
           alert("Gecersiz miktar.");
