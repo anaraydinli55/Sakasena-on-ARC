@@ -20,9 +20,9 @@ const SAKASENA_USDC_POOL_ADDRESS = (import.meta.env.VITE_SAKASENA_USDC_POOL_ADDR
 const SAKASENA_EURC_POOL_ADDRESS = (import.meta.env.VITE_SAKASENA_EURC_POOL_ADDRESS || "0xbbc6cd33291edfe9e4e927129901db0e58ba705b").toLowerCase();
 const SAKASENA_BTC_POOL_ADDRESS = (import.meta.env.VITE_SAKASENA_BTC_POOL_ADDRESS || "0x1815df186c43506e7d9113e6c1d19326610aa448").toLowerCase();
 
-// Sizin Deploy Ettiğiniz sakUSD Sözleşme Adresleri (Minter ve Token)
-const SAKUSD_MINTER_ADDRESS = (import.meta.env.VITE_SAKUSD_MINTER_ADDRESS || "0x0b1e8d54afcba0cdf74aa4f0d1003ea55a5a5423").toLowerCase();
-const SAKUSD_TOKEN_ADDRESS = (import.meta.env.VITE_SAKUSD_TOKEN_ADDRESS || "0x4186782c45bb90cd24920c4112902fca296df37f").toLowerCase();
+// Yeni Deploy Ettiğiniz sakUSD Sözleşme Adresleri (Minter ve Token)
+const SAKUSD_MINTER_ADDRESS = (import.meta.env.VITE_SAKUSD_MINTER_ADDRESS || "0x1e27b23bc7662db4accf371b96b14ea5d81e0f83").toLowerCase();
+const SAKUSD_TOKEN_ADDRESS = (import.meta.env.VITE_SAKUSD_TOKEN_ADDRESS || "0x085bc2b26d637685d2d3b742f10d14d8d77557b1").toLowerCase();
 
 // Kur Oranları
 const TOKEN_PRICES = {
