@@ -117,31 +117,31 @@ export default function App() {
   const [tokens, setTokens] = useState(INITIAL_TOKENS);
   const [balances, setBalances] = useState({ USDC: "0.00", EURC: "0.00", cirBTC: "0.0000", sakUSD: "0.00", WUSDC: "0.00", AAA: "0.00", USDT: "0.00", DAI: "0.00" }); 
   
-  // Swap Form States
+  // Swap Form States (Varsayılan olarak "0" yapıldı)
   const [fromToken, setFromToken] = useState("USDC");
   const [toToken, setToToken] = useState("AAA"); 
-  const [amountIn, setAmountIn] = useState("");
+  const [amountIn, setAmountIn] = useState("0");
   const [amountOut, setAmountOut] = useState("");
 
-  // Liquidity Pool Form States
-  const [lpUSDC, setLpUSDC] = useState("");
-  const [lpAAA, setLpAAA] = useState("");
+  // Liquidity Pool Form States (Varsayılan olarak "0" yapıldı)
+  const [lpUSDC, setLpUSDC] = useState("0");
+  const [lpAAA, setLpAAA] = useState("0");
   const [poolReserves, setPoolReserves] = useState({ stableAmount: "0.00", aaaAmount: "0.00", stableSymbol: "USDC", totalShares: "0" });
 
-  // Mint / Redeem Form States
+  // Mint / Redeem Form States (Varsayılan olarak "0" yapıldı)
   const [mintCollateral, setMintCollateral] = useState("USDC");
-  const [mintAmount, setMintAmount] = useState("");
-  const [redeemAmount, setRedeemAmount] = useState("");
+  const [mintAmount, setMintAmount] = useState("0");
+  const [redeemAmount, setRedeemAmount] = useState("0");
 
-  // Savings (Staking) Form States
-  const [stakeAmountInput, setStakeAmountInput] = useState("");
-  const [unstakeAmountInput, setUnstakeAmountInput] = useState("");
+  // Savings (Staking) Form States (Varsayılan olarak "0" yapıldı)
+  const [stakeAmountInput, setStakeAmountInput] = useState("0");
+  const [unstakeAmountInput, setUnstakeAmountInput] = useState("0");
   const [savingsData, setSavingsData] = useState({ staked: "0.00", pendingRewards: "0.00", requests: [] });
 
-  // Send Token Form States
+  // Send Token Form States (Varsayılan olarak "0" yapıldı)
   const [sendToken, setSendToken] = useState("AAA"); 
   const [sendRecipient, setSendRecipient] = useState("");
-  const [sendAmount, setSendAmount] = useState("");
+  const [sendAmount, setSendAmount] = useState("0");
 
   const [spPoints, setSpPoints] = useState(1250);
   const [faucetLoading, setFaucetLoading] = useState(false);
@@ -487,14 +487,14 @@ export default function App() {
         
         alert("Likidite başarıyla eklendi!");
         setSpPoints(prev => prev + 150);
-        setLpUSDC("");
-        setLpAAA("");
+        setLpUSDC("0");
+        setLpAAA("0");
         await fetchBalances();
         await fetchPoolReserves();
       }
 
       if (type === "mint_sakusd") {
-        if (!mintAmount || isNaN(mintAmount)) {
+        if (!mintAmount || isNaN(mintAmount) || parseFloat(mintAmount) <= 0) {
           alert("Gecersiz miktar.");
           setTxLoading(false);
           return;
@@ -542,12 +542,12 @@ export default function App() {
 
         alert("sakUSD başarıyla basıldı!");
         setSpPoints(prev => prev + 100);
-        setMintAmount("");
+        setMintAmount("0");
         await fetchBalances();
       }
 
       if (type === "redeem_sakusd") {
-        if (!redeemAmount || isNaN(redeemAmount)) {
+        if (!redeemAmount || isNaN(redeemAmount) || parseFloat(redeemAmount) <= 0) {
           alert("Gecersiz miktar.");
           setTxLoading(false);
           return;
@@ -565,13 +565,13 @@ export default function App() {
 
         alert("Teminat başarıyla geri alındı!");
         setSpPoints(prev => prev + 100);
-        setRedeemAmount("");
+        setRedeemAmount("0");
         await fetchBalances();
       }
 
       // SAKUSD STAKE
       if (type === "stake_sakusd") {
-        if (!stakeAmountInput || isNaN(stakeAmountInput)) {
+        if (!stakeAmountInput || isNaN(stakeAmountInput) || parseFloat(stakeAmountInput) <= 0) {
           alert("Gecerli bir miktar girin.");
           setTxLoading(false);
           return;
@@ -600,7 +600,7 @@ export default function App() {
         await stakeTx.wait();
 
         alert("Tasarrufa başarıyla sakUSD eklendi!");
-        setStakeAmountInput("");
+        setStakeAmountInput("0");
         setSpPoints(prev => prev + 100);
         await fetchBalances();
         await fetchSavingsData();
@@ -608,7 +608,7 @@ export default function App() {
 
       // UNSTAKE TALEBİ BAŞLATMA
       if (type === "request_unstake") {
-        if (!unstakeAmountInput || isNaN(unstakeAmountInput)) {
+        if (!unstakeAmountInput || isNaN(unstakeAmountInput) || parseFloat(unstakeAmountInput) <= 0) {
           alert("Gecerli bir miktar girin.");
           setTxLoading(false);
           return;
@@ -624,7 +624,7 @@ export default function App() {
         await unstakeTx.wait();
 
         alert("14 Günlük geri çekim talebi başarıyla başlatıldı!");
-        setUnstakeAmountInput("");
+        setUnstakeAmountInput("0");
         await fetchBalances();
         await fetchSavingsData();
       }
@@ -659,11 +659,9 @@ export default function App() {
         await fetchSavingsData();
       }
 
-      // ==========================================
-      // TRANSFER (SEND) İŞLEMİ (Çoklu Token Destekli & Korumalı)
-      // ==========================================
+      // TRANSFER (SEND) İŞLEMİ
       if (type === "send_token") {
-        if (!sendRecipient || !sendAmount || isNaN(sendAmount)) {
+        if (!sendRecipient || !sendAmount || isNaN(sendAmount) || parseFloat(sendAmount) <= 0) {
           alert("Lütfen geçerli bir alıcı adresi ve miktar girin.");
           setTxLoading(false);
           return;
@@ -688,7 +686,7 @@ export default function App() {
         await transferTx.wait();
 
         alert(`${sendAmount} ${symbolToTransfer} token, başarıyla ${sendRecipient} adresine gönderildi!`);
-        setSendAmount("");
+        setSendAmount("0");
         setSendRecipient("");
         setSpPoints(prev => prev + 50);
         await fetchBalances();
@@ -733,6 +731,36 @@ export default function App() {
     setTxLoading(false);
   };
 
+  // Dinamik Yüzdelik (%) Hesaplama Yardımcı Fonksiyonu
+  const handlePercentClick = (percent, balance, decimals, setter) => {
+    if (!balance || isNaN(balance)) return;
+    const bal = parseFloat(balance);
+    if (bal <= 0) return;
+    const calculatedAmount = (bal * percent) / 100;
+    setter(calculatedAmount.toFixed(decimals === 8 ? 6 : 4));
+  };
+
+  // Rakam Girişini Düzenleyen ve Başlangıç Sıfırını Temizleyen Yardımcı Fonksiyonlar (Premium UX)
+  const handleNumberInput = (setter) => (e) => {
+    let val = e.target.value;
+    if (val.startsWith("0") && val.length > 1 && val[1] !== ".") {
+      val = val.slice(1);
+    }
+    setter(val);
+  };
+
+  const handleFocus = (val, setter) => () => {
+    if (val === "0" || val === "0.0" || val === "0.00") {
+      setter("");
+    }
+  };
+
+  const handleBlur = (val, setter) => () => {
+    if (val === "" || isNaN(val)) {
+      setter("0");
+    }
+  };
+
   const activeStableSymbol = activePoolType;
 
   return (
@@ -748,7 +776,7 @@ export default function App() {
           </span>
         </div>
         
-        {/* Orta: Navbar Navigasyon Tabları (Dinamik Grid / Flex) */}
+        {/* Orta: Navbar Navigasyon Tabları (Mobil Uyumlu Grid / Masaüstü Flex) */}
         <div className="grid grid-cols-3 md:flex bg-[#100e1f] p-1 rounded-xl border border-gray-800 shrink-0 w-full md:w-auto max-w-sm md:max-w-none">
           {["swap", "pool", "mint", "savings", "send", "faucet"].map((tab) => (
             <button
@@ -858,7 +886,8 @@ export default function App() {
                 <span className="text-xs text-violet-400 bg-violet-950 px-2 py-1 rounded">Dynamic Price DEX</span>
               </h2>
 
-              <div className="bg-[#1a1738] p-4 rounded-2xl mb-3 border border-gray-800">
+              {/* SWAP GİRİŞ ALANI (Gelişmiş CSS ve Kilitli 0 Korumalı) */}
+              <div className="bg-[#1c183a] p-4 rounded-2xl mb-3 border border-gray-800 focus-within:border-violet-600 focus-within:shadow-[0_0_15px_rgba(139,92,246,0.25)] transition">
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-xs text-gray-400 font-medium">From</span>
                   <span className="text-xs text-gray-400">Balance: {balances[fromToken]}</span>
@@ -866,9 +895,11 @@ export default function App() {
                 <div className="flex items-center justify-between">
                   <input 
                     type="number" 
-                    placeholder="0.0" 
+                    placeholder="0" 
                     value={amountIn}
-                    onChange={(e) => setAmountIn(e.target.value)}
+                    onFocus={handleFocus(amountIn, setAmountIn)}
+                    onBlur={handleBlur(amountIn, setAmountIn)}
+                    onChange={handleNumberInput(setAmountIn)}
                     className="bg-transparent text-2xl font-bold focus:outline-none w-2/3 text-white"
                   />
                   <select 
@@ -883,6 +914,19 @@ export default function App() {
                       <option key={t} value={t}>{tokens[t].icon} {tokens[t].symbol}</option>
                     ))}
                   </select>
+                </div>
+                
+                {/* Swap Yüzde Butonları */}
+                <div className="flex space-x-2 mt-3 pt-2 border-t border-[#2a2456]/40">
+                  {[25, 50, 75, 100].map(p => (
+                    <button
+                      key={p}
+                      onClick={() => handlePercentClick(p, balances[fromToken], tokens[fromToken].decimals, setAmountIn)}
+                      className="bg-[#211e47] hover:bg-violet-900 hover:text-white text-[10px] text-gray-400 font-bold px-3 py-1 rounded-lg transition"
+                    >
+                      {p === 100 ? "MAX" : `${p}%`}
+                    </button>
+                  ))}
                 </div>
               </div>
 
@@ -907,7 +951,7 @@ export default function App() {
                 <div className="flex items-center justify-between">
                   <input 
                     type="text" 
-                    placeholder="0.0" 
+                    placeholder="0" 
                     value={amountOut}
                     disabled
                     className="bg-transparent text-2xl font-bold focus:outline-none w-2/3 text-white"
@@ -947,7 +991,7 @@ export default function App() {
               {account ? (
                 <button 
                   onClick={() => handleAction("swap")}
-                  disabled={!amountIn || txLoading || amountOut === "Likidite Yetersiz" || amountOut === "Havuz Bulunamadı"}
+                  disabled={!amountIn || parseFloat(amountIn) <= 0 || txLoading || amountOut === "Likidite Yetersiz" || amountOut === "Havuz Bulunamadı"}
                   className="w-full py-4 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 font-bold transition shadow-lg text-white disabled:opacity-50"
                 >
                   {txLoading ? "İşlem Gönderiliyor..." : "Swap Varlıklar"}
@@ -1000,39 +1044,69 @@ export default function App() {
               </p>
 
               <div className="space-y-4 mb-6">
-                <div className="bg-[#1a1738] p-4 rounded-2xl border border-gray-800">
+                {/* LP STABLE GİRİŞ ALANI */}
+                <div className="bg-[#1c183a] p-4 rounded-2xl border border-gray-800 focus-within:border-violet-600 focus-within:shadow-[0_0_15px_rgba(139,92,246,0.25)] transition">
                   <div className="flex justify-between text-xs text-gray-400 mb-2">
                     <span>Add {activeStableSymbol}</span>
                     <span>Balance: {balances[activeStableSymbol]}</span>
                   </div>
                   <input 
                     type="number" 
-                    placeholder={`${activeStableSymbol} Miktarı`}
+                    placeholder="0"
                     value={lpUSDC}
-                    onChange={(e) => setLpUSDC(e.target.value)}
+                    onFocus={handleFocus(lpUSDC, setLpUSDC)}
+                    onBlur={handleBlur(lpUSDC, setLpUSDC)}
+                    onChange={handleNumberInput(setLpUSDC)}
                     className="bg-transparent text-xl font-bold focus:outline-none w-full text-white"
                   />
+                  {/* Stable LP Yüzde Butonları */}
+                  <div className="flex space-x-2 mt-3 pt-2 border-t border-[#2a2456]/40">
+                    {[25, 50, 75, 100].map(p => (
+                      <button
+                        key={p}
+                        onClick={() => handlePercentClick(p, balances[activeStableSymbol], activeStableSymbol === "cirBTC" ? 8 : 6, setLpUSDC)}
+                        className="bg-[#211e47] hover:bg-violet-900 hover:text-white text-[10px] text-gray-400 font-bold px-3 py-1 rounded-lg transition"
+                      >
+                        {p === 100 ? "MAX" : `${p}%`}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
-                <div className="bg-[#1a1738] p-4 rounded-2xl border border-gray-800">
+                {/* LP AAA GİRİŞ ALANI */}
+                <div className="bg-[#1c183a] p-4 rounded-2xl border border-gray-800 focus-within:border-violet-600 focus-within:shadow-[0_0_15px_rgba(139,92,246,0.25)] transition">
                   <div className="flex justify-between text-xs text-gray-400 mb-2">
-                    <span>Add {tokens.AAA.symbol} (AAA)</span>
+                    <span>Add AAA Token</span>
                     <span>Balance: {balances.AAA}</span>
                   </div>
                   <input 
                     type="number" 
-                    placeholder={`${tokens.AAA.symbol} Miktarı`}
+                    placeholder="0"
                     value={lpAAA}
-                    onChange={(e) => setLpAAA(e.target.value)}
+                    onFocus={handleFocus(lpAAA, setLpAAA)}
+                    onBlur={handleBlur(lpAAA, setLpAAA)}
+                    onChange={handleNumberInput(setLpAAA)}
                     className="bg-transparent text-xl font-bold focus:outline-none w-full text-white"
                   />
+                  {/* AAA LP Yüzde Butonları */}
+                  <div className="flex space-x-2 mt-3 pt-2 border-t border-[#2a2456]/40">
+                    {[25, 50, 75, 100].map(p => (
+                      <button
+                        key={p}
+                        onClick={() => handlePercentClick(p, balances.AAA, 18, setLpAAA)}
+                        className="bg-[#211e47] hover:bg-violet-900 hover:text-white text-[10px] text-gray-400 font-bold px-3 py-1 rounded-lg transition"
+                      >
+                        {p === 100 ? "MAX" : `${p}%`}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
 
               {account ? (
                 <button 
                   onClick={() => handleAction("add_lp")}
-                  disabled={txLoading}
+                  disabled={txLoading || parseFloat(lpUSDC) <= 0 || parseFloat(lpAAA) <= 0}
                   className="w-full py-4 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 font-bold text-white transition shadow-lg disabled:opacity-50"
                 >
                   {txLoading ? "İşlem Gönderiliyor..." : "Likidite Ekle (Add Liquidity)"}
@@ -1072,7 +1146,8 @@ export default function App() {
               </div>
 
               <div className="space-y-4 mb-6">
-                <div className="bg-[#1a1738] p-4 rounded-2xl border border-gray-800">
+                {/* sakUSD MINT ETME GİRİŞ ALANI */}
+                <div className="bg-[#1c183a] p-4 rounded-2xl border border-gray-800 focus-within:border-violet-600 focus-within:shadow-[0_0_15px_rgba(139,92,246,0.25)] transition">
                   <div className="flex justify-between text-xs text-gray-400 mb-2">
                     <span>Mint sakUSD</span>
                     <span>sakUSD Balance: {balances.sakUSD}</span>
@@ -1080,22 +1155,37 @@ export default function App() {
                   <div className="flex items-center space-x-2">
                     <input 
                       type="number" 
-                      placeholder={`${mintCollateral} Miktarı`}
+                      placeholder="0"
                       value={mintAmount}
-                      onChange={(e) => setMintAmount(e.target.value)}
+                      onFocus={handleFocus(mintAmount, setMintAmount)}
+                      onBlur={handleBlur(mintAmount, setMintAmount)}
+                      onChange={handleNumberInput(setMintAmount)}
                       className="bg-transparent text-xl font-bold focus:outline-none w-full text-white"
                     />
                     <button 
                       onClick={() => handleAction("mint_sakusd")}
-                      disabled={txLoading || !mintAmount}
-                      className="bg-violet-600 hover:bg-violet-500 px-5 py-2.5 rounded-xl text-sm font-bold transition text-white disabled:opacity-50"
+                      disabled={txLoading || parseFloat(mintAmount) <= 0}
+                      className="bg-violet-600 hover:bg-violet-500 px-5 py-2.5 rounded-xl text-sm font-bold transition text-white disabled:opacity-50 shrink-0"
                     >
                       Mint
                     </button>
                   </div>
+                  {/* Mint Yüzde Butonları */}
+                  <div className="flex space-x-2 mt-3 pt-2 border-t border-[#2a2456]/40">
+                    {[25, 50, 75, 100].map(p => (
+                      <button
+                        key={p}
+                        onClick={() => handlePercentClick(p, balances[mintCollateral], tokens[mintCollateral].decimals, setMintAmount)}
+                        className="bg-[#211e47] hover:bg-violet-900 hover:text-white text-[10px] text-gray-400 font-bold px-3 py-1 rounded-lg transition"
+                      >
+                        {p === 100 ? "MAX" : `${p}%`}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
-                <div className="bg-[#1a1738] p-4 rounded-2xl border border-gray-800">
+                {/* sakUSD YAKMA (REDEEM) GİRİŞ ALANI */}
+                <div className="bg-[#1c183a] p-4 rounded-2xl border border-gray-800 focus-within:border-violet-600 focus-within:shadow-[0_0_15px_rgba(139,92,246,0.25)] transition">
                   <div className="flex justify-between text-xs text-gray-400 mb-2">
                     <span>Redeem sakUSD (Teminatı Geri Al)</span>
                     <span>Collateral: {mintCollateral}</span>
@@ -1103,18 +1193,32 @@ export default function App() {
                   <div className="flex items-center space-x-2">
                     <input 
                       type="number" 
-                      placeholder="sakUSD Miktarı"
+                      placeholder="0"
                       value={redeemAmount}
-                      onChange={(e) => setRedeemAmount(e.target.value)}
+                      onFocus={handleFocus(redeemAmount, setRedeemAmount)}
+                      onBlur={handleBlur(redeemAmount, setRedeemAmount)}
+                      onChange={handleNumberInput(setRedeemAmount)}
                       className="bg-transparent text-xl font-bold focus:outline-none w-full text-white"
                     />
                     <button 
                       onClick={() => handleAction("redeem_sakusd")}
-                      disabled={txLoading || !redeemAmount}
-                      className="bg-indigo-600 hover:bg-indigo-500 px-5 py-2.5 rounded-xl text-sm font-bold transition text-white disabled:opacity-50"
+                      disabled={txLoading || parseFloat(redeemAmount) <= 0}
+                      className="bg-indigo-600 hover:bg-indigo-500 px-5 py-2.5 rounded-xl text-sm font-bold transition text-white disabled:opacity-50 shrink-0"
                     >
                       Redeem
                     </button>
+                  </div>
+                  {/* Redeem Yüzde Butonları */}
+                  <div className="flex space-x-2 mt-3 pt-2 border-t border-[#2a2456]/40">
+                    {[25, 50, 75, 100].map(p => (
+                      <button
+                        key={p}
+                        onClick={() => handlePercentClick(p, balances.sakUSD, 18, setRedeemAmount)}
+                        className="bg-[#211e47] hover:bg-violet-900 hover:text-white text-[10px] text-gray-400 font-bold px-3 py-1 rounded-lg transition"
+                      >
+                        {p === 100 ? "MAX" : `${p}%`}
+                      </button>
+                    ))}
                   </div>
                 </div>
               </div>
@@ -1151,8 +1255,8 @@ export default function App() {
 
               {/* Stake / Unstake Formları */}
               <div className="space-y-4 mb-6">
-                {/* STAKE FORM */}
-                <div className="bg-[#1a1738] p-4 rounded-2xl border border-gray-800">
+                {/* STAKE (KİLİTLEME) ALANI */}
+                <div className="bg-[#1c183a] p-4 rounded-2xl border border-gray-800 focus-within:border-violet-600 focus-within:shadow-[0_0_15px_rgba(139,92,246,0.25)] transition">
                   <div className="flex justify-between text-xs text-gray-400 mb-2">
                     <span>Stake sakUSD</span>
                     <span>Wallet Balance: {balances.sakUSD}</span>
@@ -1160,23 +1264,37 @@ export default function App() {
                   <div className="flex items-center space-x-2">
                     <input 
                       type="number" 
-                      placeholder="Miktar"
+                      placeholder="0"
                       value={stakeAmountInput}
-                      onChange={(e) => setStakeAmountInput(e.target.value)}
+                      onFocus={handleFocus(stakeAmountInput, setStakeAmountInput)}
+                      onBlur={handleBlur(stakeAmountInput, setStakeAmountInput)}
+                      onChange={handleNumberInput(setStakeAmountInput)}
                       className="bg-transparent text-xl font-bold focus:outline-none w-full text-white"
                     />
                     <button 
                       onClick={() => handleAction("stake_sakusd")}
-                      disabled={txLoading || !stakeAmountInput}
-                      className="bg-violet-600 hover:bg-violet-500 px-5 py-2.5 rounded-xl text-sm font-bold transition text-white disabled:opacity-50"
+                      disabled={txLoading || parseFloat(stakeAmountInput) <= 0}
+                      className="bg-violet-600 hover:bg-violet-500 px-5 py-2.5 rounded-xl text-sm font-bold transition text-white disabled:opacity-50 shrink-0"
                     >
                       Stake
                     </button>
                   </div>
+                  {/* Stake Yüzde Butonları */}
+                  <div className="flex space-x-2 mt-3 pt-2 border-t border-[#2a2456]/40">
+                    {[25, 50, 75, 100].map(p => (
+                      <button
+                        key={p}
+                        onClick={() => handlePercentClick(p, balances.sakUSD, 18, setStakeAmountInput)}
+                        className="bg-[#211e47] hover:bg-violet-900 hover:text-white text-[10px] text-gray-400 font-bold px-3 py-1 rounded-lg transition"
+                      >
+                        {p === 100 ? "MAX" : `${p}%`}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
-                {/* UNSTAKE FORM */}
-                <div className="bg-[#1a1738] p-4 rounded-2xl border border-gray-800">
+                {/* UNSTAKE (GERİ ÇEKİM TALEBİ) ALANI */}
+                <div className="bg-[#1c183a] p-4 rounded-2xl border border-gray-800 focus-within:border-violet-600 focus-within:shadow-[0_0_15px_rgba(139,92,246,0.25)] transition">
                   <div className="flex justify-between text-xs text-gray-400 mb-2">
                     <span>Request Unstake (Geri Çekim Talebi)</span>
                     <span>14 Günlük Kilit Süresi</span>
@@ -1184,23 +1302,37 @@ export default function App() {
                   <div className="flex items-center space-x-2">
                     <input 
                       type="number" 
-                      placeholder="Miktar"
+                      placeholder="0"
                       value={unstakeAmountInput}
-                      onChange={(e) => setUnstakeAmountInput(e.target.value)}
+                      onFocus={handleFocus(unstakeAmountInput, setUnstakeAmountInput)}
+                      onBlur={handleBlur(unstakeAmountInput, setUnstakeAmountInput)}
+                      onChange={handleNumberInput(setUnstakeAmountInput)}
                       className="bg-transparent text-xl font-bold focus:outline-none w-full text-white"
                     />
                     <button 
                       onClick={() => handleAction("request_unstake")}
-                      disabled={txLoading || !unstakeAmountInput}
-                      className="bg-indigo-600 hover:bg-indigo-500 px-5 py-2.5 rounded-xl text-sm font-bold transition text-white disabled:opacity-50"
+                      disabled={txLoading || parseFloat(unstakeAmountInput) <= 0}
+                      className="bg-indigo-600 hover:bg-indigo-500 px-5 py-2.5 rounded-xl text-sm font-bold transition text-white disabled:opacity-50 shrink-0"
                     >
                       Request Unstake
                     </button>
                   </div>
+                  {/* Unstake Yüzde Butonları */}
+                  <div className="flex space-x-2 mt-3 pt-2 border-t border-[#2a2456]/40">
+                    {[25, 50, 75, 100].map(p => (
+                      <button
+                        key={p}
+                        onClick={() => handlePercentClick(p, savingsData.staked, 18, setUnstakeAmountInput)}
+                        className="bg-[#211e47] hover:bg-violet-900 hover:text-white text-[10px] text-gray-400 font-bold px-3 py-1 rounded-lg transition"
+                      >
+                        {p === 100 ? "MAX" : `${p}%`}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
 
-              {/* Aktif Unstake Talepleri */}
+              {/* Aktif Unstake Talepleri (14 günlük sayaçlar) */}
               {savingsData.requests.length > 0 && (
                 <div className="bg-[#100e21] p-4 rounded-2xl border border-gray-900">
                   <h3 className="text-xs font-semibold uppercase tracking-wider text-violet-400 mb-3">Aktif Geri Çekim Talepleriniz</h3>
@@ -1283,25 +1415,39 @@ export default function App() {
                 </div>
 
                 {/* Miktar Girişi */}
-                <div className="bg-[#1a1738] p-4 rounded-2xl border border-gray-800">
+                <div className="bg-[#1c183a] p-4 rounded-2xl border border-gray-800 focus-within:border-violet-600 focus-within:shadow-[0_0_15px_rgba(139,92,246,0.25)] transition">
                   <div className="flex justify-between text-xs text-gray-400 mb-2">
                     <span>Gönderilecek {sendToken} Miktarı</span>
                     <span>Mevcut Bakiye: {balances[sendToken]} {sendToken}</span>
                   </div>
                   <input 
                     type="number" 
-                    placeholder="0.0" 
+                    placeholder="0" 
                     value={sendAmount}
-                    onChange={(e) => setSendAmount(e.target.value)}
+                    onFocus={handleFocus(sendAmount, setSendAmount)}
+                    onBlur={handleBlur(sendAmount, setSendAmount)}
+                    onChange={handleNumberInput(setSendAmount)}
                     className="bg-transparent text-xl font-bold focus:outline-none w-full text-white"
                   />
+                  {/* Send Yüzde Butonları */}
+                  <div className="flex space-x-2 mt-3 pt-2 border-t border-[#2a2456]/40">
+                    {[25, 50, 75, 100].map(p => (
+                      <button
+                        key={p}
+                        onClick={() => handlePercentClick(p, balances[sendToken], 18, setSendAmount)}
+                        className="bg-[#211e47] hover:bg-violet-900 hover:text-white text-[10px] text-gray-400 font-bold px-3 py-1 rounded-lg transition"
+                      >
+                        {p === 100 ? "MAX" : `${p}%`}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
 
               {account ? (
                 <button 
                   onClick={() => handleAction("send_token")}
-                  disabled={txLoading || !sendRecipient || !sendAmount}
+                  disabled={txLoading || !sendRecipient || !sendAmount || parseFloat(sendAmount) <= 0}
                   className="w-full py-4 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 font-bold text-white transition shadow-lg disabled:opacity-50"
                 >
                   {txLoading ? "Gönderiliyor..." : `${sendToken} Gönder (Send)`}
