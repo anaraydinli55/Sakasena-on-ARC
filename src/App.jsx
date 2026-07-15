@@ -19,7 +19,7 @@ const SAKASENA_USDC_POOL_ADDRESS = import.meta.env.VITE_SAKASENA_USDC_POOL_ADDRE
 const SAKASENA_EURC_POOL_ADDRESS = import.meta.env.VITE_SAKASENA_EURC_POOL_ADDRESS || "0xbbc6cD33291eDfE9e4e927129901Db0e58Ba705B";
 const SAKASENA_BTC_POOL_ADDRESS = import.meta.env.VITE_SAKASENA_BTC_POOL_ADDRESS || "0x1815DF186C43506e7D9113E6c1D19326610Aa448";
 
-// Sizin Deploy Ettiğiniz sakUSD Sözleşme Adresleri
+// Sizin Deploy Ettiğiniz sakUSD Sözleşme Adresleri (Minter ve Token)
 const SAKUSD_MINTER_ADDRESS = import.meta.env.VITE_SAKUSD_MINTER_ADDRESS || "0x0b1E8d54aFCBa0cDF74aA4F0d1003Ea55a5a5423";
 const SAKUSD_TOKEN_ADDRESS = import.meta.env.VITE_SAKUSD_TOKEN_ADDRESS || "0x4186782c45bB90Cd24920c4112902fCA296DF37f";
 
@@ -29,7 +29,7 @@ const TOKEN_PRICES = {
   EURC: 1.08,
   cirBTC: 67450.00,
   USDS: 1.00,
-  sakUSD: 1.00, // Sakasena USD Sabit Parası
+  sakUSD: 1.00,
   AAA: 5.40,
   MYTOKEN: 5.40, 
   USDT: 1.00,
@@ -79,7 +79,7 @@ const getDecimalsByAddress = (addr) => {
   return 18; 
 };
 
-// Dinamik Havuz Yönlendirici Yardımcı Fonksiyonu (Dinamik Çoklu Havuz)
+// Dinamik Havuz Yönlendirici Yardımcı Fonksiyonu
 const getPoolAddress = (token1, token2) => {
   const t1 = token1.toLowerCase();
   const t2 = token2.toLowerCase();
@@ -104,7 +104,7 @@ const INITIAL_TOKENS = {
   USDS: { symbol: "USDS", name: "Sky USDS Stablecoin", decimals: 18, icon: "🌀", address: import.meta.env.VITE_USDS_ADDRESS || "0x0000000000000000000000000000000000000000" },
   AAA: { symbol: "AAA", name: "anaraydinli AAA Token", decimals: 18, icon: "🚀", address: import.meta.env.VITE_AAA_ADDRESS || "0x54552f2EC52423D2fBE94c25f0BAd61b9108AAE8" },
   MYTOKEN: { symbol: "Loading...", name: "Your Deployed Token", decimals: 18, icon: "⭐", address: USER_CUSTOM_TOKEN_ADDRESS },
-  USDT: { symbol: "USDT", name: "Tether USD", decimals: 6, icon: "🟢", address: "0x3c2a93112a14e9168a3551644d9f6961a85f7bdb" },
+  USDT: { symbol: "USDT", name: "Tether USD", decimals: 6, icon: "🟢", address: "0x3C2a93112A14e9168a3551644d9f6961a85f7bDB" }, // USDT Adres Hatası Giderildi!
   DAI: { symbol: "DAI", name: "Dai Stablecoin", decimals: 18, icon: "🟡", address: "0x0000000000000000000000000000000000000000" }
 };
 
@@ -355,7 +355,7 @@ export default function App() {
         totalShares: shares.toString()
       });
     } catch (err) {
-      // Legacy Fallback (Eski USDC havuz yapısı için)
+      // Legacy Fallback
       try {
         const oldABI = [
           "function reserveUSDC() view returns (uint256)",
@@ -412,6 +412,7 @@ export default function App() {
     }
   };
 
+  // GENEL ON-CHAIN YÖNETİCİSİ
   const handleAction = async (type, payload = null) => {
     if (chainId !== ARC_CHAIN_ID) {
       await checkAndSwitchNetwork();
@@ -579,7 +580,7 @@ export default function App() {
         await fetchBalances();
       }
 
-      // STAKE sakUSD
+      // SAKUSD STAKE
       if (type === "stake_sakusd") {
         if (!stakeAmountInput || isNaN(stakeAmountInput)) {
           alert("Gecerli bir miktar girin.");
@@ -654,7 +655,7 @@ export default function App() {
         await fetchSavingsData();
       }
 
-      // BİRİKEN FAİZ ÖDÜLLERİNİ TALEP ETME
+      // FAİZ ÖDÜLLERİNİ TALEP ETME
       if (type === "claim_rewards") {
         const minterABI = ["function claimRewards() external"];
         const minterContract = new ethers.Contract(SAKUSD_MINTER_ADDRESS, minterABI, signer);
@@ -1075,6 +1076,130 @@ export default function App() {
             </div>
           )}
 
+          {activeTab === "savings" && (
+            <div>
+              <h2 className="text-xl font-bold mb-2">Sakasena Savings (%8 APY)</h2>
+              <p className="text-sm text-gray-400 mb-6">
+                sakUSD bakiyenizi tasarruf havuzuna yatırarak yıllık sabit <strong>%8 faiz getirisi</strong> kazanmaya başlayın.
+              </p>
+
+              {/* Bakiye Bilgilendirme Kartları */}
+              <div className="grid grid-cols-2 gap-3 mb-6">
+                <div className="bg-[#1a1738] p-4 rounded-2xl border border-gray-800 text-center">
+                  <span className="text-xs text-gray-400 block mb-1">Your Staked Balance</span>
+                  <span className="text-lg font-bold text-violet-300">{savingsData.staked} sakUSD</span>
+                </div>
+                <div className="bg-[#1a1738] p-4 rounded-2xl border border-gray-800 text-center flex flex-col justify-between items-center">
+                  <div>
+                    <span className="text-xs text-gray-400 block mb-1">Pending Rewards</span>
+                    <span className="text-lg font-bold text-emerald-400">{savingsData.pendingRewards} sakUSD</span>
+                  </div>
+                  <button 
+                    onClick={() => handleAction("claim_rewards")}
+                    disabled={txLoading || parseFloat(savingsData.pendingRewards) <= 0}
+                    className="mt-2 bg-emerald-700 hover:bg-emerald-600 text-white font-bold py-1 px-3 rounded-lg text-xs transition disabled:opacity-50"
+                  >
+                    Claim Rewards
+                  </button>
+                </div>
+              </div>
+
+              {/* Stake / Unstake Formları */}
+              <div className="space-y-4 mb-6">
+                {/* STAKE FORM */}
+                <div className="bg-[#1a1738] p-4 rounded-2xl border border-gray-800">
+                  <div className="flex justify-between text-xs text-gray-400 mb-2">
+                    <span>Stake sakUSD</span>
+                    <span>Wallet Balance: {balances.sakUSD}</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <input 
+                      type="number" 
+                      placeholder="Miktar"
+                      value={stakeAmountInput}
+                      onChange={(e) => setStakeAmountInput(e.target.value)}
+                      className="bg-transparent text-xl font-bold focus:outline-none w-full text-white"
+                    />
+                    <button 
+                      onClick={() => handleAction("stake_sakusd")}
+                      disabled={txLoading || !stakeAmountInput}
+                      className="bg-violet-600 hover:bg-violet-500 px-5 py-2.5 rounded-xl text-sm font-bold transition text-white disabled:opacity-50"
+                    >
+                      Stake
+                    </button>
+                  </div>
+                </div>
+
+                {/* UNSTAKE FORM */}
+                <div className="bg-[#1a1738] p-4 rounded-2xl border border-gray-800">
+                  <div className="flex justify-between text-xs text-gray-400 mb-2">
+                    <span>Request Unstake (Geri Çekim Talebi)</span>
+                    <span>14 Günlük Kilit Süresi</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <input 
+                      type="number" 
+                      placeholder="Miktar"
+                      value={unstakeAmountInput}
+                      onChange={(e) => setUnstakeAmountInput(e.target.value)}
+                      className="bg-transparent text-xl font-bold focus:outline-none w-full text-white"
+                    />
+                    <button 
+                      onClick={() => handleAction("request_unstake")}
+                      disabled={txLoading || !unstakeAmountInput}
+                      className="bg-indigo-600 hover:bg-indigo-500 px-5 py-2.5 rounded-xl text-sm font-bold transition text-white disabled:opacity-50"
+                    >
+                      Request Unstake
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Aktif Unstake Talepleri (14 günlük sayaçlar) */}
+              {savingsData.requests.length > 0 && (
+                <div className="bg-[#100e21] p-4 rounded-2xl border border-gray-900">
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-violet-400 mb-3">Aktif Geri Çekim Talepleriniz</h3>
+                  <div className="space-y-2">
+                    {savingsData.requests.map((r) => {
+                      const now = Math.floor(Date.now() / 1000);
+                      const isUnlocked = now >= r.releaseTime;
+                      const timeLeft = r.releaseTime - now;
+
+                      let statusText = "";
+                      if (isUnlocked) {
+                        statusText = "Kilit Açıldı! Çekilebilir.";
+                      } else {
+                        const days = Math.floor(timeLeft / 86400);
+                        const hours = Math.floor((timeLeft % 86400) / 3600);
+                        statusText = `Kalan Süre: ${days}g ${hours}s`;
+                      }
+
+                      return (
+                        <div key={r.index} className="flex justify-between items-center text-sm bg-[#16142d] p-3 rounded-xl border border-gray-800">
+                          <div>
+                            <p className="font-bold text-white">{r.amount} sakUSD</p>
+                            <p className="text-xs text-gray-400 mt-0.5">{statusText}</p>
+                          </div>
+                          <button 
+                            onClick={() => handleAction("claim_unstaked_req", r.index)}
+                            disabled={txLoading || !isUnlocked}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+                              isUnlocked 
+                                ? "bg-emerald-600 hover:bg-emerald-500 text-white" 
+                                : "bg-gray-800 text-gray-500 cursor-not-allowed"
+                            }`}
+                          >
+                            Cüzdana Çek
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {activeTab === "faucet" && (
             <div className="text-center">
               <h2 className="text-xl font-bold mb-3">Arc Testnet Faucet</h2>
@@ -1087,9 +1212,9 @@ export default function App() {
                 <div className="space-y-1.5 text-sm text-gray-300">
                   <div className="flex justify-between"><span>💵 10,000 USDC</span><span className="text-emerald-400 font-medium">Ready</span></div>
                   <div className="flex justify-between"><span>💶 10,000 EURC</span><span className="text-emerald-400 font-medium">Ready</span></div>
+                  <div className="flex justify-between"><span>🛡️ 500 sakUSD</span><span className="text-emerald-400 font-medium">Ready</span></div>
                   <div className="flex justify-between"><span>₿ 1.5 cirBTC</span><span className="text-emerald-400 font-medium">Ready</span></div>
                   <div className="flex justify-between"><span>🚀 250 {tokens.MYTOKEN.symbol}</span><span className="text-emerald-400 font-medium">Ready</span></div>
-                  <div className="flex justify-between"><span>⭐ 500 {tokens.MYTOKEN.symbol}</span><span className="text-emerald-400 font-medium">Ready</span></div>
                   <div className="flex justify-between"><span>🟢 10,000 USDT</span><span className="text-emerald-400 font-medium">Ready</span></div>
                   <div className="flex justify-between"><span>🟡 10,000 DAI</span><span className="text-emerald-400 font-medium">Ready</span></div>
                 </div>
