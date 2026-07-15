@@ -128,6 +128,9 @@ export default function App() {
   const [lpAAA, setLpAAA] = useState("0");
   const [poolReserves, setPoolReserves] = useState({ stableAmount: "0.00", aaaAmount: "0.00", stableSymbol: "USDC", totalShares: "0" });
 
+  // Kullanıcının Havuzdaki Kişisel Rezerv Payları (Yeni)
+  const [userPoolBalances, setUserPoolBalances] = useState({ stableAmount: "0.00", aaaAmount: "0.00", stableSymbol: "USDC" });
+
   // Mint / Redeem Form States
   const [mintCollateral, setMintCollateral] = useState("USDC");
   const [mintAmount, setMintAmount] = useState("0");
@@ -283,9 +286,9 @@ export default function App() {
     }
   };
 
-  // Dinamik Rezerv Sorgulayıcı (Seçili Çifte Göre USDC, EURC veya cirBTC havuzunu çeker)
+  // Dinamik Rezerv ve Kişisel Bakiye Hesaplayıcı (On-Chain Havuz Çözümleme)
   const fetchPoolReserves = async () => {
-    if (!provider) return;
+    if (!provider || !account) return;
     
     const activePool = activeTab === "pool"
       ? getPoolAddress(activePoolType, "AAA") 
@@ -299,16 +302,18 @@ export default function App() {
         "function tokenB() view returns (address)",
         "function reserveA() view returns (uint256)",
         "function reserveB() view returns (uint256)",
-        "function totalShares() view returns (uint256)"
+        "function totalShares() view returns (uint256)",
+        "function lpShares(address) view returns (uint256)" // Kişisel LP Payı view çağrısı
       ];
       const contract = new ethers.Contract(activePool, genericABI, provider);
       
-      const [tA, tB, resA, resB, shares] = await Promise.all([
+      const [tA, tB, resA, resB, shares, userShares] = await Promise.all([
         contract.tokenA(),
         contract.tokenB(),
         contract.reserveA(),
         contract.reserveB(),
-        contract.totalShares()
+        contract.totalShares(),
+        contract.lpShares(account)
       ]);
 
       const decimalsA = getDecimalsByAddress(tA);
@@ -320,26 +325,69 @@ export default function App() {
       const isAStableOrBTC = decimalsA === 6 || decimalsA === 8;
       const stableSymbol = isAStableOrBTC ? tokens[Object.keys(tokens).find(k => tokens[k].address.toLowerCase() === tA.toLowerCase())]?.symbol || "Stable" : tokens[Object.keys(tokens).find(k => tokens[k].address.toLowerCase() === tB.toLowerCase())]?.symbol || "Stable";
 
+      // KİŞİSEL LİKİDİTE REZERV HESAPLAMASI (Ethers v6 / v5 BigInt standartlarında)
+      const uShares = BigInt(userShares.toString());
+      const tShares = BigInt(shares.toString());
+      const rA = BigInt(resA.toString());
+      const rB = BigInt(resB.toString());
+
+      let userStableAmount = "0.00";
+      let userAaaAmount = "0.00";
+
+      if (tShares > 0n && uShares > 0n) {
+        const userShareA = (uShares * rA) / tShares;
+        const userShareB = (uShares * rB) / tShares;
+        
+        userStableAmount = parseFloat(formatUnits(userShareA, decimalsA)).toFixed(decimalsA === 8 ? 4 : 2);
+        userAaaAmount = parseFloat(formatUnits(userShareB, decimalsB)).toFixed(decimalsB === 8 ? 4 : 2);
+      }
+
       setPoolReserves({
         stableAmount: isAStableOrBTC ? formattedResA : formattedResB,
         aaaAmount: isAStableOrBTC ? formattedResB : formattedResA,
         stableSymbol: stableSymbol,
         totalShares: shares.toString()
       });
+
+      // Kişisel havuz bakiyelerini state'e yazıyoruz
+      setUserPoolBalances({
+        stableAmount: isAStableOrBTC ? userStableAmount : userAaaAmount,
+        aaaAmount: isAStableOrBTC ? userAaaAmount : userStableAmount,
+        stableSymbol: stableSymbol
+      });
+
     } catch (err) {
-      // Legacy Fallback
+      // Legacy Fallback (Eski USDC havuz yapısı için on-chain çözümleme)
       try {
         const oldABI = [
           "function reserveUSDC() view returns (uint256)",
           "function reserveAAA() view returns (uint256)",
-          "function totalShares() view returns (uint256)"
+          "function totalShares() view returns (uint256)",
+          "function lpShares(address) view returns (uint256)"
         ];
         const oldContract = new ethers.Contract(activePool, oldABI, provider);
-        const [resUSDC, resAAA, shares] = await Promise.all([
+        const [resUSDC, resAAA, shares, userShares] = await Promise.all([
           oldContract.reserveUSDC(),
           oldContract.reserveAAA(),
-          oldContract.totalShares()
+          oldContract.totalShares(),
+          oldContract.lpShares(account)
         ]);
+
+        const uShares = BigInt(userShares.toString());
+        const tShares = BigInt(shares.toString());
+        const rUSDC = BigInt(resUSDC.toString());
+        const rAAA = BigInt(resAAA.toString());
+
+        let userStableAmount = "0.00";
+        let userAaaAmount = "0.00";
+
+        if (tShares > 0n && uShares > 0n) {
+          const userShareUSDC = (uShares * rUSDC) / tShares;
+          const userShareAAA = (uShares * rAAA) / tShares;
+          
+          userStableAmount = parseFloat(formatUnits(userShareUSDC, 6)).toFixed(2);
+          userAaaAmount = parseFloat(formatUnits(userShareAAA, 18)).toFixed(2);
+        }
 
         setPoolReserves({
           stableAmount: parseFloat(formatUnits(resUSDC, 6)).toFixed(2),
@@ -347,40 +395,15 @@ export default function App() {
           stableSymbol: "USDC",
           totalShares: shares.toString()
         });
+
+        setUserPoolBalances({
+          stableAmount: userStableAmount,
+          aaaAmount: userAaaAmount,
+          stableSymbol: "USDC"
+        });
       } catch (oldErr) {
         console.warn("Havuz rezervleri alınamadı:", oldErr);
       }
-    }
-  };
-
-  // TASARRUF (SAVINGS) BİLGİLERİNİ SORGULAMA
-  const fetchSavingsData = async () => {
-    if (!provider || !account || SAKUSD_MINTER_ADDRESS === ZERO_ADDRESS) return;
-    try {
-      const minterABI = [
-        "function stakedBalance(address) view returns (uint256)",
-        "function calculatePendingRewards(address) view returns (uint256)",
-        "function getUnstakeRequests(address) view returns (tuple(uint256 amount, uint256 releaseTime)[])"
-      ];
-      const contract = new ethers.Contract(SAKUSD_MINTER_ADDRESS, minterABI, provider);
-      
-      const [staked, pending, reqs] = await Promise.all([
-        contract.stakedBalance(account),
-        contract.calculatePendingRewards(account),
-        contract.getUnstakeRequests(account)
-      ]);
-
-      setSavingsData({
-        staked: parseFloat(formatUnits(staked, 18)).toFixed(2),
-        pendingRewards: parseFloat(formatUnits(pending, 18)).toFixed(4),
-        requests: reqs.map((r, i) => ({
-          index: i,
-          amount: parseFloat(formatUnits(r.amount, 18)).toFixed(2),
-          releaseTime: Number(r.releaseTime)
-        }))
-      });
-    } catch (err) {
-      console.warn("Tasarruf bilgileri alınamadı:", err);
     }
   };
 
@@ -426,6 +449,7 @@ export default function App() {
         await fetchPoolReserves();
       }
 
+      // KORUMALI LİKİDITE EKLEME (ESKİ VE YENİ SÖZLEŞMELERİ OTOMATIK ALGINLAR)
       if (type === "add_lp") {
         const activePool = getPoolAddress(activePoolType, "AAA");
         if (!lpUSDC || !lpAAA) {
@@ -470,16 +494,24 @@ export default function App() {
           "function addLiquidity(uint256 amountA, uint256 amountB) external returns (uint256)"
         ], signer);
 
-        const tA = await poolContract.tokenA();
-        const isTAStable = tA.toLowerCase() === ARC_EURC_ADDRESS.toLowerCase() || 
-                           tA.toLowerCase() === ARC_USDC_ADDRESS.toLowerCase() || 
-                           tA.toLowerCase() === ARC_CIRBTC_ADDRESS.toLowerCase();
-        
         let lpTx;
-        if (isTAStable) {
-          lpTx = await poolContract.addLiquidity(stableParsed, aaaParsed);
-        } else {
-          lpTx = await poolContract.addLiquidity(aaaParsed, stableParsed);
+        try {
+          const tA = await poolContract.tokenA();
+          const isTAStable = tA.toLowerCase() === ARC_EURC_ADDRESS.toLowerCase() || 
+                             tA.toLowerCase() === ARC_USDC_ADDRESS.toLowerCase() || 
+                             tA.toLowerCase() === ARC_CIRBTC_ADDRESS.toLowerCase();
+          
+          if (isTAStable) {
+            lpTx = await poolContract.addLiquidity(stableParsed, aaaParsed);
+          } else {
+            lpTx = await poolContract.addLiquidity(aaaParsed, stableParsed);
+          }
+        } catch (err) {
+          console.log("Eski havuz yapısı algılandı, varsayılan sıralama ile işlem gönderiliyor...");
+          const oldPoolContract = new ethers.Contract(activePool, [
+            "function addLiquidity(uint256 amountUSDC, uint256 amountAAA) external returns (uint256)"
+          ], signer);
+          lpTx = await oldPoolContract.addLiquidity(stableParsed, aaaParsed);
         }
         
         alert(`Likidite ekleme işlemi gönderildi! Tx: ${lpTx.hash}`);
@@ -777,7 +809,7 @@ export default function App() {
           </span>
         </div>
         
-        {/* Orta: Navbar Navigasyon Tabları (Dinamik Grid / Flex) */}
+        {/* Orta: Navbar Navigasyon Tabları */}
         <div className="grid grid-cols-3 md:flex bg-[#100e1f] p-1 rounded-xl border border-gray-800 shrink-0 w-full md:w-auto max-w-sm md:max-w-none">
           {["swap", "pool", "mint", "savings", "send", "faucet"].map((tab) => (
             <button
@@ -870,13 +902,13 @@ export default function App() {
             <p className="text-lg font-bold text-white">$3,109,425</p>
           </div>
           <div className="bg-[#121024] p-4 rounded-2xl border border-gray-800 text-center">
-            {/* Gösterge kartları doğrudan cüzdan bakiyelerini gösterecek şekilde değiştirildi! */}
-            <p className="text-xs text-gray-400 mb-1">My {poolReserves.stableSymbol || "Stable"} Balance</p>
-            <p className="text-lg font-bold text-emerald-400">{balances[poolReserves.stableSymbol] || "0.00"} {poolReserves.stableSymbol}</p>
+            {/* Gösterge kartları kullanıcının havuzdaki kişisel payını gösterecek şekilde güncellendi! */}
+            <p className="text-xs text-gray-400 mb-1">My {userPoolBalances.stableSymbol || "Stable"} in Pool</p>
+            <p className="text-lg font-bold text-emerald-400">{userPoolBalances.stableAmount} {userPoolBalances.stableSymbol}</p>
           </div>
           <div className="bg-[#121024] p-4 rounded-2xl border border-gray-800 text-center">
-            <p className="text-xs text-gray-400 mb-1">My AAA Balance</p>
-            <p className="text-lg font-bold text-indigo-300">{balances.AAA} AAA</p>
+            <p className="text-xs text-gray-400 mb-1">My AAA in Pool</p>
+            <p className="text-lg font-bold text-indigo-300">{userPoolBalances.aaaAmount} {tokens.AAA.symbol}</p>
           </div>
         </div>
 
