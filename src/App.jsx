@@ -20,7 +20,7 @@ const SAKASENA_USDC_POOL_ADDRESS = (import.meta.env.VITE_SAKASENA_USDC_POOL_ADDR
 const SAKASENA_EURC_POOL_ADDRESS = (import.meta.env.VITE_SAKASENA_EURC_POOL_ADDRESS || "0xbbc6cd33291edfe9e4e927129901db0e58ba705b").toLowerCase();
 const SAKASENA_BTC_POOL_ADDRESS = (import.meta.env.VITE_SAKASENA_BTC_POOL_ADDRESS || "0x1815df186c43506e7d9113e6c1d19326610aa448").toLowerCase();
 
-// Yeni Deploy Ettiğiniz sakUSD Sözleşme Adresleri (Minter ve Token)
+// Sizin Deploy Ettiğiniz sakUSD Sözleşme Adresleri (Minter ve Token)
 const SAKUSD_MINTER_ADDRESS = (import.meta.env.VITE_SAKUSD_MINTER_ADDRESS || "0x1e27b23bc7662db4accf371b96b14ea5d81e0f83").toLowerCase();
 const SAKUSD_TOKEN_ADDRESS = (import.meta.env.VITE_SAKUSD_TOKEN_ADDRESS || "0x085bc2b26d637685d2d3b742f10d14d8d77557b1").toLowerCase();
 
@@ -29,10 +29,9 @@ const TOKEN_PRICES = {
   USDC: 1.00,
   EURC: 1.08,
   cirBTC: 67450.00,
-  USDS: 1.00,
+  WUSDC: 1.00, 
   sakUSD: 1.00, // Sakasena USD Sabit Parası
   AAA: 5.40,
-  MYTOKEN: 5.40, 
   USDT: 1.00,
   DAI: 1.00
 };
@@ -96,16 +95,16 @@ const getPoolAddress = (token1, token2) => {
   return ZERO_ADDRESS;
 };
 
-// Başlangıç Token Listesi
+// Başlangıç Token Listesi (Sadece AAA Token Kaldı)
 const INITIAL_TOKENS = {
   USDC: { symbol: "USDC", name: "USD Coin (Gas Token)", decimals: 6, icon: "💵", address: ARC_USDC_ADDRESS },
   EURC: { symbol: "EURC", name: "Euro Coin", decimals: 6, icon: "💶", address: ARC_EURC_ADDRESS },
   cirBTC: { symbol: "cirBTC", name: "Circle Wrapped Bitcoin", decimals: 8, icon: "₿", address: ARC_CIRBTC_ADDRESS },
   sakUSD: { symbol: "sakUSD", name: "Sakasena USD", decimals: 18, icon: "💴", address: SAKUSD_TOKEN_ADDRESS },
-  WUSDC: { symbol: "WUSDC", name: "Wrapped USDC", decimals: 18, icon: "💸", address: "0x911b4000D3422F482F4062a913885f7b035382Df" },
+  WUSDC: { symbol: "WUSDC", name: "Wrapped USDC", decimals: 18, icon: "💸", address: "0x911b4000d3422f482f4062a913885f7b035382df" },
   AAA: { symbol: "AAA", name: "anaraydinli AAA Token", decimals: 18, icon: "🪙", address: USER_CUSTOM_TOKEN_ADDRESS },
   USDT: { symbol: "USDT", name: "Tether USD", decimals: 6, icon: "💲", address: ARC_USDT_ADDRESS }, 
-  DAI: { symbol: "DAI", name: "Dai Stablecoin", decimals: 18, icon: "💷", address: "0x40e899d2aCD26C5FBeE2E1Bda4523E7DEd617589" }
+  DAI: { symbol: "DAI", name: "Dai Stablecoin", decimals: 18, icon: "💷", address: "0x40e899d2acd26c5fbee2e1bda4523e7ded617589" }
 };
 
 export default function App() {
@@ -116,11 +115,11 @@ export default function App() {
   const [activePoolType, setActivePoolType] = useState("USDC"); 
   
   const [tokens, setTokens] = useState(INITIAL_TOKENS);
-  const [balances, setBalances] = useState({ USDC: "0.00", EURC: "0.00", cirBTC: "0.0000", sakUSD: "0.00", USDS: "0.00", AAA: "0.00", MYTOKEN: "0.00", USDT: "0.00", DAI: "0.00" });
+  const [balances, setBalances] = useState({ USDC: "0.00", EURC: "0.00", cirBTC: "0.0000", sakUSD: "0.00", WUSDC: "0.00", AAA: "0.00", USDT: "0.00", DAI: "0.00" });
   
   // Swap Form States
   const [fromToken, setFromToken] = useState("USDC");
-  const [toToken, setToToken] = useState("MYTOKEN");
+  const [toToken, setToToken] = useState("AAA"); // Varsayılan hedef AAA olarak ayarlandı
   const [amountIn, setAmountIn] = useState("");
   const [amountOut, setAmountOut] = useState("");
 
@@ -165,7 +164,6 @@ export default function App() {
   useEffect(() => {
     if (account && chainId === ARC_CHAIN_ID && provider) {
       const loadAllData = async () => {
-        await loadCustomTokenDetails();
         await fetchBalances();
         await fetchPoolReserves();
         await fetchSavingsData();
@@ -251,37 +249,6 @@ export default function App() {
     }
   };
 
-  const loadCustomTokenDetails = async () => {
-    if (!provider) return;
-    try {
-      const tokenABI = [
-        "function name() view returns (string)",
-        "function symbol() view returns (string)",
-        "function decimals() view returns (uint8)"
-      ];
-      const contract = new ethers.Contract(USER_CUSTOM_TOKEN_ADDRESS, tokenABI, provider);
-      
-      const [name, symbol, decimals] = await Promise.all([
-        contract.name(),
-        contract.symbol(),
-        contract.decimals()
-      ]);
-
-      setTokens(prev => {
-        const updated = { ...prev };
-        updated.MYTOKEN = {
-          ...updated.MYTOKEN,
-          symbol: symbol,
-          name: `${name} (Your Token)`,
-          decimals: Number(decimals)
-        };
-        return updated;
-      });
-    } catch (err) {
-      console.warn("Kullanıcı token detayları okunamadı:", err);
-    }
-  };
-
   const fetchBalances = async () => {
     if (!provider || !account) return;
     try {
@@ -316,7 +283,7 @@ export default function App() {
     if (!provider) return;
     
     const activePool = activeTab === "pool"
-      ? getPoolAddress(activePoolType, "MYTOKEN")
+      ? getPoolAddress(activePoolType, "AAA")
       : getPoolAddress(fromToken, toToken);
 
     if (activePool === ZERO_ADDRESS) return;
@@ -455,7 +422,7 @@ export default function App() {
       }
 
       if (type === "add_lp") {
-        const activePool = getPoolAddress(activePoolType, "MYTOKEN");
+        const activePool = getPoolAddress(activePoolType, "AAA");
         if (!lpUSDC || !lpAAA) {
           alert("Lütfen her iki miktar alanını da doldurun.");
           setTxLoading(false);
@@ -488,7 +455,7 @@ export default function App() {
 
         const allowanceAAA = await aaaContract.allowance(account, activePool);
         if (isLessThan(allowanceAAA, aaaParsed)) {
-          alert(`Lütfen ${tokens.MYTOKEN.symbol} harcama yetkisini onaylayın.`);
+          alert(`Lütfen ${tokens.AAA.symbol} harcama yetkisini onaylayın.`);
           const txApp = await aaaContract.approve(activePool, aaaParsed);
           await txApp.wait();
         }
@@ -521,7 +488,6 @@ export default function App() {
         await fetchPoolReserves();
       }
 
-      // MULTI-COLLATERAL SAKUSD MINT ETME (KORUMALI)
       if (type === "mint_sakusd") {
         if (!mintAmount || isNaN(mintAmount)) {
           alert("Gecersiz miktar.");
@@ -575,7 +541,6 @@ export default function App() {
         await fetchBalances();
       }
 
-      // sakUSD YAKIP TEMİNATI GERİ ALMA
       if (type === "redeem_sakusd") {
         if (!redeemAmount || isNaN(redeemAmount)) {
           alert("Gecersiz miktar.");
@@ -696,23 +661,37 @@ export default function App() {
     setTxLoading(false);
   };
 
-  const handleFaucet = async () => {
-    setFaucetLoading(true);
-    setTimeout(() => {
-      setBalances(prev => ({
-        ...prev,
-        USDC: (parseFloat(prev.USDC) + 10000).toFixed(2),
-        EURC: (parseFloat(prev.EURC) + 10000).toFixed(2),
-        cirBTC: (parseFloat(prev.cirBTC) + 1.5).toFixed(4),
-        sakUSD: (parseFloat(prev.sakUSD) + 500).toFixed(2),
-        MYTOKEN: (parseFloat(prev.MYTOKEN) + 500).toFixed(2),
-        USDT: (parseFloat(prev.USDT) + 10000).toFixed(2),
-        DAI: (parseFloat(prev.DAI) + 10000).toFixed(2)
-      }));
-      setSpPoints(prev => prev + 100);
-      setFaucetLoading(false);
-      alert("Testnet Tokenleri başarıyla tanımlandı!");
-    }, 1500);
+  // Dinamik On-Chain Faucet İstek Yöneticisi
+  const handleFaucet = async (tokenSymbol) => {
+    if (tokenSymbol === "USDC" || tokenSymbol === "EURC" || tokenSymbol === "cirBTC" || tokenSymbol === "USDT") {
+      window.open("https://faucet.circle.com/", "_blank");
+      return;
+    }
+
+    if (chainId !== ARC_CHAIN_ID || !provider || !account) {
+      alert("Lütfen cüzdanınızı bağlayın ve Arc Testnet ağına geçin.");
+      return;
+    }
+
+    setTxLoading(true);
+    try {
+      const signer = await getSignerInstance(provider);
+      
+      if (tokenSymbol === "AAA") {
+        const aaaABI = ["function mint(address to, uint256 amount) external"];
+        const aaaContract = new ethers.Contract(USER_CUSTOM_TOKEN_ADDRESS, aaaABI, signer);
+        
+        const tx = await aaaContract.mint(account, parseUnits("10", 18));
+        alert(`10 AAA basım işlemi gönderildi! Tx: ${tx.hash}`);
+        await tx.wait();
+        alert("10 AAA token cüzdanınıza başarıyla aktarıldı!");
+        await fetchBalances();
+      }
+    } catch (err) {
+      console.error("Faucet hatası:", err);
+      alert("Faucet işlemi başarısız oldu. AAA token kontratının yetkili cüzdanında (owner) olduğunuzdan emin olun.");
+    }
+    setTxLoading(false);
   };
 
   const activeStableSymbol = activePoolType;
@@ -766,12 +745,12 @@ export default function App() {
             <div className="p-4 rounded-2xl bg-gradient-to-r from-indigo-950 to-[#121024] border border-violet-800 flex justify-between items-center">
               <div>
                 <span className="text-xs font-semibold uppercase tracking-wider text-violet-400">Deployed Contract</span>
-                <h3 className="text-lg font-bold text-white mt-1">⭐ {tokens.MYTOKEN.name}</h3>
+                <h3 className="text-lg font-bold text-white mt-1">⭐ {tokens.AAA.name}</h3>
                 <p className="text-[10px] text-gray-500 truncate max-w-[180px] mt-0.5">{USER_CUSTOM_TOKEN_ADDRESS}</p>
               </div>
               <div className="text-right">
                 <span className="text-xs text-gray-400 font-medium">Balance</span>
-                <p className="text-xl font-bold text-violet-300 mt-1">{balances.MYTOKEN} {tokens.MYTOKEN.symbol}</p>
+                <p className="text-xl font-bold text-violet-300 mt-1">{balances.AAA} {tokens.AAA.symbol}</p>
               </div>
             </div>
 
@@ -804,7 +783,7 @@ export default function App() {
           </div>
           <div className="bg-[#121024] p-4 rounded-2xl border border-gray-800 text-center">
             <p className="text-xs text-gray-400 mb-1">Pool Reserves (AAA)</p>
-            <p className="text-lg font-bold text-indigo-300">{poolReserves.aaaAmount} {tokens.MYTOKEN.symbol}</p>
+            <p className="text-lg font-bold text-indigo-300">{poolReserves.aaaAmount} {tokens.AAA.symbol}</p>
           </div>
         </div>
 
@@ -929,7 +908,7 @@ export default function App() {
               ) : (
                 <button 
                   onClick={connectWallet}
-                  className="w-full py-4 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 font-bold text-white transition shadow-lg"
+                  className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 font-bold text-white transition shadow-lg"
                 >
                   Connect Wallet
                 </button>
@@ -990,12 +969,12 @@ export default function App() {
 
                 <div className="bg-[#1a1738] p-4 rounded-2xl border border-gray-800">
                   <div className="flex justify-between text-xs text-gray-400 mb-2">
-                    <span>Add {tokens.MYTOKEN.symbol} (AAA)</span>
-                    <span>Balance: {balances.MYTOKEN}</span>
+                    <span>Add {tokens.AAA.symbol} (AAA)</span>
+                    <span>Balance: {balances.AAA}</span>
                   </div>
                   <input 
                     type="number" 
-                    placeholder={`${tokens.MYTOKEN.symbol} Miktarı`}
+                    placeholder={`${tokens.AAA.symbol} Miktarı`}
                     value={lpAAA}
                     onChange={(e) => setLpAAA(e.target.value)}
                     className="bg-transparent text-xl font-bold focus:outline-none w-full text-white"
@@ -1226,26 +1205,44 @@ export default function App() {
                 Arc Test ağı üzerinde platformumuzu denemek için tamamen ücretsiz stablecoin ve test varlıkları talep edebilirsiniz.
               </p>
               
-              <div className="bg-[#100e21] p-4 rounded-2xl border border-gray-900 text-left mb-6">
-                <span className="text-xs text-gray-500 font-semibold block mb-2">CLAIMABLE ASSETS</span>
-                <div className="space-y-1.5 text-sm text-gray-300">
-                  <div className="flex justify-between"><span>💵 10,000 USDC</span><span className="text-emerald-400 font-medium">Ready</span></div>
-                  <div className="flex justify-between"><span>💶 10,000 EURC</span><span className="text-emerald-400 font-medium">Ready</span></div>
-                  <div className="flex justify-between"><span>🛡️ 500 sakUSD</span><span className="text-emerald-400 font-medium">Ready</span></div>
-                  <div className="flex justify-between"><span>₿ 1.5 cirBTC</span><span className="text-emerald-400 font-medium">Ready</span></div>
-                  <div className="flex justify-between"><span>🚀 250 {tokens.MYTOKEN.symbol}</span><span className="text-emerald-400 font-medium">Ready</span></div>
-                  <div className="flex justify-between"><span>🟢 10,000 USDT</span><span className="text-emerald-400 font-medium">Ready</span></div>
-                  <div className="flex justify-between"><span>🟡 10,000 DAI</span><span className="text-emerald-400 font-medium">Ready</span></div>
+              <div className="bg-[#100e21] p-4 rounded-2xl border border-gray-900 text-left mb-6 space-y-4">
+                <span className="text-xs text-gray-500 font-semibold block mb-1">Circle Resmi Musluğu (External)</span>
+                
+                <div className="flex justify-between items-center text-sm bg-[#16142d] p-3 rounded-xl border border-gray-800">
+                  <div>
+                    <p className="font-bold text-white">💵 USDC / 💶 EURC / 💲 USDT / ₿ cirBTC</p>
+                    <p className="text-xs text-gray-400 mt-0.5">Circle Resmi Testnet Musluk Sayfası</p>
+                  </div>
+                  <button 
+                    onClick={() => handleFaucet("USDC")}
+                    className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-1.5 px-3.5 rounded-lg text-xs transition"
+                  >
+                     Circle Faucet'a Git 🌐
+                  </button>
+                </div>
+
+                <span className="text-xs text-gray-500 font-semibold block mb-1">On-Chain Sakasena Musluğu (Local)</span>
+
+                {/* Gerçek On-Chain AAA Mint Butonu */}
+                <div className="flex justify-between items-center text-sm bg-[#16142d] p-3 rounded-xl border border-gray-800">
+                  <div>
+                    <p className="font-bold text-white">🪙 10 AAA Token</p>
+                    <p className="text-xs text-gray-400 mt-0.5">Gerçek Zincir Üstü (On-Chain) Basım</p>
+                  </div>
+                  <button 
+                    onClick={() => handleFaucet("AAA")}
+                    disabled={txLoading}
+                    className="bg-violet-600 hover:bg-violet-500 text-white font-bold py-1.5 px-4 rounded-lg text-xs transition disabled:opacity-50"
+                  >
+                    {txLoading ? "Basılıyor..." : "10 AAA Al ⭐"}
+                  </button>
+                </div>
+
+                {/* Bilgilendirici sakUSD Kartı */}
+                <div className="p-3.5 bg-[#111026] rounded-xl border border-violet-900 text-xs text-violet-300 leading-relaxed">
+                  💴 <strong>sakUSD Nasıl Alınır?</strong> sakUSD basımı (mint) teminata dayalı olduğu için; üstteki butondan Circle Faucet'a giderek ücretsiz test USDC alabilir, ardından sitemizdeki <strong>Mint sakUSD</strong> sekmesinden 1:1 oranında ücretsiz sakUSD basabilirsiniz!
                 </div>
               </div>
-
-              <button 
-                onClick={handleFaucet}
-                disabled={faucetLoading}
-                className="w-full py-4 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 font-bold text-white transition shadow-lg disabled:opacity-50"
-              >
-                {faucetLoading ? "Claiming..." : "Claim Testnet Tokens"}
-              </button>
             </div>
           )}
         </div>
