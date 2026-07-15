@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
 
@@ -6,22 +7,22 @@ const ARC_CHAIN_ID = 5042002;
 const ARC_CHAIN_HEX = "0x4cef52";
 const ARC_RPC_URL = import.meta.env.VITE_ARC_RPC_URL || "https://rpc.testnet.arc.network";
 
-// Resmi Sözleşme Adresleri
+// Resmi Sözleşme Adresleri (Kusursuz çalışma için tamamen küçük harfe dönüştürüldü)
 const ARC_USDC_ADDRESS = "0x3600000000000000000000000000000000000000";
-const ARC_EURC_ADDRESS = "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a";
-const ARC_CIRBTC_ADDRESS = "0xf0C4a4CE82A5746AbAAd9425360Ab04fbBA432BF";
+const ARC_EURC_ADDRESS = "0x89b50855aa3be2f677cd6303cec089b5f319d72a";
+const ARC_CIRBTC_ADDRESS = "0xf0c4a4ce82a5746abaad9425360ab04fbba432bf";
 
 // Sizin Deploy Ettiğiniz Sözleşme Adresi (1300+ Holders)
-const USER_CUSTOM_TOKEN_ADDRESS = "0x54552f2EC52423D2fBE94c25f0BAd61b9108AAE8";
+const USER_CUSTOM_TOKEN_ADDRESS = "0x54552f2ec52423d2fbe94c25f0bad61b9108aae8";
 
 // Havuz Sözleşme Adresleri (USDC, EURC ve BTC Havuzlarınız)
-const SAKASENA_USDC_POOL_ADDRESS = import.meta.env.VITE_SAKASENA_USDC_POOL_ADDRESS || "0xbE0f19F85A5cD1Cac56E6f31c85f6cAe805e56C3";
-const SAKASENA_EURC_POOL_ADDRESS = import.meta.env.VITE_SAKASENA_EURC_POOL_ADDRESS || "0xbbc6cD33291eDfE9e4e927129901Db0e58Ba705B";
-const SAKASENA_BTC_POOL_ADDRESS = import.meta.env.VITE_SAKASENA_BTC_POOL_ADDRESS || "0x1815DF186C43506e7D9113E6c1D19326610Aa448";
+const SAKASENA_USDC_POOL_ADDRESS = import.meta.env.VITE_SAKASENA_USDC_POOL_ADDRESS || "0xbe0f19f85a5cd1cac56e6f31c85f6cae805e56c3";
+const SAKASENA_EURC_POOL_ADDRESS = import.meta.env.VITE_SAKASENA_EURC_POOL_ADDRESS || "0xbbc6cd33291edfe9e4e927129901db0e58ba705b";
+const SAKASENA_BTC_POOL_ADDRESS = import.meta.env.VITE_SAKASENA_BTC_POOL_ADDRESS || "0x1815df186c43506e7d9113e6c1d19326610aa448";
 
 // Sizin Deploy Ettiğiniz sakUSD Sözleşme Adresleri (Minter ve Token)
-const SAKUSD_MINTER_ADDRESS = import.meta.env.VITE_SAKUSD_MINTER_ADDRESS || "0x0b1E8d54aFCBa0cDF74aA4F0d1003Ea55a5a5423";
-const SAKUSD_TOKEN_ADDRESS = import.meta.env.VITE_SAKUSD_TOKEN_ADDRESS || "0x4186782c45bB90Cd24920c4112902fCA296DF37f";
+const SAKUSD_MINTER_ADDRESS = import.meta.env.VITE_SAKUSD_MINTER_ADDRESS || "0x0b1e8d54afcba0cdf74aa4f0d1003ea55a5a5423";
+const SAKUSD_TOKEN_ADDRESS = import.meta.env.VITE_SAKUSD_TOKEN_ADDRESS || "0x4186782c45bb90cd24920c4112902fca296df37f";
 
 // Kur Oranları
 const TOKEN_PRICES = {
@@ -101,10 +102,10 @@ const INITIAL_TOKENS = {
   EURC: { symbol: "EURC", name: "Euro Coin", decimals: 6, icon: "💶", address: ARC_EURC_ADDRESS },
   cirBTC: { symbol: "cirBTC", name: "Circle Wrapped Bitcoin", decimals: 8, icon: "₿", address: ARC_CIRBTC_ADDRESS },
   sakUSD: { symbol: "sakUSD", name: "Sakasena USD", decimals: 18, icon: "🛡️", address: SAKUSD_TOKEN_ADDRESS },
-  USDS: { symbol: "USDS", name: "Sky USDS Stablecoin", decimals: 18, icon: "🌀", address: import.meta.env.VITE_USDS_ADDRESS || "0x0000000000000000000000000000000000000000" },
-  AAA: { symbol: "AAA", name: "anaraydinli AAA Token", decimals: 18, icon: "🚀", address: import.meta.env.VITE_AAA_ADDRESS || "0x54552f2EC52423D2fBE94c25f0BAd61b9108AAE8" },
+  USDS: { symbol: "USDS", name: "Sky USDS Stablecoin", decimals: 18, icon: "🌀", address: "0x0000000000000000000000000000000000000000" },
+  AAA: { symbol: "AAA", name: "anaraydinli AAA Token", decimals: 18, icon: "🚀", address: USER_CUSTOM_TOKEN_ADDRESS },
   MYTOKEN: { symbol: "Loading...", name: "Your Deployed Token", decimals: 18, icon: "⭐", address: USER_CUSTOM_TOKEN_ADDRESS },
-  USDT: { symbol: "USDT", name: "Tether USD", decimals: 6, icon: "🟢", address: "0x3C2a93112A14e9168a3551644d9f6961a85f7bDB" }, // USDT Adres Hatası Giderildi!
+  USDT: { symbol: "USDT", name: "Tether USD", decimals: 6, icon: "🟢", address: "0x3c2a93112a14e9168a3551644d9f6961a85f7bdb" }, 
   DAI: { symbol: "DAI", name: "Dai Stablecoin", decimals: 18, icon: "🟡", address: "0x0000000000000000000000000000000000000000" }
 };
 
@@ -655,7 +656,7 @@ export default function App() {
         await fetchSavingsData();
       }
 
-      // FAİZ ÖDÜLLERİNİ TALEP ETME
+      // BİRİKEN FAİZ ÖDÜLLERİNİ TALEP ETME
       if (type === "claim_rewards") {
         const minterABI = ["function claimRewards() external"];
         const minterContract = new ethers.Contract(SAKUSD_MINTER_ADDRESS, minterABI, signer);
