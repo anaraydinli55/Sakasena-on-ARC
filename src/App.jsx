@@ -95,7 +95,7 @@ const getPoolAddress = (token1, token2) => {
   return ZERO_ADDRESS;
 };
 
-// Başlangıç Token Listesi (Sadece AAA Token Kaldı)
+// Başlangıç Token Listesi
 const INITIAL_TOKENS = {
   USDC: { symbol: "USDC", name: "USD Coin (Gas Token)", decimals: 6, icon: "💵", address: ARC_USDC_ADDRESS },
   EURC: { symbol: "EURC", name: "Euro Coin", decimals: 6, icon: "💶", address: ARC_EURC_ADDRESS },
@@ -348,7 +348,7 @@ export default function App() {
     }
   };
 
-  // TASARRUF (SAVINGS) BİLGİLERİNİ SORGULAMA
+  // TASARRUF (SAVINGS) BİLGİLERİNİ ON-CHAIN SORGULAMA FONKSİYONU
   const fetchSavingsData = async () => {
     if (!provider || !account || SAKUSD_MINTER_ADDRESS === ZERO_ADDRESS) return;
     try {
@@ -386,20 +386,12 @@ export default function App() {
       return;
     }
 
-    const activePool = type === "add_lp"
-      ? getPoolAddress(activePoolType, "AAA") 
-      : getPoolAddress(fromToken, toToken);
-
-    if (activePool === ZERO_ADDRESS && type !== "mint_sakusd" && type !== "redeem_sakusd" && !type.includes("sakusd") && !type.includes("rewards") && !type.includes("unstake")) {
-      alert("İşlem için geçerli havuz adresi bulunamadı.");
-      return;
-    }
-
     setTxLoading(true);
     try {
       const signer = await getSignerInstance(provider);
 
       if (type === "swap") {
+        const activePool = getPoolAddress(fromToken, toToken);
         const tokenInObj = tokens[fromToken];
         const amountInParsed = parseUnits(amountIn, tokenInObj.decimals); 
 
@@ -430,6 +422,7 @@ export default function App() {
       }
 
       if (type === "add_lp") {
+        const activePool = getPoolAddress(activePoolType, "AAA");
         if (!lpUSDC || !lpAAA) {
           alert("Lütfen her iki miktar alanını da doldurun.");
           setTxLoading(false);
@@ -495,6 +488,7 @@ export default function App() {
         await fetchPoolReserves();
       }
 
+      // MULTI-COLLATERAL SAKUSD MINT ETME (KORUMALI)
       if (type === "mint_sakusd") {
         if (!mintAmount || isNaN(mintAmount)) {
           alert("Gecersiz miktar.");
@@ -548,6 +542,7 @@ export default function App() {
         await fetchBalances();
       }
 
+      // sakUSD YAKIP TEMİNATI GERİ ALMA
       if (type === "redeem_sakusd") {
         if (!redeemAmount || isNaN(redeemAmount)) {
           alert("Gecersiz miktar.");
@@ -668,7 +663,7 @@ export default function App() {
     setTxLoading(false);
   };
 
-  // Dinamik On-Chain Faucet İstek Yöneticisi (Resmi Circle Faucet & Gerçek On-Chain AAA Minting)
+  // Dinamik On-Chain Faucet İstek Yöneticisi
   const handleFaucet = async (tokenSymbol) => {
     if (tokenSymbol === "USDC" || tokenSymbol === "EURC" || tokenSymbol === "cirBTC" || tokenSymbol === "USDT") {
       window.open("https://faucet.circle.com/", "_blank");
@@ -705,8 +700,9 @@ export default function App() {
 
   return (
     <div className="min-h-screen flex flex-col justify-between bg-[#0b0914] text-[#f3f4f6]">
-      <header className="border-b border-gray-800 bg-[#0d0b1a] px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center space-x-3">
+      <header className="border-b border-gray-800 bg-[#0d0b1a] px-6 py-4 flex flex-col md:flex-row items-center justify-between gap-4">
+        {/* Sol: Logo */}
+        <div className="flex items-center space-x-3 shrink-0">
           <span className="text-2xl font-bold bg-gradient-to-r from-violet-400 to-indigo-400 bg-clip-text text-transparent">
             ArcSakasena
           </span>
@@ -715,7 +711,25 @@ export default function App() {
           </span>
         </div>
         
-        <div className="flex items-center space-x-4">
+        {/* Orta: Navbar Navigasyon Tablari (İstediğiniz gibi en yukarı taşındı!) */}
+        <div className="flex bg-[#100e1f] p-1 rounded-xl border border-gray-800 shrink-0 w-full md:w-auto max-w-sm md:max-w-none">
+          {["swap", "pool", "mint", "savings", "faucet"].map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`px-3.5 py-1.5 rounded-lg text-xs md:text-sm font-semibold capitalize transition ${
+                activeTab === tab 
+                  ? "bg-violet-900 text-white shadow-md shadow-violet-900/30" 
+                  : "text-gray-400 hover:text-gray-200"
+              }`}
+            >
+              {tab === "pool" ? "Liquidity" : (tab === "mint" ? "Mint SakUSD" : (tab === "savings" ? "Savings" : tab))}
+            </button>
+          ))}
+        </div>
+        
+        {/* Sağ: Cüzdan Göstergeleri ve Bağlantı */}
+        <div className="flex items-center space-x-4 shrink-0">
           {account && (
             <div className="hidden md:flex items-center space-x-2 bg-gray-900 px-3 py-1.5 rounded-lg text-sm border border-gray-800">
               <span className="text-violet-400 font-bold">💎 {spPoints} SP</span>
@@ -756,7 +770,7 @@ export default function App() {
               </h3>
               <p className="text-xs text-gray-400 mt-1">Volatile Asset • Price: $5.40 • <span className="text-emerald-400 font-semibold">1,300+ Active Holders on Arcscan</span></p>
               
-              {/* Adres Kopyalama Alani ( bad address checksum engellendi ) */}
+              {/* Adres Kopyalama Alani (bad address checksum hatası tamamen engellendi) */}
               <div className="mt-3 flex items-center space-x-2 bg-[#1b173c]/50 p-2.5 rounded-xl border border-gray-800 w-full max-w-full overflow-hidden">
                 <span className="text-xs text-gray-300 font-mono break-all select-all flex-grow">
                   {USER_CUSTOM_TOKEN_ADDRESS}
@@ -797,22 +811,6 @@ export default function App() {
             <p className="text-xs text-gray-400 mb-1">Pool Reserves (AAA)</p>
             <p className="text-lg font-bold text-indigo-300">{poolReserves.aaaAmount} {tokens.AAA.symbol}</p>
           </div>
-        </div>
-
-        <div className="flex space-x-1 bg-[#100e1f] p-1 rounded-xl mb-6 max-w-sm mx-auto border border-gray-800">
-          {["swap", "pool", "mint", "savings", "faucet"].map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`flex-1 py-2 rounded-lg text-sm font-medium capitalize transition ${
-                activeTab === tab 
-                  ? "bg-violet-900 text-white shadow" 
-                  : "text-gray-400 hover:text-gray-200"
-              }`}
-            >
-              {tab === "pool" ? "Liquidity" : (tab === "mint" ? "Mint sakUSD" : (tab === "savings" ? "Savings" : tab))}
-            </button>
-          ))}
         </div>
 
         <div className="max-w-md mx-auto bg-[#13112a] rounded-3xl p-6 border border-gray-800 neon-glow">
