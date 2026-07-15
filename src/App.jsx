@@ -138,8 +138,8 @@ export default function App() {
   const [unstakeAmountInput, setUnstakeAmountInput] = useState("");
   const [savingsData, setSavingsData] = useState({ staked: "0.00", pendingRewards: "0.00", requests: [] });
 
-  // Send Token Form States (Çoklu Seçim Destekli)
-  const [sendToken, setSendToken] = useState("AAA"); // "AAA" veya "sakUSD"
+  // Send Token Form States
+  const [sendToken, setSendToken] = useState("AAA"); 
   const [sendRecipient, setSendRecipient] = useState("");
   const [sendAmount, setSendAmount] = useState("");
 
@@ -169,7 +169,6 @@ export default function App() {
   useEffect(() => {
     if (account && chainId === ARC_CHAIN_ID && provider) {
       const loadAllData = async () => {
-        await loadCustomTokenDetails();
         await fetchBalances();
         await fetchPoolReserves();
         await fetchSavingsData();
@@ -252,37 +251,6 @@ export default function App() {
           console.error(addError);
         }
       }
-    }
-  };
-
-  const loadCustomTokenDetails = async () => {
-    if (!provider) return;
-    try {
-      const tokenABI = [
-        "function name() view returns (string)",
-        "function symbol() view returns (string)",
-        "function decimals() view returns (uint8)"
-      ];
-      const contract = new ethers.Contract(USER_CUSTOM_TOKEN_ADDRESS, tokenABI, provider);
-      
-      const [name, symbol, decimals] = await Promise.all([
-        contract.name(),
-        contract.symbol(),
-        contract.decimals()
-      ]);
-
-      setTokens(prev => {
-        const updated = { ...prev };
-        updated.MYTOKEN = {
-          ...updated.MYTOKEN,
-          symbol: symbol,
-          name: `${name} (Your Token)`,
-          decimals: Number(decimals)
-        };
-        return updated;
-      });
-    } catch (err) {
-      console.warn("Kullanıcı token detayları okunamadı:", err);
     }
   };
 
@@ -701,7 +669,6 @@ export default function App() {
           return;
         }
 
-        // bad address checksum hatasını önlemek için adresi doğrula
         const isAddressValid = isV6 ? ethers.isAddress(sendRecipient) : ethers.utils.isAddress(sendRecipient);
         if (!isAddressValid) {
           alert("Hata: Geçersiz alıcı adresi. Lütfen adresi kontrol edin.");
@@ -711,12 +678,11 @@ export default function App() {
 
         const tokenToTransfer = sendToken === "AAA" ? USER_CUSTOM_TOKEN_ADDRESS : SAKUSD_TOKEN_ADDRESS;
         const symbolToTransfer = sendToken === "AAA" ? "AAA" : "sakUSD";
-        const amountParsed = parseUnits(sendAmount, 18); // AAA da sakUSD de 18 ondalıklıdır
+        const amountParsed = parseUnits(sendAmount, 18); 
 
         const erc20ABI = ["function transfer(address to, uint256 amount) returns (bool)"];
         const tokenContract = new ethers.Contract(tokenToTransfer, erc20ABI, signer);
 
-        // Direkt on-chain transfer (Approve gerektirmez!)
         const transferTx = await tokenContract.transfer(sendRecipient, amountParsed);
         alert(`Transfer işlemi gönderildi! Tx: ${transferTx.hash}`);
         await transferTx.wait();
@@ -735,7 +701,6 @@ export default function App() {
     setTxLoading(false);
   };
 
-  // Dinamik On-Chain Faucet İstek Yöneticisi
   const handleFaucet = async (tokenSymbol) => {
     if (tokenSymbol === "USDC" || tokenSymbol === "EURC" || tokenSymbol === "cirBTC" || tokenSymbol === "USDT") {
       window.open("https://faucet.circle.com/", "_blank");
@@ -783,8 +748,8 @@ export default function App() {
           </span>
         </div>
         
-        {/* Orta: Navbar Navigasyon Tabları */}
-        <div className="flex bg-[#100e1f] p-1 rounded-xl border border-gray-800 shrink-0 w-full md:w-auto max-w-sm md:max-w-none">
+        {/* Orta: Navbar Navigasyon Tabları (Dinamik Grid / Flex) */}
+        <div className="grid grid-cols-3 md:flex bg-[#100e1f] p-1 rounded-xl border border-gray-800 shrink-0 w-full md:w-auto max-w-sm md:max-w-none">
           {["swap", "pool", "mint", "savings", "send", "faucet"].map((tab) => (
             <button
               key={tab}
@@ -1235,7 +1200,7 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Aktif Unstake Talepleri (14 günlük sayaçlar) */}
+              {/* Aktif Unstake Talepleri */}
               {savingsData.requests.length > 0 && (
                 <div className="bg-[#100e21] p-4 rounded-2xl border border-gray-900">
                   <h3 className="text-xs font-semibold uppercase tracking-wider text-violet-400 mb-3">Aktif Geri Çekim Talepleriniz</h3>
