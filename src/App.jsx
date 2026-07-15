@@ -115,11 +115,11 @@ export default function App() {
   const [activePoolType, setActivePoolType] = useState("USDC"); 
   
   const [tokens, setTokens] = useState(INITIAL_TOKENS);
-  const [balances, setBalances] = useState({ USDC: "0.00", EURC: "0.00", cirBTC: "0.0000", sakUSD: "0.00", WUSDC: "0.00", AAA: "0.00", USDT: "0.00", DAI: "0.00" });
+  const [balances, setBalances] = useState({ USDC: "0.00", EURC: "0.00", cirBTC: "0.0000", sakUSD: "0.00", WUSDC: "0.00", AAA: "0.00", USDT: "0.00", DAI: "0.00" }); 
   
   // Swap Form States
   const [fromToken, setFromToken] = useState("USDC");
-  const [toToken, setToToken] = useState("AAA"); // Varsayılan hedef AAA olarak ayarlandı
+  const [toToken, setToToken] = useState("AAA"); 
   const [amountIn, setAmountIn] = useState("");
   const [amountOut, setAmountOut] = useState("");
 
@@ -283,7 +283,7 @@ export default function App() {
     if (!provider) return;
     
     const activePool = activeTab === "pool"
-      ? getPoolAddress(activePoolType, "AAA")
+      ? getPoolAddress(activePoolType, "AAA") 
       : getPoolAddress(fromToken, toToken);
 
     if (activePool === ZERO_ADDRESS) return;
@@ -348,7 +348,7 @@ export default function App() {
     }
   };
 
-  // TASARRUF (SAVINGS) BİLGİLERİNİ ON-CHAIN SORGULAMA FONKSİYONU
+  // TASARRUF (SAVINGS) BİLGİLERİNİ SORGULAMA
   const fetchSavingsData = async () => {
     if (!provider || !account || SAKUSD_MINTER_ADDRESS === ZERO_ADDRESS) return;
     try {
@@ -386,12 +386,20 @@ export default function App() {
       return;
     }
 
+    const activePool = type === "add_lp"
+      ? getPoolAddress(activePoolType, "AAA") 
+      : getPoolAddress(fromToken, toToken);
+
+    if (activePool === ZERO_ADDRESS && type !== "mint_sakusd" && type !== "redeem_sakusd" && !type.includes("sakusd") && !type.includes("rewards") && !type.includes("unstake")) {
+      alert("İşlem için geçerli havuz adresi bulunamadı.");
+      return;
+    }
+
     setTxLoading(true);
     try {
       const signer = await getSignerInstance(provider);
 
       if (type === "swap") {
-        const activePool = getPoolAddress(fromToken, toToken);
         const tokenInObj = tokens[fromToken];
         const amountInParsed = parseUnits(amountIn, tokenInObj.decimals); 
 
@@ -422,7 +430,6 @@ export default function App() {
       }
 
       if (type === "add_lp") {
-        const activePool = getPoolAddress(activePoolType, "AAA");
         if (!lpUSDC || !lpAAA) {
           alert("Lütfen her iki miktar alanını da doldurun.");
           setTxLoading(false);
@@ -661,7 +668,7 @@ export default function App() {
     setTxLoading(false);
   };
 
-  // Dinamik On-Chain Faucet İstek Yöneticisi
+  // Dinamik On-Chain Faucet İstek Yöneticisi (Resmi Circle Faucet & Gerçek On-Chain AAA Minting)
   const handleFaucet = async (tokenSymbol) => {
     if (tokenSymbol === "USDC" || tokenSymbol === "EURC" || tokenSymbol === "cirBTC" || tokenSymbol === "USDT") {
       window.open("https://faucet.circle.com/", "_blank");
@@ -741,29 +748,34 @@ export default function App() {
       <main className="flex-grow max-w-4xl w-full mx-auto px-4 py-10">
         
         {account && chainId === ARC_CHAIN_ID && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            <div className="p-4 rounded-2xl bg-gradient-to-r from-indigo-950 to-[#121024] border border-violet-800 flex justify-between items-center">
-              <div>
-                <span className="text-xs font-semibold uppercase tracking-wider text-violet-400">Deployed Contract</span>
-                <h3 className="text-lg font-bold text-white mt-1">⭐ {tokens.AAA.name}</h3>
-                <p className="text-[10px] text-gray-500 truncate max-w-[180px] mt-0.5">{USER_CUSTOM_TOKEN_ADDRESS}</p>
-              </div>
-              <div className="text-right">
-                <span className="text-xs text-gray-400 font-medium">Balance</span>
-                <p className="text-xl font-bold text-violet-300 mt-1">{balances.AAA} {tokens.AAA.symbol}</p>
+          <div className="mb-6 p-5 rounded-2xl bg-gradient-to-r from-indigo-950 to-[#121024] border border-violet-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div className="w-full md:w-auto">
+              <span className="text-xs font-semibold uppercase tracking-wider text-violet-400 font-medium">Your Deployed Custom Token</span>
+              <h3 className="text-xl font-bold text-white mt-1 flex items-center gap-2">
+                🪙 {tokens.AAA.name} ({tokens.AAA.symbol})
+              </h3>
+              <p className="text-xs text-gray-400 mt-1">Volatile Asset • Price: $5.40 • <span className="text-emerald-400 font-semibold">1,300+ Active Holders on Arcscan</span></p>
+              
+              {/* Adres Kopyalama Alani ( bad address checksum engellendi ) */}
+              <div className="mt-3 flex items-center space-x-2 bg-[#1b173c]/50 p-2.5 rounded-xl border border-gray-800 w-full max-w-full overflow-hidden">
+                <span className="text-xs text-gray-300 font-mono break-all select-all flex-grow">
+                  {USER_CUSTOM_TOKEN_ADDRESS}
+                </span>
+                <button 
+                  onClick={() => {
+                    navigator.clipboard.writeText(USER_CUSTOM_TOKEN_ADDRESS);
+                    alert("AAA Kontrat Adresi başarıyla kopyalandı!");
+                  }}
+                  className="bg-violet-900/60 hover:bg-violet-800/80 text-violet-200 p-1.5 rounded-lg border border-violet-700 transition flex items-center justify-center shrink-0"
+                  title="Kontrat Adresini Kopyala"
+                >
+                  📋
+                </button>
               </div>
             </div>
-
-            <div className="p-4 rounded-2xl bg-gradient-to-r from-indigo-950 to-[#121024] border border-violet-800 flex justify-between items-center">
-              <div>
-                <span className="text-xs font-semibold uppercase tracking-wider text-violet-400">anaraydinli Utility</span>
-                <h3 className="text-lg font-bold text-white mt-1">🚀 {tokens.AAA.name}</h3>
-                <p className="text-[10px] text-gray-500 mt-0.5">Volatile Asset • Price: $5.40</p>
-              </div>
-              <div className="text-right">
-                <span className="text-xs text-gray-400 font-medium">Balance</span>
-                <p className="text-xl font-bold text-violet-300 mt-1">{balances.AAA} {tokens.AAA.symbol}</p>
-              </div>
+            <div className="text-left md:text-right shrink-0">
+              <span className="text-xs text-gray-400 font-medium block">Your Balance</span>
+              <p className="text-2xl font-bold text-violet-300 mt-1">{balances.AAA} {tokens.AAA.symbol}</p>
             </div>
           </div>
         )}
@@ -908,7 +920,7 @@ export default function App() {
               ) : (
                 <button 
                   onClick={connectWallet}
-                  className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 font-bold text-white transition shadow-lg"
+                  className="w-full py-4 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 font-bold text-white transition shadow-lg"
                 >
                   Connect Wallet
                 </button>
