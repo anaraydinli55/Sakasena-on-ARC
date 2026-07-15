@@ -117,28 +117,28 @@ export default function App() {
   const [tokens, setTokens] = useState(INITIAL_TOKENS);
   const [balances, setBalances] = useState({ USDC: "0.00", EURC: "0.00", cirBTC: "0.0000", sakUSD: "0.00", WUSDC: "0.00", AAA: "0.00", USDT: "0.00", DAI: "0.00" }); 
   
-  // Swap Form States (Varsayılan olarak "0" yapıldı)
+  // Swap Form States
   const [fromToken, setFromToken] = useState("USDC");
   const [toToken, setToToken] = useState("AAA"); 
   const [amountIn, setAmountIn] = useState("0");
   const [amountOut, setAmountOut] = useState("");
 
-  // Liquidity Pool Form States (Varsayılan olarak "0" yapıldı)
+  // Liquidity Pool Form States
   const [lpUSDC, setLpUSDC] = useState("0");
   const [lpAAA, setLpAAA] = useState("0");
   const [poolReserves, setPoolReserves] = useState({ stableAmount: "0.00", aaaAmount: "0.00", stableSymbol: "USDC", totalShares: "0" });
 
-  // Mint / Redeem Form States (Varsayılan olarak "0" yapıldı)
+  // Mint / Redeem Form States
   const [mintCollateral, setMintCollateral] = useState("USDC");
   const [mintAmount, setMintAmount] = useState("0");
   const [redeemAmount, setRedeemAmount] = useState("0");
 
-  // Savings (Staking) Form States (Varsayılan olarak "0" yapıldı)
+  // Savings (Staking) Form States
   const [stakeAmountInput, setStakeAmountInput] = useState("0");
   const [unstakeAmountInput, setUnstakeAmountInput] = useState("0");
   const [savingsData, setSavingsData] = useState({ staked: "0.00", pendingRewards: "0.00", requests: [] });
 
-  // Send Token Form States (Varsayılan olarak "0" yapıldı)
+  // Send Token Form States
   const [sendToken, setSendToken] = useState("AAA"); 
   const [sendRecipient, setSendRecipient] = useState("");
   const [sendAmount, setSendAmount] = useState("0");
@@ -426,6 +426,7 @@ export default function App() {
         await fetchPoolReserves();
       }
 
+      // KORUMALI LİKİDITE EKLEME FONKSİYONU (ESKİ VE YENİ HAVUZLARI OTOMATIK AYIRT EDER)
       if (type === "add_lp") {
         const activePool = getPoolAddress(activePoolType, "AAA");
         if (!lpUSDC || !lpAAA) {
@@ -470,16 +471,27 @@ export default function App() {
           "function addLiquidity(uint256 amountA, uint256 amountB) external returns (uint256)"
         ], signer);
 
-        const tA = await poolContract.tokenA();
-        const isTAStable = tA.toLowerCase() === ARC_EURC_ADDRESS.toLowerCase() || 
-                           tA.toLowerCase() === ARC_USDC_ADDRESS.toLowerCase() || 
-                           tA.toLowerCase() === ARC_CIRBTC_ADDRESS.toLowerCase();
-        
         let lpTx;
-        if (isTAStable) {
-          lpTx = await poolContract.addLiquidity(stableParsed, aaaParsed);
-        } else {
-          lpTx = await poolContract.addLiquidity(aaaParsed, stableParsed);
+        try {
+          // Yeni jenerik havuz yapısını deniyoruz (tokenA ve tokenB içeren)
+          const tA = await poolContract.tokenA();
+          const isTAStable = tA.toLowerCase() === ARC_EURC_ADDRESS.toLowerCase() || 
+                             tA.toLowerCase() === ARC_USDC_ADDRESS.toLowerCase() || 
+                             tA.toLowerCase() === ARC_CIRBTC_ADDRESS.toLowerCase();
+          
+          if (isTAStable) {
+            lpTx = await poolContract.addLiquidity(stableParsed, aaaParsed);
+          } else {
+            lpTx = await poolContract.addLiquidity(aaaParsed, stableParsed);
+          }
+        } catch (err) {
+          // Eğer tokenA() çağrısı revert ettiyse, bu eski USDC/AAA havuzudur!
+          // Eski havuzda parametre sıralaması her zaman: (amountUSDC, amountAAA) şeklindedir.
+          console.log("Eski havuz yapısı algılandı, varsayılan sıralama ile işlem gönderiliyor...");
+          const oldPoolContract = new ethers.Contract(activePool, [
+            "function addLiquidity(uint256 amountUSDC, uint256 amountAAA) external returns (uint256)"
+          ], signer);
+          lpTx = await oldPoolContract.addLiquidity(stableParsed, aaaParsed);
         }
         
         alert(`Likidite ekleme işlemi gönderildi! Tx: ${lpTx.hash}`);
@@ -494,7 +506,7 @@ export default function App() {
       }
 
       if (type === "mint_sakusd") {
-        if (!mintAmount || isNaN(mintAmount) || parseFloat(mintAmount) <= 0) {
+        if (!mintAmount || isNaN(mintAmount)) {
           alert("Gecersiz miktar.");
           setTxLoading(false);
           return;
@@ -547,7 +559,7 @@ export default function App() {
       }
 
       if (type === "redeem_sakusd") {
-        if (!redeemAmount || isNaN(redeemAmount) || parseFloat(redeemAmount) <= 0) {
+        if (!redeemAmount || isNaN(redeemAmount)) {
           alert("Gecersiz miktar.");
           setTxLoading(false);
           return;
@@ -571,7 +583,7 @@ export default function App() {
 
       // SAKUSD STAKE
       if (type === "stake_sakusd") {
-        if (!stakeAmountInput || isNaN(stakeAmountInput) || parseFloat(stakeAmountInput) <= 0) {
+        if (!stakeAmountInput || isNaN(stakeAmountInput)) {
           alert("Gecerli bir miktar girin.");
           setTxLoading(false);
           return;
@@ -608,7 +620,7 @@ export default function App() {
 
       // UNSTAKE TALEBİ BAŞLATMA
       if (type === "request_unstake") {
-        if (!unstakeAmountInput || isNaN(unstakeAmountInput) || parseFloat(unstakeAmountInput) <= 0) {
+        if (!unstakeAmountInput || isNaN(unstakeAmountInput)) {
           alert("Gecerli bir miktar girin.");
           setTxLoading(false);
           return;
@@ -661,7 +673,7 @@ export default function App() {
 
       // TRANSFER (SEND) İŞLEMİ
       if (type === "send_token") {
-        if (!sendRecipient || !sendAmount || isNaN(sendAmount) || parseFloat(sendAmount) <= 0) {
+        if (!sendRecipient || !sendAmount || isNaN(sendAmount)) {
           alert("Lütfen geçerli bir alıcı adresi ve miktar girin.");
           setTxLoading(false);
           return;
@@ -699,6 +711,7 @@ export default function App() {
     setTxLoading(false);
   };
 
+  // Dinamik On-Chain Faucet İstek Yöneticisi
   const handleFaucet = async (tokenSymbol) => {
     if (tokenSymbol === "USDC" || tokenSymbol === "EURC" || tokenSymbol === "cirBTC" || tokenSymbol === "USDT") {
       window.open("https://faucet.circle.com/", "_blank");
@@ -726,7 +739,7 @@ export default function App() {
       }
     } catch (err) {
       console.error("Faucet hatası:", err);
-      alert("Faucet işlemi başarısız oldu. AAA token kontratının yetkili cüzdanında (owner) olduğunuzdan emin olun.");
+      alert("Faucet işlemi başarıısız oldu. AAA token kontratının yetkili cüzdanında (owner) olduğunuzdan emin olun.");
     }
     setTxLoading(false);
   };
@@ -776,7 +789,7 @@ export default function App() {
           </span>
         </div>
         
-        {/* Orta: Navbar Navigasyon Tabları (Mobil Uyumlu Grid / Masaüstü Flex) */}
+        {/* Orta: Navbar Navigasyon Tabları (Dinamik Grid / Flex) */}
         <div className="grid grid-cols-3 md:flex bg-[#100e1f] p-1 rounded-xl border border-gray-800 shrink-0 w-full md:w-auto max-w-sm md:max-w-none">
           {["swap", "pool", "mint", "savings", "send", "faucet"].map((tab) => (
             <button
@@ -991,7 +1004,7 @@ export default function App() {
               {account ? (
                 <button 
                   onClick={() => handleAction("swap")}
-                  disabled={!amountIn || parseFloat(amountIn) <= 0 || txLoading || amountOut === "Likidite Yetersiz" || amountOut === "Havuz Bulunamadı"}
+                  disabled={!amountIn || txLoading || amountOut === "Likidite Yetersiz" || amountOut === "Havuz Bulunamadı"}
                   className="w-full py-4 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 font-bold transition shadow-lg text-white disabled:opacity-50"
                 >
                   {txLoading ? "İşlem Gönderiliyor..." : "Swap Varlıklar"}
