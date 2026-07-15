@@ -426,7 +426,6 @@ export default function App() {
         await fetchPoolReserves();
       }
 
-      // KORUMALI LİKİDITE EKLEME FONKSİYONU (ESKİ VE YENİ HAVUZLARI OTOMATIK AYIRT EDER)
       if (type === "add_lp") {
         const activePool = getPoolAddress(activePoolType, "AAA");
         if (!lpUSDC || !lpAAA) {
@@ -471,27 +470,16 @@ export default function App() {
           "function addLiquidity(uint256 amountA, uint256 amountB) external returns (uint256)"
         ], signer);
 
+        const tA = await poolContract.tokenA();
+        const isTAStable = tA.toLowerCase() === ARC_EURC_ADDRESS.toLowerCase() || 
+                           tA.toLowerCase() === ARC_USDC_ADDRESS.toLowerCase() || 
+                           tA.toLowerCase() === ARC_CIRBTC_ADDRESS.toLowerCase();
+        
         let lpTx;
-        try {
-          // Yeni jenerik havuz yapısını deniyoruz (tokenA ve tokenB içeren)
-          const tA = await poolContract.tokenA();
-          const isTAStable = tA.toLowerCase() === ARC_EURC_ADDRESS.toLowerCase() || 
-                             tA.toLowerCase() === ARC_USDC_ADDRESS.toLowerCase() || 
-                             tA.toLowerCase() === ARC_CIRBTC_ADDRESS.toLowerCase();
-          
-          if (isTAStable) {
-            lpTx = await poolContract.addLiquidity(stableParsed, aaaParsed);
-          } else {
-            lpTx = await poolContract.addLiquidity(aaaParsed, stableParsed);
-          }
-        } catch (err) {
-          // Eğer tokenA() çağrısı revert ettiyse, bu eski USDC/AAA havuzudur!
-          // Eski havuzda parametre sıralaması her zaman: (amountUSDC, amountAAA) şeklindedir.
-          console.log("Eski havuz yapısı algılandı, varsayılan sıralama ile işlem gönderiliyor...");
-          const oldPoolContract = new ethers.Contract(activePool, [
-            "function addLiquidity(uint256 amountUSDC, uint256 amountAAA) external returns (uint256)"
-          ], signer);
-          lpTx = await oldPoolContract.addLiquidity(stableParsed, aaaParsed);
+        if (isTAStable) {
+          lpTx = await poolContract.addLiquidity(stableParsed, aaaParsed);
+        } else {
+          lpTx = await poolContract.addLiquidity(aaaParsed, stableParsed);
         }
         
         alert(`Likidite ekleme işlemi gönderildi! Tx: ${lpTx.hash}`);
@@ -739,7 +727,7 @@ export default function App() {
       }
     } catch (err) {
       console.error("Faucet hatası:", err);
-      alert("Faucet işlemi başarıısız oldu. AAA token kontratının yetkili cüzdanında (owner) olduğunuzdan emin olun.");
+      alert("Faucet işlemi başarısız oldu. AAA token kontratının yetkili cüzdanında (owner) olduğunuzdan emin olun.");
     }
     setTxLoading(false);
   };
@@ -882,12 +870,13 @@ export default function App() {
             <p className="text-lg font-bold text-white">$3,109,425</p>
           </div>
           <div className="bg-[#121024] p-4 rounded-2xl border border-gray-800 text-center">
-            <p className="text-xs text-gray-400 mb-1">Pool Reserves ({poolReserves.stableSymbol || "Stable"})</p>
-            <p className="text-lg font-bold text-emerald-400">{poolReserves.stableAmount} {poolReserves.stableSymbol}</p>
+            {/* Gösterge kartları doğrudan cüzdan bakiyelerini gösterecek şekilde değiştirildi! */}
+            <p className="text-xs text-gray-400 mb-1">My {poolReserves.stableSymbol || "Stable"} Balance</p>
+            <p className="text-lg font-bold text-emerald-400">{balances[poolReserves.stableSymbol] || "0.00"} {poolReserves.stableSymbol}</p>
           </div>
           <div className="bg-[#121024] p-4 rounded-2xl border border-gray-800 text-center">
-            <p className="text-xs text-gray-400 mb-1">Pool Reserves (AAA)</p>
-            <p className="text-lg font-bold text-indigo-300">{poolReserves.aaaAmount} {tokens.AAA.symbol}</p>
+            <p className="text-xs text-gray-400 mb-1">My AAA Balance</p>
+            <p className="text-lg font-bold text-indigo-300">{balances.AAA} AAA</p>
           </div>
         </div>
 
