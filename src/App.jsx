@@ -926,6 +926,19 @@ export default function App() {
         
         {account && chainId === ARC_CHAIN_ID && (
           <div className="mb-6 p-5 rounded-2xl bg-gradient-to-r from-indigo-950 to-[#121024] border border-violet-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+           <button
+  onClick={() => {
+    navigator.clipboard.writeText(USER_CUSTOM_TOKEN_ADDRESS);
+    alert("AAA Kontrat Adresi başarıyla kopyalandı!");
+  }}
+  className="absolute top-3 right-3 bg-violet-900/60 hover:bg-violet-800/80 text-violet-200 p-1.5 rounded-lg border border-violet-700 transition flex items-center justify-center"
+  title="Kontrat Adresini Kopyala"
+>
+  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+  </svg>
+</button>
             <div className="w-full md:w-auto">
               <span className="text-xs font-semibold uppercase tracking-wider text-violet-400 font-medium">Your Deployed Custom Token</span>
               <h3 className="text-xl font-bold text-white mt-1 flex items-center gap-2">
