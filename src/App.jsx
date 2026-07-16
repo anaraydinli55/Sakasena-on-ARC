@@ -128,7 +128,7 @@ export default function App() {
   const [lpAAA, setLpAAA] = useState("0");
   const [poolReserves, setPoolReserves] = useState({ stableAmount: "0.00", aaaAmount: "0.00", stableSymbol: "USDC", totalShares: "0" });
 
-  // Kullanıcının Havuzdaki Kişisel Rezerv Payları (Yeni)
+  // Kullanıcının Havuzdaki Kişisel Rezerv Payları
   const [userPoolBalances, setUserPoolBalances] = useState({ stableAmount: "0.00", aaaAmount: "0.00", stableSymbol: "USDC" });
 
   // Mint / Redeem Form States
@@ -303,7 +303,7 @@ export default function App() {
         "function reserveA() view returns (uint256)",
         "function reserveB() view returns (uint256)",
         "function totalShares() view returns (uint256)",
-        "function lpShares(address) view returns (uint256)" // Kişisel LP Payı view çağrısı
+        "function lpShares(address) view returns (uint256)" 
       ];
       const contract = new ethers.Contract(activePool, genericABI, provider);
       
@@ -349,7 +349,6 @@ export default function App() {
         totalShares: shares.toString()
       });
 
-      // Kişisel havuz bakiyelerini state'e yazıyoruz
       setUserPoolBalances({
         stableAmount: isAStableOrBTC ? userStableAmount : userAaaAmount,
         aaaAmount: isAStableOrBTC ? userAaaAmount : userStableAmount,
@@ -357,7 +356,7 @@ export default function App() {
       });
 
     } catch (err) {
-      // Legacy Fallback (Eski USDC havuz yapısı için on-chain çözümleme)
+      // Legacy Fallback
       try {
         const oldABI = [
           "function reserveUSDC() view returns (uint256)",
@@ -407,6 +406,73 @@ export default function App() {
     }
   };
 
+  // TASARRUF (SAVINGS) BİLGİLERİNİ ON-CHAIN SORGULAMA FONKSİYONU (JSON ABI DESTEKLİ)
+  const fetchSavingsData = async () => {
+    if (!provider || !account || SAKUSD_MINTER_ADDRESS === ZERO_ADDRESS) return;
+    try {
+      // Ethers v5 ve v6 uyumluluğu için %100 kusursuz çalışan JSON ABI formatı kullanılmıştır
+      const minterABI = [
+        {
+          "inputs": [{"name": "", "type": "address"}],
+          "name": "stakedBalance",
+          "outputs": [{"name": "", "type": "uint256"}],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [{"name": "user", "type": "address"}],
+          "name": "calculatePendingRewards",
+          "outputs": [{"name": "", "type": "uint256"}],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [{"name": "user", "type": "address"}],
+          "name": "getUnstakeRequests",
+          "outputs": [
+            {
+              "components": [
+                {"name": "amount", "type": "uint256"},
+                {"name": "releaseTime", "type": "uint256"}
+              ],
+              "name": "",
+              "type": "tuple[]"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        }
+      ];
+      
+      const contract = new ethers.Contract(SAKUSD_MINTER_ADDRESS, minterABI, provider);
+      
+      const [staked, pending, reqs] = await Promise.all([
+        contract.stakedBalance(account),
+        contract.calculatePendingRewards(account),
+        contract.getUnstakeRequests(account)
+      ]);
+
+      // Ethers v6 ve v5 için tuple dizisini her iki versiyonda da hatasız haritalandırıyoruz
+      const requestsMapped = Array.from(reqs).map((r, i) => {
+        const amountVal = r.amount !== undefined ? r.amount : r[0];
+        const releaseVal = r.releaseTime !== undefined ? r.releaseTime : r[1];
+        return {
+          index: i,
+          amount: parseFloat(formatUnits(amountVal, 18)).toFixed(2),
+          releaseTime: Number(releaseVal)
+        };
+      });
+
+      setSavingsData({
+        staked: parseFloat(formatUnits(staked, 18)).toFixed(2),
+        pendingRewards: parseFloat(formatUnits(pending, 18)).toFixed(4),
+        requests: requestsMapped
+      });
+    } catch (err) {
+      console.warn("Tasarruf bilgileri alınamadı:", err);
+    }
+  };
+
   // GENEL ON-CHAIN YÖNETİCİSİ
   const handleAction = async (type, payload = null) => {
     if (chainId !== ARC_CHAIN_ID) {
@@ -449,7 +515,7 @@ export default function App() {
         await fetchPoolReserves();
       }
 
-      // KORUMALI LİKİDITE EKLEME (ESKİ VE YENİ SÖZLEŞMELERİ OTOMATIK ALGINLAR)
+      // KORUMALI LİKİDITE EKLEME (ESKİ VE YENİ SÖZLEŞMELERİ OTOMATIK ALGINLAR & REVERT ENGELLER)
       if (type === "add_lp") {
         const activePool = getPoolAddress(activePoolType, "AAA");
         if (!lpUSDC || !lpAAA) {
@@ -535,7 +601,6 @@ export default function App() {
         const collateralObj = tokens[mintCollateral];
         const amountInParsed = parseUnits(mintAmount, collateralObj.decimals);
 
-        // 1. Teminat Token Harcama Onayı
         const erc20ABI = [
           "function allowance(address owner, address spender) view returns (uint256)",
           "function approve(address spender, uint256 amount) returns (bool)"
@@ -809,7 +874,7 @@ export default function App() {
           </span>
         </div>
         
-        {/* Orta: Navbar Navigasyon Tabları */}
+        {/* Orta: Navbar Navigasyon Tabları (Dinamik Grid / Flex) */}
         <div className="grid grid-cols-3 md:flex bg-[#100e1f] p-1 rounded-xl border border-gray-800 shrink-0 w-full md:w-auto max-w-sm md:max-w-none">
           {["swap", "pool", "mint", "savings", "send", "faucet"].map((tab) => (
             <button
