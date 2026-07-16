@@ -951,16 +951,7 @@ export default function App() {
                 <span className="text-xs text-gray-300 font-mono break-all select-all flex-grow">
                   {USER_CUSTOM_TOKEN_ADDRESS}
                 </span>
-                <button 
-                  onClick={() => {
-                    navigator.clipboard.writeText(USER_CUSTOM_TOKEN_ADDRESS);
-                    alert("AAA Kontrat Adresi başarıyla kopyalandı!");
-                  }}
-                  className="bg-violet-900/60 hover:bg-violet-800/80 text-violet-200 p-1.5 rounded-lg border border-violet-700 transition flex items-center justify-center shrink-0"
-                  title="Kontrat Adresini Kopyala"
-                >
-                  📋
-                </button>
+
               </div>
             </div>
             <div className="text-left md:text-right shrink-0">
