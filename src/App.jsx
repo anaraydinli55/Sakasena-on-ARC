@@ -943,15 +943,6 @@ export default function App() {
   const isLpStableApproved = lpStableAllowance >= parseUnits(lpUSDC || "0", activePoolType === "cirBTC" ? 8 : 6);
   const isLpAaaApproved = lpAaaAllowance >= parseUnits(lpAAA || "0", 18);
 
-  const activeStableSymbol = activePoolType;
-
-  // Limit Müqayisə Dəyişənləri (JSX hissəsində düymələri idarə etmək üçün)
-  const isSwapApproved = swapAllowance >= parseUnits(amountIn || "0", tokens[fromToken]?.decimals || 18);
-  const isMintApproved = mintAllowance >= parseUnits(mintAmount || "0", tokens[mintCollateral]?.decimals || 18);
-  const isStakeApproved = stakeAllowance >= parseUnits(stakeAmountInput || "0", 18);
-  const isLpStableApproved = lpStableAllowance >= parseUnits(lpUSDC || "0", activePoolType === "cirBTC" ? 8 : 6);
-  const isLpAaaApproved = lpAaaAllowance >= parseUnits(lpAAA || "0", 18);
-
   return (
     <div className="min-h-screen flex flex-col justify-between bg-[#0b0914] text-[#f3f4f6]">
       <header className="border-b border-gray-800 bg-[#0d0b1a] px-6 py-4 flex flex-col md:flex-row items-center justify-between gap-4">
