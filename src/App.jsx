@@ -480,7 +480,7 @@ export default function App() {
     }
   };
 
-  // SƏSSİZ VƏ AVTOMATİK YÖNETİCİ (EXACT APPROVAL + 5% FEE BUFFER + GAS LIMITS)
+ // SƏSSİZ VƏ AVTOMATİK YÖNETİCİ (EXACT APPROVAL + 5% FEE BUFFER + GAS LIMITS + BIGINT SAFE CONVERSION)
   const handleAction = async (type, payload = null) => {
     if (chainId !== ARC_CHAIN_ID) {
       await checkAndSwitchNetwork();
@@ -496,8 +496,8 @@ export default function App() {
         const tokenInObj = tokens[fromToken];
         const amountInParsed = parseUnits(amountIn, tokenInObj.decimals); 
 
-        // 0.3% komissiya və sürüşmələr üçün 5% təhlükəsizlik buferi əlavə edirik (1.05 qatı)
-        const amountInWithBuffer = (amountInParsed * 105n) / 100n;
+        // Ethers v5 BigNumber obyektini native JS bigint-ə çevirib 5% bufer tətbiq edirik
+        const amountInWithBuffer = (BigInt(amountInParsed.toString()) * 105n) / 100n;
 
         const erc20ABI = [
           "function allowance(address owner, address spender) view returns (uint256)",
@@ -506,7 +506,7 @@ export default function App() {
         const tokenInContract = new ethers.Contract(tokenInObj.address, erc20ABI, signer);
         const currentAllowance = await tokenInContract.allowance(account, activePool);
         
-        // Əgər limit yetərsizdirsə, səssizcə Approve edirik (HEÇ BİR brauzer alert-i çıxmadan!)
+        // Limit yetərsizdirsə, səssizcə Approve edirik
         if (isLessThan(currentAllowance, amountInParsed)) { 
           const approveTx = await tokenInContract.approve(activePool, amountInWithBuffer, {
             gasLimit: 800000
@@ -517,7 +517,7 @@ export default function App() {
         const poolABI = ["function swap(address tokenIn, uint256 amountIn) external returns (uint256)"];
         const poolContract = new ethers.Contract(activePool, poolABI, signer);
         
-        // Arc testnet RPC-dəki estimateGas xətasını sabotaj etmək üçün sabit gasLimit
+        // Arc testnet RPC-dəki estimateGas xətasını keçmək üçün gasLimit
         const swapTx = await poolContract.swap(tokenInObj.address, amountInParsed, {
           gasLimit: 1000000
         });
@@ -554,9 +554,9 @@ export default function App() {
         const stableContract = new ethers.Contract(stableTokenAddress, erc20ABI, signer);
         const aaaContract = new ethers.Contract(USER_CUSTOM_TOKEN_ADDRESS, erc20ABI, signer);
 
-        // 5% LP təhlükəsizlik buferi
-        const stableBuffer = (stableParsed * 105n) / 100n;
-        const aaaBuffer = (aaaParsed * 105n) / 100n;
+        // BigInt təhlükəsiz çevrilməsi ilə 5% LP təhlükəsizlik buferi
+        const stableBuffer = (BigInt(stableParsed.toString()) * 105n) / 100n;
+        const aaaBuffer = (BigInt(aaaParsed.toString()) * 105n) / 100n;
 
         const allowanceStable = await stableContract.allowance(account, activePool);
         if (isLessThan(allowanceStable, stableParsed)) {
@@ -641,7 +641,7 @@ export default function App() {
         }
 
         // Mint üçün 1% təhlükəsizlik buferi
-        const amountWithBuffer = (amountInParsed * 101n) / 100n;
+        const amountWithBuffer = (BigInt(amountInParsed.toString()) * 101n) / 100n;
 
         if (isLessThan(currentAllowance, amountInParsed)) {
           const appTx = await collateralContract.approve(SAKUSD_MINTER_ADDRESS, amountWithBuffer, {
@@ -674,7 +674,6 @@ export default function App() {
         const collateralObj = tokens[mintCollateral];
         const amountToBurnParsed = parseUnits(redeemAmount, 18); 
 
-        // Redeem-də istifadəçidən sakUSD çəkildiyi üçün, sakUSD allowance-ı səssizcə verilir
         const erc20ABI = [
           "function allowance(address owner, address spender) view returns (uint256)",
           "function approve(address spender, uint256 amount) returns (bool)"
@@ -682,7 +681,7 @@ export default function App() {
         const sakusdContract = new ethers.Contract(SAKUSD_TOKEN_ADDRESS, erc20ABI, signer);
         const currentAllowance = await sakusdContract.allowance(account, SAKUSD_MINTER_ADDRESS);
 
-        const burnWithBuffer = (amountToBurnParsed * 101n) / 100n;
+        const burnWithBuffer = (BigInt(amountToBurnParsed.toString()) * 101n) / 100n;
 
         if (isLessThan(currentAllowance, amountToBurnParsed)) {
           const appTx = await sakusdContract.approve(SAKUSD_MINTER_ADDRESS, burnWithBuffer, {
@@ -721,7 +720,7 @@ export default function App() {
         const tokenContract = new ethers.Contract(SAKUSD_TOKEN_ADDRESS, erc20ABI, signer);
         const currentAllowance = await tokenContract.allowance(account, SAKUSD_MINTER_ADDRESS);
 
-        const stakeWithBuffer = (amountParsed * 101n) / 100n;
+        const stakeWithBuffer = (BigInt(amountParsed.toString()) * 101n) / 100n;
 
         if (isLessThan(currentAllowance, amountParsed)) {
           const appTx = await tokenContract.approve(SAKUSD_MINTER_ADDRESS, stakeWithBuffer, {
