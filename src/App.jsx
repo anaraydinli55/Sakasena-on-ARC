@@ -19,6 +19,7 @@ const USER_CUSTOM_TOKEN_ADDRESS = "0x54552f2ec52423d2fbe94c25f0bad61b9108aae8".t
 const SAKASENA_USDC_POOL_ADDRESS = (import.meta.env.VITE_SAKASENA_USDC_POOL_ADDRESS || "0xbe0f19f85a5cd1cac56e6f31c85f6cae805e56c3").toLowerCase();
 const SAKASENA_EURC_POOL_ADDRESS = (import.meta.env.VITE_SAKASENA_EURC_POOL_ADDRESS || "0xbbc6cd33291edfe9e4e927129901db0e58ba705b").toLowerCase();
 const SAKASENA_BTC_POOL_ADDRESS = (import.meta.env.VITE_SAKASENA_BTC_POOL_ADDRESS || "0x1815df186c43506e7d9113e6c1d19326610aa448").toLowerCase();
+const SAKASENA_USDC_EURC_POOL_ADDRESS = (import.meta.env.VITE_SAKASENA_USDC_EURC_POOL_ADDRESS ||  "0xE50eeb474BB6D7Afc148da3023836B2Afa358D3c".toLowerCase();
 
 // Sizin Deploy Ettiğiniz sakUSD Sözleşme Adresleri (Minter ve Token)
 const SAKUSD_MINTER_ADDRESS = (import.meta.env.VITE_SAKUSD_MINTER_ADDRESS || "0x1e27b23bc7662db4accf371b96b14ea5d81e0f83").toLowerCase();
