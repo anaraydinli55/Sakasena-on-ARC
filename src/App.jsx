@@ -211,11 +211,11 @@ export default function App() {
       const isEurcUsdc = (fromToken === "EURC" && toToken === "USDC");
 
       if (isUsdcEurc) {
-        setAmountOut((parseFloat(amountIn) * 1.08).toFixed(4));
+        setAmountOut((parseFloat(amountIn) * 0.8).toFixed(4));
         return;
       }
       if (isEurcUsdc) {
-        setAmountOut((parseFloat(amountIn) / 1.08).toFixed(4));
+        setAmountOut((parseFloat(amountIn) / 1.25).toFixed(4));
         return;
       }
 
