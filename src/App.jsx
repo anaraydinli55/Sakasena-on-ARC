@@ -215,7 +215,7 @@ export default function App() {
         return;
       }
       if (isEurcUsdc) {
-        setAmountOut((parseFloat(amountIn) / 1.25).toFixed(4));
+        setAmountOut((parseFloat(amountIn) * 1.25).toFixed(4));
         return;
       }
 
