@@ -922,47 +922,39 @@ export default function App() {
         </div>
       </header>
 
-      <main className="flex-grow max-w-4xl w-full mx-auto px-4 py-10">
+     <main className="flex-grow max-w-4xl w-full mx-auto px-4 py-10">
         
         {account && chainId === ARC_CHAIN_ID && (
-          <div className="mb-6 p-5 rounded-2xl bg-gradient-to-r from-indigo-950 to-[#121024] border border-violet-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
- <div className="w-full md:w-auto">
+          <div className="mb-6 p-5 rounded-2xl bg-gradient-to-r from-indigo-950 to-[#121024] border border-violet-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-xl">
+            <div className="w-full md:w-auto">
               <span className="text-xs font-semibold uppercase tracking-wider text-violet-400 font-medium">Your Deployed Custom Token</span>
               <h3 className="text-xl font-bold text-white mt-1 flex items-center gap-2">
                 🪙 {tokens.AAA.name} ({tokens.AAA.symbol})
               </h3>
               <p className="text-xs text-gray-400 mt-1">Volatile Asset • Price: $5.40 • <span className="text-emerald-400 font-semibold">1,300+ Active Holders on Arcscan</span></p>
               
-<div className="relative mt-3 flex items-center bg-[#1b173c]/50 p-2.5 pr-12 rounded-xl border border-gray-800 w-full max-w-full overflow-hidden group">
-  <span className="text-xs text-gray-300 font-mono break-all select-all flex-grow">
-    {USER_CUSTOM_TOKEN_ADDRESS}
-  </span>
+              {/* Adres Kopyalama Alanı */}
+              <div className="relative mt-3 flex items-center bg-[#1b173c]/50 p-2.5 pr-12 rounded-xl border border-gray-800 w-full max-w-full overflow-hidden group">
+                <span className="text-xs text-gray-300 font-mono break-all select-all flex-grow">
+                  {USER_CUSTOM_TOKEN_ADDRESS}
+                </span>
 
-  <button
-    onClick={(e) => {
-      e.preventDefault();
-      navigator.clipboard.writeText(USER_CUSTOM_TOKEN_ADDRESS);
-      alert("AAA Kontrat Adresi başarıyla kopyalandı!");
-    }}
-    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-violet-400 transition-colors p-2 z-10"
-    title="Kontrat Adresini Kopyala"
-  >
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-    </svg>
-  </button>
-</div>
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    navigator.clipboard.writeText(USER_CUSTOM_TOKEN_ADDRESS);
+                    alert("AAA Kontrat Adresi başarıyla kopyalandı!");
+                  }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-violet-400 transition-colors p-2 z-10"
+                  title="Kontrat Adresini Kopyala"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                  </svg>
+                </button>
+              </div>
+            </div>
             <div className="text-left md:text-right shrink-0">
               <span className="text-xs text-gray-400 font-medium block">Your Balance</span>
               <p className="text-2xl font-bold text-violet-300 mt-1">{balances.AAA} {tokens.AAA.symbol}</p>
@@ -970,6 +962,7 @@ export default function App() {
           </div>
         )}
 
+        {/* İstatistik Kartları Grid */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           <div className="bg-[#121024] p-4 rounded-2xl border border-gray-800 text-center">
             <p className="text-xs text-gray-400 mb-1">Total Value Locked</p>
@@ -980,7 +973,6 @@ export default function App() {
             <p className="text-lg font-bold text-white">$3,109,425</p>
           </div>
           <div className="bg-[#121024] p-4 rounded-2xl border border-gray-800 text-center">
-            {/* Gösterge kartları kullanıcının havuzdaki kişisel payını gösterecek şekilde güncellendi! */}
             <p className="text-xs text-gray-400 mb-1">My {userPoolBalances.stableSymbol || "Stable"} in Pool</p>
             <p className="text-lg font-bold text-emerald-400">{userPoolBalances.stableAmount} {userPoolBalances.stableSymbol}</p>
           </div>
@@ -990,7 +982,7 @@ export default function App() {
           </div>
         </div>
 
-        <div className="max-w-md mx-auto bg-[#13112a] rounded-3xl p-6 border border-gray-800 neon-glow">
+        <div className="max-w-md mx-auto bg-[#13112a] rounded-3xl p-6 border border-gray-800 neon-glow shadow-2xl">
           {activeTab === "swap" && (
             <div>
               <h2 className="text-xl font-bold mb-4 flex items-center justify-between">
@@ -998,8 +990,7 @@ export default function App() {
                 <span className="text-xs text-violet-400 bg-violet-950 px-2 py-1 rounded">Dynamic Price DEX</span>
               </h2>
 
-              {/* SWAP GİRİŞ ALANI (Gelişmiş CSS ve Kilitli 0 Korumalı) */}
-              <div className="bg-[#1c183a] p-4 rounded-2xl mb-3 border border-gray-800 focus-within:border-violet-600 focus-within:shadow-[0_0_15px_rgba(139,92,246,0.25)] transition">
+              <div className="bg-[#1c183a] p-4 rounded-2xl mb-3 border border-gray-800 focus-within:border-violet-600 transition">
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-xs text-gray-400 font-medium">From</span>
                   <span className="text-xs text-gray-400">Balance: {balances[fromToken]}</span>
