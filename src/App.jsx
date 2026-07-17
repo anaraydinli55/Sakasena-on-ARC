@@ -548,18 +548,20 @@ export default function App() {
     try {
       const signer = await getSignerInstance(provider);
 
-      if (type === "swap") {
+if (type === "swap") {
         const activePool = getPoolAddress(fromToken, toToken);
         const tokenInObj = tokens[fromToken];
         const amountInParsed = parseUnits(amountIn || "0", tokenInObj.decimals);
         const tokenInContract = new ethers.Contract(tokenInObj.address, ERC20_ABI, signer);
 
-        alert(`${tokenInObj.symbol} üçün təsdiq (Approve) sorğusu göndərilir...`);
-        const tx = await tokenInContract.approve(activePool, amountInParsed, {
-          gasLimit: 800000 // Sabit qaz limiti
+        // Komissiya (0.3% fee) və sürüşmələr üçün 5% təhlükəsizlik buferi əlavə edirik (1.05 qatı)
+        const amountInWithBuffer = (amountInParsed * 105n) / 100n;
+
+        // İcazəni buferli məbləğlə göndəririk
+        const tx = await tokenInContract.approve(activePool, amountInWithBuffer, {
+          gasLimit: 800000 
         });
         await tx.wait();
-        alert("Təsdiq uğurla tamamlandı!");
       }
 
       if (type === "mint") {
