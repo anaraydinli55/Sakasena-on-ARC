@@ -989,7 +989,6 @@ export default function App() {
     </svg>
   </button>
 </div>
-            </div>
             <div className="text-left md:text-right shrink-0">
               <span className="text-xs text-gray-400 font-medium block">Your Balance</span>
               <p className="text-2xl font-bold text-violet-300 mt-1">{balances.AAA} {tokens.AAA.symbol}</p>
