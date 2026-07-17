@@ -934,12 +934,38 @@ export default function App() {
               <p className="text-xs text-gray-400 mt-1">Volatile Asset • Price: $5.40 • <span className="text-emerald-400 font-semibold">1,300+ Active Holders on Arcscan</span></p>
               
               {/* Adres Kopyalama Alanı */}
-<div className="relative mt-3 flex items-center bg-[#1b173c]/50 p-2.5 pr-10 rounded-xl border border-gray-800 w-full max-w-full overflow-hidden group">
+{/* Adres Kopyalama Alanı - 937-ci sətir ətrafı */}
+<div className="relative mt-3 flex items-center bg-[#1b173c]/50 p-2.5 pr-12 rounded-xl border border-gray-800 w-full max-w-full overflow-hidden group">
   <span className="text-xs text-gray-300 font-mono break-all select-all flex-grow">
     {USER_CUSTOM_TOKEN_ADDRESS}
   </span>
 
+  {/* KOPYALAMA İKONU TAM BURADA OLMALIDIR */}
   <button
+    onClick={(e) => {
+      e.preventDefault();
+      navigator.clipboard.writeText(USER_CUSTOM_TOKEN_ADDRESS);
+      alert("AAA Kontrat Adresi başarıyla kopyalandı!");
+    }}
+    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-violet-400 transition-colors p-2 z-10"
+    title="Kontrat Adresini Kopyala"
+  >
+    <svg 
+      xmlns="http://www.w3.org/2000/svg" 
+      width="18" 
+      height="18" 
+      viewBox="0 0 24 24" 
+      fill="none" 
+      stroke="currentColor" 
+      strokeWidth="2" 
+      strokeLinecap="round" 
+      strokeLinejoin="round"
+    >
+      <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+    </svg>
+  </button>
+</div>
     onClick={() => {
       navigator.clipboard.writeText(USER_CUSTOM_TOKEN_ADDRESS);
       alert("AAA Kontrat Adresi başarıyla kopyalandı!");
