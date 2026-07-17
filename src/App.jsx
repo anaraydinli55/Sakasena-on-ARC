@@ -129,6 +129,13 @@ export default function App() {
   const [tokens, setTokens] = useState(INITIAL_TOKENS);
   const [balances, setBalances] = useState({ USDC: "0.00", EURC: "0.00", cirBTC: "0.0000", sakUSD: "0.00", WUSDC: "0.00", AAA: "0.00", USDT: "0.00", DAI: "0.00" }); 
   
+  // Allowance (Təvəkkül Limitləri) State-ləri
+  const [swapAllowance, setSwapAllowance] = useState(0n);
+  const [mintAllowance, setMintAllowance] = useState(0n);
+  const [stakeAllowance, setStakeAllowance] = useState(0n);
+  const [lpStableAllowance, setLpStableAllowance] = useState(0n);
+  const [lpAaaAllowance, setLpAaaAllowance] = useState(0n);
+
   // Swap Form States
   const [fromToken, setFromToken] = useState("USDC");
   const [toToken, setToToken] = useState("AAA"); 
@@ -188,6 +195,7 @@ export default function App() {
         await fetchBalances();
         await fetchPoolReserves();
         await fetchSavingsData();
+        await fetchAllowances(); // Limitləri çəkirik
       };
       loadAllData();
     }
@@ -267,6 +275,56 @@ export default function App() {
           console.error(addError);
         }
       }
+    }
+  };
+
+  // On-chain təsdiq limitlərini (allowance) çəkən funksiya
+  const fetchAllowances = async () => {
+    if (!provider || !account || chainId !== ARC_CHAIN_ID) return;
+    try {
+      // 1. Swap Limit
+      const activeSwapPool = getPoolAddress(fromToken, toToken);
+      if (activeSwapPool !== ZERO_ADDRESS && tokens[fromToken]?.address) {
+        const contract = new ethers.Contract(tokens[fromToken].address, ERC20_ABI, provider);
+        const allow = await contract.allowance(account, activeSwapPool);
+        setSwapAllowance(BigInt(allow.toString()));
+      }
+
+      // 2. Mint Limit
+      if (tokens[mintCollateral]?.address) {
+        const contract = new ethers.Contract(tokens[mintCollateral].address, ERC20_ABI, provider);
+        const allow = await contract.allowance(account, SAKUSD_MINTER_ADDRESS);
+        setMintAllowance(BigInt(allow.toString()));
+      }
+
+      // 3. Stake Limit
+      if (SAKUSD_TOKEN_ADDRESS !== ZERO_ADDRESS) {
+        const contract = new ethers.Contract(SAKUSD_TOKEN_ADDRESS, ERC20_ABI, provider);
+        const allow = await contract.allowance(account, SAKUSD_MINTER_ADDRESS);
+        setStakeAllowance(BigInt(allow.toString()));
+      }
+
+      // 4. LP (Stable & AAA) Limitləri
+      const activeLpPool = getPoolAddress(activePoolType, "AAA");
+      if (activeLpPool !== ZERO_ADDRESS) {
+        const stableSymbol = activePoolType; 
+        const stableTokenAddress = stableSymbol === "USDC" 
+          ? ARC_USDC_ADDRESS 
+          : (stableSymbol === "EURC" ? ARC_EURC_ADDRESS : ARC_CIRBTC_ADDRESS);
+        
+        const stableContract = new ethers.Contract(stableTokenAddress, ERC20_ABI, provider);
+        const aaaContract = new ethers.Contract(USER_CUSTOM_TOKEN_ADDRESS, ERC20_ABI, provider);
+
+        const [allowStable, allowAaa] = await Promise.all([
+          stableContract.allowance(account, activeLpPool),
+          aaaContract.allowance(account, activeLpPool)
+        ]);
+
+        setLpStableAllowance(BigInt(allowStable.toString()));
+        setLpAaaAllowance(BigInt(allowAaa.toString()));
+      }
+    } catch (err) {
+      console.warn("Allowance limitleri sorgulanamadı:", err);
     }
   };
 
@@ -480,6 +538,87 @@ export default function App() {
     }
   };
 
+  // Müstəqil Təsdiq (Approve) İşləyicisi (YENİ)
+  const handleApprove = async (type) => {
+    if (chainId !== ARC_CHAIN_ID) {
+      await checkAndSwitchNetwork();
+      return;
+    }
+    setTxLoading(true);
+    try {
+      const signer = await getSignerInstance(provider);
+
+      if (type === "swap") {
+        const activePool = getPoolAddress(fromToken, toToken);
+        const tokenInObj = tokens[fromToken];
+        const amountInParsed = parseUnits(amountIn || "0", tokenInObj.decimals);
+        const tokenInContract = new ethers.Contract(tokenInObj.address, ERC20_ABI, signer);
+
+        alert(`${tokenInObj.symbol} üçün təsdiq (Approve) sorğusu göndərilir...`);
+        const tx = await tokenInContract.approve(activePool, amountInParsed);
+        await tx.wait();
+        alert("Təsdiq uğurla tamamlandı!");
+      }
+
+      if (type === "mint") {
+        const collateralObj = tokens[mintCollateral];
+        const amountInParsed = parseUnits(mintAmount || "0", collateralObj.decimals);
+        const collateralContract = new ethers.Contract(collateralObj.address, ERC20_ABI, signer);
+
+        alert(`${collateralObj.symbol} üçün təsdiq (Approve) sorğusu göndərilir...`);
+        const tx = await collateralContract.approve(SAKUSD_MINTER_ADDRESS, amountInParsed);
+        await tx.wait();
+        alert("Təsdiq uğurla tamamlandı!");
+      }
+
+      if (type === "stake") {
+        const amountParsed = parseUnits(stakeAmountInput || "0", 18);
+        const tokenContract = new ethers.Contract(SAKUSD_TOKEN_ADDRESS, ERC20_ABI, signer);
+
+        alert("sakUSD üçün təsdiq (Approve) sorğusu göndərilir...");
+        const tx = await tokenContract.approve(SAKUSD_MINTER_ADDRESS, amountParsed);
+        await tx.wait();
+        alert("Təsdiq uğurla tamamlandı!");
+      }
+
+      if (type === "approve_lp_stable") {
+        const activePool = getPoolAddress(activePoolType, "AAA");
+        const stableSymbol = activePoolType; 
+        const stableTokenAddress = stableSymbol === "USDC" 
+          ? ARC_USDC_ADDRESS 
+          : (stableSymbol === "EURC" ? ARC_EURC_ADDRESS : ARC_CIRBTC_ADDRESS);
+        const stableDecimals = stableSymbol === "cirBTC" ? 8 : 6;
+        const stableParsed = parseUnits(lpUSDC || "0", stableDecimals);
+
+        const stableContract = new ethers.Contract(stableTokenAddress, ERC20_ABI, signer);
+        alert(`${stableSymbol} üçün təsdiq (Approve) sorğusu göndərilir...`);
+        const tx = await stableContract.approve(activePool, stableParsed);
+        await tx.wait();
+        alert("Təsdiq uğurla tamamlandı!");
+      }
+
+      if (type === "approve_lp_aaa") {
+        const activePool = getPoolAddress(activePoolType, "AAA");
+        const aaaParsed = parseUnits(lpAAA || "0", 18);
+
+        const aaaContract = new ethers.Contract(USER_CUSTOM_TOKEN_ADDRESS, ERC20_ABI, signer);
+        alert("AAA üçün təsdiq (Approve) sorğusu göndərilir...");
+        const tx = await aaaContract.approve(activePool, aaaParsed);
+        await tx.wait();
+        alert("Təsdiq uğurla tamamlandı!");
+      }
+
+      // Limitləri və balansları yenidən çəkirik
+      await fetchAllowances();
+      await fetchBalances();
+    } catch (err) {
+      console.error(err);
+      alert(`Təsdiq zamanı xəta baş verdi: ${err.reason || err.message || err}`);
+    }
+    setTxLoading(false);
+  };
+
+  // On-Chain Əməliyyat İcraçısı (Daxilindəki təkrar Approve yoxlanışları silinmiş və sadələşdirilmişdir)
   const handleAction = async (type, payload = null) => {
     if (chainId !== ARC_CHAIN_ID) {
       await checkAndSwitchNetwork();
@@ -492,23 +631,8 @@ export default function App() {
 
       if (type === "swap") {
         const activePool = getPoolAddress(fromToken, toToken);
-        if (activePool === ZERO_ADDRESS) {
-          alert("Bu işlem çifti için bir havuz bulunamadı.");
-          setTxLoading(false);
-          return;
-        }
-        
         const tokenInObj = tokens[fromToken];
         const amountInParsed = parseUnits(amountIn, tokenInObj.decimals); 
-
-        const tokenInContract = new ethers.Contract(tokenInObj.address, ERC20_ABI, signer);
-        const currentAllowance = await tokenInContract.allowance(account, activePool);
-        
-        if (isLessThan(currentAllowance, amountInParsed)) { 
-          alert(`Lütfen önce ${tokenInObj.symbol} harcama yetkisini (Approve) onaylayın.`);
-          const approveTx = await tokenInContract.approve(activePool, amountInParsed);
-          await approveTx.wait();
-        }
 
         const poolABI = ["function swap(address tokenIn, uint256 amountIn) external returns (uint256)"];
         const poolContract = new ethers.Contract(activePool, poolABI, signer);
@@ -521,16 +645,11 @@ export default function App() {
         setSpPoints(prev => prev + 50);
         await fetchBalances();
         await fetchPoolReserves();
+        await fetchAllowances();
       }
 
       if (type === "add_lp") {
         const activePool = getPoolAddress(activePoolType, "AAA");
-        if (!lpUSDC || !lpAAA || parseFloat(lpUSDC) <= 0 || parseFloat(lpAAA) <= 0) {
-          alert("Lütfen geçerli miktarlar daxil edin.");
-          setTxLoading(false);
-          return;
-        }
-
         const stableSymbol = activePoolType; 
         const stableTokenAddress = stableSymbol === "USDC" 
           ? ARC_USDC_ADDRESS 
@@ -540,23 +659,6 @@ export default function App() {
 
         const stableParsed = parseUnits(lpUSDC, stableDecimals);
         const aaaParsed = parseUnits(lpAAA, 18);
-
-        const stableContract = new ethers.Contract(stableTokenAddress, ERC20_ABI, signer);
-        const aaaContract = new ethers.Contract(USER_CUSTOM_TOKEN_ADDRESS, ERC20_ABI, signer);
-
-        const allowanceStable = await stableContract.allowance(account, activePool);
-        if (isLessThan(allowanceStable, stableParsed)) {
-          alert(`Lütfen ${stableSymbol} harcama yetkisini onaylayın.`);
-          const txApp = await stableContract.approve(activePool, stableParsed);
-          await txApp.wait();
-        }
-
-        const allowanceAAA = await aaaContract.allowance(account, activePool);
-        if (isLessThan(allowanceAAA, aaaParsed)) {
-          alert(`Lütfen ${tokens.AAA.symbol} harcama yetkisini onaylayın.`);
-          const txApp = await aaaContract.approve(activePool, aaaParsed);
-          await txApp.wait();
-        }
 
         const poolContract = new ethers.Contract(activePool, [
           "function tokenA() view returns (address)",
@@ -592,42 +694,12 @@ export default function App() {
         setLpAAA("0");
         await fetchBalances();
         await fetchPoolReserves();
+        await fetchAllowances();
       }
 
       if (type === "mint_sakusd") {
-        if (!mintAmount || isNaN(mintAmount) || parseFloat(mintAmount) <= 0) {
-          alert("Zəhmət olmasa, sıfırdan böyük keçərli bir məbləğ daxil edin.");
-          setTxLoading(false);
-          return;
-        }
-
         const collateralObj = tokens[mintCollateral];
         const amountInParsed = parseUnits(mintAmount, collateralObj.decimals);
-
-        const collateralContract = new ethers.Contract(collateralObj.address, ERC20_ABI, signer);
-        
-        let currentAllowance = 0n;
-        try {
-          currentAllowance = await collateralContract.allowance(account, SAKUSD_MINTER_ADDRESS);
-        } catch (allowanceErr) {
-          console.warn("Allowance check failed:", allowanceErr);
-          alert(`Hata: ${collateralObj.symbol} token sözleşmesi bu adreste on-chain olarak bulunamadı.`);
-          setTxLoading(false);
-          return;
-        }
-
-        if (isLessThan(currentAllowance, amountInParsed)) {
-          alert(`Lütfen önce ${collateralObj.symbol} harcama onayını (Approve) verin.`);
-          try {
-            const appTx = await collateralContract.approve(SAKUSD_MINTER_ADDRESS, amountInParsed);
-            await appTx.wait();
-          } catch (approveErr) {
-            console.error("Approval transaction failed:", approveErr);
-            alert("Harcama yetkisi cüzdandan onaylanamadı.");
-            setTxLoading(false);
-            return;
-          }
-        }
 
         const minterABI = ["function mint(address collateralToken, uint256 amountIn) external"];
         const minterContract = new ethers.Contract(SAKUSD_MINTER_ADDRESS, minterABI, signer);
@@ -640,26 +712,12 @@ export default function App() {
         setSpPoints(prev => prev + 100);
         setMintAmount("0");
         await fetchBalances();
+        await fetchAllowances();
       }
 
       if (type === "redeem_sakusd") {
-        if (!redeemAmount || isNaN(redeemAmount) || parseFloat(redeemAmount) <= 0) {
-          alert("Zəhmət olmasa, sıfırdan böyük keçərli bir məbləğ daxil edin.");
-          setTxLoading(false);
-          return;
-        }
-
         const collateralObj = tokens[mintCollateral];
         const amountToBurnParsed = parseUnits(redeemAmount, 18); 
-
-        const sakusdContract = new ethers.Contract(SAKUSD_TOKEN_ADDRESS, ERC20_ABI, signer);
-        const allowanceRedeem = await sakusdContract.allowance(account, SAKUSD_MINTER_ADDRESS);
-        
-        if (isLessThan(allowanceRedeem, amountToBurnParsed)) {
-          alert("Lütfen önce sakUSD harcama yetkisini (Approve) onaylayın.");
-          const txApp = await sakusdContract.approve(SAKUSD_MINTER_ADDRESS, amountToBurnParsed);
-          await txApp.wait();
-        }
 
         const minterABI = ["function redeem(address collateralToken, uint256 sakUSDAmount) external"];
         const minterContract = new ethers.Contract(SAKUSD_MINTER_ADDRESS, minterABI, signer);
@@ -672,25 +730,11 @@ export default function App() {
         setSpPoints(prev => prev + 100);
         setRedeemAmount("0");
         await fetchBalances();
+        await fetchAllowances();
       }
 
       if (type === "stake_sakusd") {
-        if (!stakeAmountInput || isNaN(stakeAmountInput) || parseFloat(stakeAmountInput) <= 0) {
-          alert("Gecerli bir miktar girin.");
-          setTxLoading(false);
-          return;
-        }
-
         const amountParsed = parseUnits(stakeAmountInput, 18);
-
-        const tokenContract = new ethers.Contract(SAKUSD_TOKEN_ADDRESS, ERC20_ABI, signer);
-        const currentAllowance = await tokenContract.allowance(account, SAKUSD_MINTER_ADDRESS);
-
-        if (isLessThan(currentAllowance, amountParsed)) {
-          alert("Lütfen önce sakUSD harcama yetkisini (Approve) cüzdanınızdan onaylayın.");
-          const appTx = await tokenContract.approve(SAKUSD_MINTER_ADDRESS, amountParsed);
-          await appTx.wait();
-        }
 
         const minterABI = ["function stake(uint256 amount) external"];
         const minterContract = new ethers.Contract(SAKUSD_MINTER_ADDRESS, minterABI, signer);
@@ -704,6 +748,7 @@ export default function App() {
         setSpPoints(prev => prev + 100);
         await fetchBalances();
         await fetchSavingsData();
+        await fetchAllowances();
       }
 
       if (type === "request_unstake") {
@@ -855,6 +900,13 @@ export default function App() {
   };
 
   const activeStableSymbol = activePoolType;
+
+  // Limit Müqayisə Dəyişənləri (JSX hissəsində düymələri idarə etmək üçün)
+  const isSwapApproved = swapAllowance >= parseUnits(amountIn || "0", tokens[fromToken]?.decimals || 18);
+  const isMintApproved = mintAllowance >= parseUnits(mintAmount || "0", tokens[mintCollateral]?.decimals || 18);
+  const isStakeApproved = stakeAllowance >= parseUnits(stakeAmountInput || "0", 18);
+  const isLpStableApproved = lpStableAllowance >= parseUnits(lpUSDC || "0", activePoolType === "cirBTC" ? 8 : 6);
+  const isLpAaaApproved = lpAaaAllowance >= parseUnits(lpAAA || "0", 18);
 
   return (
     <div className="min-h-screen flex flex-col justify-between bg-[#0b0914] text-[#f3f4f6]">
