@@ -902,9 +902,6 @@ export default function App() {
   const activeStableSymbol = activePoolType;
 
   return (
-    ... // Old JSX Layout exactly as is
-
-  return (
     <div className="min-h-screen flex flex-col justify-between bg-[#0b0914] text-[#f3f4f6]">
       <header className="border-b border-gray-800 bg-[#0d0b1a] px-6 py-4 flex flex-col md:flex-row items-center justify-between gap-4">
         {/* Sol: Logo */}
