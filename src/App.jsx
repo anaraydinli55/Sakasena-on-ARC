@@ -538,7 +538,7 @@ export default function App() {
     }
   };
 
-  // Müstəqil Təsdiq (Approve) İşləyicisi (YENİ)
+// Müstəqil Təsdiq (Approve) İşləyicisi (Şəbəkə xətası üçün gasLimit əlavə edildi)
   const handleApprove = async (type) => {
     if (chainId !== ARC_CHAIN_ID) {
       await checkAndSwitchNetwork();
@@ -555,7 +555,9 @@ export default function App() {
         const tokenInContract = new ethers.Contract(tokenInObj.address, ERC20_ABI, signer);
 
         alert(`${tokenInObj.symbol} üçün təsdiq (Approve) sorğusu göndərilir...`);
-        const tx = await tokenInContract.approve(activePool, amountInParsed);
+        const tx = await tokenInContract.approve(activePool, amountInParsed, {
+          gasLimit: 800000 // Sabit qaz limiti
+        });
         await tx.wait();
         alert("Təsdiq uğurla tamamlandı!");
       }
@@ -566,7 +568,9 @@ export default function App() {
         const collateralContract = new ethers.Contract(collateralObj.address, ERC20_ABI, signer);
 
         alert(`${collateralObj.symbol} üçün təsdiq (Approve) sorğusu göndərilir...`);
-        const tx = await collateralContract.approve(SAKUSD_MINTER_ADDRESS, amountInParsed);
+        const tx = await collateralContract.approve(SAKUSD_MINTER_ADDRESS, amountInParsed, {
+          gasLimit: 800000
+        });
         await tx.wait();
         alert("Təsdiq uğurla tamamlandı!");
       }
@@ -576,7 +580,9 @@ export default function App() {
         const tokenContract = new ethers.Contract(SAKUSD_TOKEN_ADDRESS, ERC20_ABI, signer);
 
         alert("sakUSD üçün təsdiq (Approve) sorğusu göndərilir...");
-        const tx = await tokenContract.approve(SAKUSD_MINTER_ADDRESS, amountParsed);
+        const tx = await tokenContract.approve(SAKUSD_MINTER_ADDRESS, amountParsed, {
+          gasLimit: 800000
+        });
         await tx.wait();
         alert("Təsdiq uğurla tamamlandı!");
       }
@@ -592,7 +598,9 @@ export default function App() {
 
         const stableContract = new ethers.Contract(stableTokenAddress, ERC20_ABI, signer);
         alert(`${stableSymbol} üçün təsdiq (Approve) sorğusu göndərilir...`);
-        const tx = await stableContract.approve(activePool, stableParsed);
+        const tx = await stableContract.approve(activePool, stableParsed, {
+          gasLimit: 800000
+        });
         await tx.wait();
         alert("Təsdiq uğurla tamamlandı!");
       }
@@ -603,7 +611,9 @@ export default function App() {
 
         const aaaContract = new ethers.Contract(USER_CUSTOM_TOKEN_ADDRESS, ERC20_ABI, signer);
         alert("AAA üçün təsdiq (Approve) sorğusu göndərilir...");
-        const tx = await aaaContract.approve(activePool, aaaParsed);
+        const tx = await aaaContract.approve(activePool, aaaParsed, {
+          gasLimit: 800000
+        });
         await tx.wait();
         alert("Təsdiq uğurla tamamlandı!");
       }
@@ -618,7 +628,7 @@ export default function App() {
     setTxLoading(false);
   };
 
-  // On-Chain Əməliyyat İcraçısı (Daxilindəki təkrar Approve yoxlanışları silinmiş və sadələşdirilmişdir)
+  // On-Chain Əməliyyat İcraçısı (Şəbəkə xətası üçün gasLimit əlavə edildi)
   const handleAction = async (type, payload = null) => {
     if (chainId !== ARC_CHAIN_ID) {
       await checkAndSwitchNetwork();
@@ -637,7 +647,10 @@ export default function App() {
         const poolABI = ["function swap(address tokenIn, uint256 amountIn) external returns (uint256)"];
         const poolContract = new ethers.Contract(activePool, poolABI, signer);
         
-        const swapTx = await poolContract.swap(tokenInObj.address, amountInParsed);
+        // RPC-dəki eth_estimateGas xətasını keçmək üçün əl ilə gasLimit təyin edirik
+        const swapTx = await poolContract.swap(tokenInObj.address, amountInParsed, {
+          gasLimit: 1000000 // Geniş və sabit gasLimit
+        });
         alert(`Swap işlemi gönderildi! Tx: ${swapTx.hash}`);
         await swapTx.wait();
         
@@ -673,16 +686,22 @@ export default function App() {
                              tA.toLowerCase() === ARC_CIRBTC_ADDRESS.toLowerCase();
           
           if (isTAStable) {
-            lpTx = await poolContract.addLiquidity(stableParsed, aaaParsed);
+            lpTx = await poolContract.addLiquidity(stableParsed, aaaParsed, {
+              gasLimit: 1000000
+            });
           } else {
-            lpTx = await poolContract.addLiquidity(aaaParsed, stableParsed);
+            lpTx = await poolContract.addLiquidity(aaaParsed, stableParsed, {
+              gasLimit: 1000000
+            });
           }
         } catch (err) {
           console.log("Eski havuz yapısı algılandı, varsayılan sıralama ile işlem gönderiliyor...");
           const oldPoolContract = new ethers.Contract(activePool, [
             "function addLiquidity(uint256 amountUSDC, uint256 amountAAA) external returns (uint256)"
           ], signer);
-          lpTx = await oldPoolContract.addLiquidity(stableParsed, aaaParsed);
+          lpTx = await oldPoolContract.addLiquidity(stableParsed, aaaParsed, {
+            gasLimit: 1000000
+          });
         }
         
         alert(`Likidite ekleme işlemi gönderildi! Tx: ${lpTx.hash}`);
@@ -704,7 +723,9 @@ export default function App() {
         const minterABI = ["function mint(address collateralToken, uint256 amountIn) external"];
         const minterContract = new ethers.Contract(SAKUSD_MINTER_ADDRESS, minterABI, signer);
 
-        const mintTx = await minterContract.mint(collateralObj.address, amountInParsed);
+        const mintTx = await minterContract.mint(collateralObj.address, amountInParsed, {
+          gasLimit: 1000000
+        });
         alert(`Basım işlemi gönderildi! Tx: ${mintTx.hash}`);
         await mintTx.wait();
 
@@ -722,7 +743,9 @@ export default function App() {
         const minterABI = ["function redeem(address collateralToken, uint256 sakUSDAmount) external"];
         const minterContract = new ethers.Contract(SAKUSD_MINTER_ADDRESS, minterABI, signer);
 
-        const redeemTx = await minterContract.redeem(collateralObj.address, amountToBurnParsed);
+        const redeemTx = await minterContract.redeem(collateralObj.address, amountToBurnParsed, {
+          gasLimit: 1000000
+        });
         alert(`Geri alma işlemi gönderildi! Tx: ${redeemTx.hash}`);
         await redeemTx.wait();
 
@@ -739,7 +762,9 @@ export default function App() {
         const minterABI = ["function stake(uint256 amount) external"];
         const minterContract = new ethers.Contract(SAKUSD_MINTER_ADDRESS, minterABI, signer);
 
-        const stakeTx = await minterContract.stake(amountParsed);
+        const stakeTx = await minterContract.stake(amountParsed, {
+          gasLimit: 1000000
+        });
         alert(`Stake işlemi gönderildi! Tx: ${stakeTx.hash}`);
         await stakeTx.wait();
 
@@ -763,7 +788,9 @@ export default function App() {
         const minterABI = ["function requestUnstake(uint256 amount) external"];
         const minterContract = new ethers.Contract(SAKUSD_MINTER_ADDRESS, minterABI, signer);
 
-        const unstakeTx = await minterContract.requestUnstake(amountParsed);
+        const unstakeTx = await minterContract.requestUnstake(amountParsed, {
+          gasLimit: 1000000
+        });
         alert(`Geri çekme talebi gönderildi! Tx: ${unstakeTx.hash}`);
         await unstakeTx.wait();
 
@@ -778,7 +805,9 @@ export default function App() {
         const minterABI = ["function claimUnstaked(uint256 index) external"];
         const minterContract = new ethers.Contract(SAKUSD_MINTER_ADDRESS, minterABI, signer);
 
-        const claimTx = await minterContract.claimUnstaked(index);
+        const claimTx = await minterContract.claimUnstaked(index, {
+          gasLimit: 1000000
+        });
         alert(`Kilit açma işlemi gönderildi! Tx: ${claimTx.hash}`);
         await claimTx.wait();
 
@@ -791,7 +820,9 @@ export default function App() {
         const minterABI = ["function claimRewards() external"];
         const minterContract = new ethers.Contract(SAKUSD_MINTER_ADDRESS, minterABI, signer);
 
-        const claimTx = await minterContract.claimRewards();
+        const claimTx = await minterContract.claimRewards({
+          gasLimit: 1000000
+        });
         alert(`Faiz ödülleri talep edildi! Tx: ${claimTx.hash}`);
         await claimTx.wait();
 
@@ -821,7 +852,9 @@ export default function App() {
 
         const erc20Contract = new ethers.Contract(tokenToTransfer, ERC20_ABI, signer);
 
-        const transferTx = await erc20Contract.transfer(sendRecipient, amountParsed);
+        const transferTx = await erc20Contract.transfer(sendRecipient, amountParsed, {
+          gasLimit: 1000000
+        });
         alert(`Transfer işlemi gönderildi! Tx: ${transferTx.hash}`);
         await transferTx.wait();
 
@@ -858,7 +891,9 @@ export default function App() {
         const aaaABI = ["function mint(address to, uint256 amount) external"];
         const aaaContract = new ethers.Contract(USER_CUSTOM_TOKEN_ADDRESS, aaaABI, signer);
         
-        const tx = await aaaContract.mint(account, parseUnits("10", 18));
+        const tx = await aaaContract.mint(account, parseUnits("10", 18), {
+          gasLimit: 1000000
+        });
         alert(`10 AAA basım işlemi gönderildi! Tx: ${tx.hash}`);
         await tx.wait();
         alert("10 AAA token cüzdanınıza başarıyla aktarıldı!");
@@ -898,6 +933,15 @@ export default function App() {
       setter("0");
     }
   };
+
+  const activeStableSymbol = activePoolType;
+
+  // Limit Müqayisə Dəyişənləri (JSX hissəsində düymələri idarə etmək üçün)
+  const isSwapApproved = swapAllowance >= parseUnits(amountIn || "0", tokens[fromToken]?.decimals || 18);
+  const isMintApproved = mintAllowance >= parseUnits(mintAmount || "0", tokens[mintCollateral]?.decimals || 18);
+  const isStakeApproved = stakeAllowance >= parseUnits(stakeAmountInput || "0", 18);
+  const isLpStableApproved = lpStableAllowance >= parseUnits(lpUSDC || "0", activePoolType === "cirBTC" ? 8 : 6);
+  const isLpAaaApproved = lpAaaAllowance >= parseUnits(lpAAA || "0", 18);
 
   const activeStableSymbol = activePoolType;
 
