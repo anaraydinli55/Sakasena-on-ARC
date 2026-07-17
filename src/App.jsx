@@ -80,13 +80,17 @@ const getDecimalsByAddress = (addr) => {
   return 18; 
 };
 
-// DÜZƏLDİLMİŞ dinamik havuz yönləndirici router funksiyası (Swap xətası burada düzəldilib)
 const getPoolAddress = (token1, token2) => {
   const t1 = token1.toLowerCase();
   const t2 = token2.toLowerCase();
   
-  // Havuzlar yalnız [Stable/BTC] / AAA şəklində mövcuddur. 
-  // Buna görə də tərəflərdən biri mütləq AAA (USER_CUSTOM_TOKEN_ADDRESS) olmalıdır.
+  // 1. Yeni Əlavə Edilən USDC / EURC Cütlüyü
+  const isUsdcEurc = (t1 === "usdc" && t2 === "eurc") || (t1 === "eurc" && t2 === "usdc");
+  if (isUsdcEurc) {
+    return SAKASENA_USDC_EURC_POOL_ADDRESS;
+  }
+
+  // 2. Digər AAA Havuzları (Mövcud məntiqiniz)
   const hasAAA = t1 === "aaa" || t2 === "aaa";
   if (!hasAAA) {
     return ZERO_ADDRESS; 
