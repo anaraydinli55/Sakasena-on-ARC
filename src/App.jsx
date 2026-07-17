@@ -926,15 +926,26 @@ export default function App() {
         
         {account && chainId === ARC_CHAIN_ID && (
           <div className="mb-6 p-5 rounded-2xl bg-gradient-to-r from-indigo-950 to-[#121024] border border-violet-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-           <button
+<button
   onClick={() => {
     navigator.clipboard.writeText(USER_CUSTOM_TOKEN_ADDRESS);
+    // İstəyə bağlı olaraq alerti saxlaya və ya silə bilərsiniz
     alert("AAA Kontrat Adresi başarıyla kopyalandı!");
   }}
-  className="absolute top-3 right-3 bg-violet-900/60 hover:bg-violet-800/80 text-violet-200 p-1.5 rounded-lg border border-violet-700 transition flex items-center justify-center"
+  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors duration-200 p-1"
   title="Kontrat Adresini Kopyala"
 >
-  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg 
+    xmlns="http://www.w3.org/2000/svg" 
+    width="18" 
+    height="18" 
+    viewBox="0 0 24 24" 
+    fill="none" 
+    stroke="currentColor" 
+    strokeWidth="2" 
+    strokeLinecap="round" 
+    strokeLinejoin="round"
+  >
     <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
     <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
   </svg>
