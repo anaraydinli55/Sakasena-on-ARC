@@ -198,13 +198,27 @@ export default function App() {
     }
   }, [account, chainId, provider, fromToken, toToken, activePoolType, activeTab]); 
 
-  // Dinamik Fiyatlama Hesaplama
+  // Dinamik Fiyatlama Hesaplama (USDC / EURC üçün sabit qiymət override-ı ilə)
   useEffect(() => {
     const calculateSwapOutput = async () => {
       if (!amountIn || isNaN(amountIn) || parseFloat(amountIn) <= 0) {
         setAmountOut("");
         return;
       }
+
+      // 1. USDC / EURC üçün qəti sabit (kati) qiymət hesablaması
+      const isUsdcEurc = (fromToken === "USDC" && toToken === "EURC");
+      const isEurcUsdc = (fromToken === "EURC" && toToken === "USDC");
+
+      if (isUsdcEurc) {
+        setAmountOut((parseFloat(amountIn) * 1.08).toFixed(4));
+        return;
+      }
+      if (isEurcUsdc) {
+        setAmountOut((parseFloat(amountIn) / 1.08).toFixed(4));
+        return;
+      }
+
       if (!provider || chainId !== ARC_CHAIN_ID) return;
 
       const activePool = getPoolAddress(fromToken, toToken);
@@ -234,7 +248,6 @@ export default function App() {
 
     calculateSwapOutput();
   }, [amountIn, fromToken, toToken, tokens, provider, chainId]);
-
   const connectWallet = async () => {
     if (!window.ethereum) {
       alert("Lütfen MetaMask veya Rabby Wallet kurun.");
