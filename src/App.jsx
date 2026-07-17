@@ -1,18 +1,18 @@
 import { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
 
-// Arc Network Testnet Bilgileri
-const ARC_CHAIN_ID = 5042002;
-const ARC_CHAIN_HEX = "0x4cef52";
+// Arc Network Testnet Bilgileri (Düzəldilmiş Rəsmi Chain ID)
+const ARC_CHAIN_ID = 5042002; 
+const ARC_CHAIN_HEX = "0x4cef52"; 
 const ARC_RPC_URL = import.meta.env.VITE_ARC_RPC_URL || "https://rpc.testnet.arc.network";
 
-// Resmi Sözleşme Adresleri (bad address checksum hatasını önlemek için tamamen küçük harfe dönüştürülmüştür)
+// Resmi Sözleşme Adresleri
 const ARC_USDC_ADDRESS = "0x3600000000000000000000000000000000000000".toLowerCase();
 const ARC_EURC_ADDRESS = "0x89b50855aa3be2f677cd6303cec089b5f319d72a".toLowerCase();
 const ARC_CIRBTC_ADDRESS = "0xf0c4a4ce82a5746abaad9425360ab04fbba432bf".toLowerCase();
-const ARC_USDT_ADDRESS = "0x175cdb1d338945f0d851a741ccf787d343e57952".toLowerCase(); // Gerçek USDT (270k+ Holders)
+const ARC_USDT_ADDRESS = "0x175cdb1d338945f0d851a741ccf787d343e57952".toLowerCase(); 
 
-// Sizin Deploy Ettiğiniz Sözleşme Adresi (1300+ Holders)
+// Sizin Deploy Ettiğiniz Sözleşme Adresi
 const USER_CUSTOM_TOKEN_ADDRESS = "0x54552f2ec52423d2fbe94c25f0bad61b9108aae8".toLowerCase();
 
 // Havuz Sözleşme Adresleri (USDC, EURC ve BTC Havuzlarınız)
@@ -30,7 +30,7 @@ const TOKEN_PRICES = {
   EURC: 1.08,
   cirBTC: 67450.00,
   WUSDC: 1.00, 
-  sakUSD: 1.00, // Sakasena USD Sabit Parası
+  sakUSD: 1.00, 
   AAA: 5.40,
   USDT: 1.00,
   DAI: 1.00
@@ -79,21 +79,33 @@ const getDecimalsByAddress = (addr) => {
   return 18; 
 };
 
-// Dinamik Havuz Yönlendirici Yardımcı Fonksiyonu
+// DÜZƏLDİLMİŞ dinamik havuz yönləndirici router funksiyası (Swap xətası burada düzəldilib)
 const getPoolAddress = (token1, token2) => {
   const t1 = token1.toLowerCase();
   const t2 = token2.toLowerCase();
   
-  const isUSDC = t1 === "usdc" || t2 === "usdc";
-  const isEURC = t1 === "eurc" || t2 === "eurc";
-  const isBTC = t1 === "cirbtc" || t2 === "cirbtc";
-  
-  if (isUSDC) return SAKASENA_USDC_POOL_ADDRESS;
-  if (isEURC) return SAKASENA_EURC_POOL_ADDRESS;
-  if (isBTC) return SAKASENA_BTC_POOL_ADDRESS;
+  // Havuzlar yalnız [Stable/BTC] / AAA şəklində mövcuddur. 
+  // Buna görə də tərəflərdən biri mütləq AAA (USER_CUSTOM_TOKEN_ADDRESS) olmalıdır.
+  const hasAAA = t1 === "aaa" || t2 === "aaa";
+  if (!hasAAA) {
+    return ZERO_ADDRESS; 
+  }
+
+  const otherToken = t1 === "aaa" ? t2 : t1;
+
+  if (otherToken === "usdc") return SAKASENA_USDC_POOL_ADDRESS;
+  if (otherToken === "eurc") return SAKASENA_EURC_POOL_ADDRESS;
+  if (otherToken === "cirbtc") return SAKASENA_BTC_POOL_ADDRESS;
   
   return ZERO_ADDRESS;
 };
+
+// ERC20 Minimal ABI
+const ERC20_ABI = [
+  "function balanceOf(address owner) view returns (uint256)",
+  "function allowance(address owner, address spender) view returns (uint256)",
+  "function approve(address spender, uint256 amount) returns (bool)"
+];
 
 // Başlangıç Token Listesi
 const INITIAL_TOKENS = {
@@ -111,7 +123,7 @@ export default function App() {
   const [provider, setProvider] = useState(null);
   const [account, setAccount] = useState("");
   const [chainId, setChainId] = useState(null);
-  const [activeTab, setActiveTab] = useState("swap"); // swap, pool, mint, savings, send, faucet
+  const [activeTab, setActiveTab] = useState("swap"); 
   const [activePoolType, setActivePoolType] = useState("USDC"); 
   
   const [tokens, setTokens] = useState(INITIAL_TOKENS);
@@ -169,6 +181,7 @@ export default function App() {
     }
   }, []);
 
+  // Balansların və digər dataların sinxron şəkildə çəkilməsi
   useEffect(() => {
     if (account && chainId === ARC_CHAIN_ID && provider) {
       const loadAllData = async () => {
@@ -180,7 +193,7 @@ export default function App() {
     }
   }, [account, chainId, provider, fromToken, toToken, activePoolType, activeTab]); 
 
-  // Dinamik Fiyatlama Hesaplama (Yönlendirilen Havuza Göre)
+  // Dinamik Fiyatlama Hesaplama
   useEffect(() => {
     const calculateSwapOutput = async () => {
       if (!amountIn || isNaN(amountIn) || parseFloat(amountIn) <= 0) {
@@ -286,7 +299,6 @@ export default function App() {
     }
   };
 
-  // Dinamik Rezerv ve Kişisel Bakiye Hesaplayıcı (On-Chain Havuz Çözümleme)
   const fetchPoolReserves = async () => {
     if (!provider || !account) return;
     
@@ -325,7 +337,6 @@ export default function App() {
       const isAStableOrBTC = decimalsA === 6 || decimalsA === 8;
       const stableSymbol = isAStableOrBTC ? tokens[Object.keys(tokens).find(k => tokens[k].address.toLowerCase() === tA.toLowerCase())]?.symbol || "Stable" : tokens[Object.keys(tokens).find(k => tokens[k].address.toLowerCase() === tB.toLowerCase())]?.symbol || "Stable";
 
-      // KİŞİSEL LİKİDİTE REZERV HESAPLAMASI (Ethers v6 / v5 BigInt standartlarında)
       const uShares = BigInt(userShares.toString());
       const tShares = BigInt(shares.toString());
       const rA = BigInt(resA.toString());
@@ -356,7 +367,6 @@ export default function App() {
       });
 
     } catch (err) {
-      // Legacy Fallback
       try {
         const oldABI = [
           "function reserveUSDC() view returns (uint256)",
@@ -406,11 +416,9 @@ export default function App() {
     }
   };
 
-  // TASARRUF (SAVINGS) BİLGİLERİNİ ON-CHAIN SORGULAMA FONKSİYONU (JSON ABI DESTEKLİ)
   const fetchSavingsData = async () => {
     if (!provider || !account || SAKUSD_MINTER_ADDRESS === ZERO_ADDRESS) return;
     try {
-      // Ethers v5 ve v6 uyumluluğu için %100 kusursuz çalışan JSON ABI formatı kullanılmıştır
       const minterABI = [
         {
           "inputs": [{"name": "", "type": "address"}],
@@ -452,7 +460,6 @@ export default function App() {
         contract.getUnstakeRequests(account)
       ]);
 
-      // Ethers v6 ve v5 için tuple dizisini her iki versiyonda da hatasız haritalandırıyoruz
       const requestsMapped = Array.from(reqs).map((r, i) => {
         const amountVal = r.amount !== undefined ? r.amount : r[0];
         const releaseVal = r.releaseTime !== undefined ? r.releaseTime : r[1];
@@ -473,7 +480,6 @@ export default function App() {
     }
   };
 
-  // GENEL ON-CHAIN YÖNETİCİSİ
   const handleAction = async (type, payload = null) => {
     if (chainId !== ARC_CHAIN_ID) {
       await checkAndSwitchNetwork();
@@ -486,14 +492,16 @@ export default function App() {
 
       if (type === "swap") {
         const activePool = getPoolAddress(fromToken, toToken);
+        if (activePool === ZERO_ADDRESS) {
+          alert("Bu işlem çifti için bir havuz bulunamadı.");
+          setTxLoading(false);
+          return;
+        }
+        
         const tokenInObj = tokens[fromToken];
         const amountInParsed = parseUnits(amountIn, tokenInObj.decimals); 
 
-        const erc20ABI = [
-          "function allowance(address owner, address spender) view returns (uint256)",
-          "function approve(address spender, uint256 amount) returns (bool)"
-        ];
-        const tokenInContract = new ethers.Contract(tokenInObj.address, erc20ABI, signer);
+        const tokenInContract = new ethers.Contract(tokenInObj.address, ERC20_ABI, signer);
         const currentAllowance = await tokenInContract.allowance(account, activePool);
         
         if (isLessThan(currentAllowance, amountInParsed)) { 
@@ -515,11 +523,10 @@ export default function App() {
         await fetchPoolReserves();
       }
 
-      // KORUMALI LİKİDITE EKLEME (ESKİ VE YENİ SÖZLEŞMELERİ OTOMATIK ALGINLAR & REVERT ENGELLER)
       if (type === "add_lp") {
         const activePool = getPoolAddress(activePoolType, "AAA");
-        if (!lpUSDC || !lpAAA) {
-          alert("Lütfen her iki miktar alanını da doldurun.");
+        if (!lpUSDC || !lpAAA || parseFloat(lpUSDC) <= 0 || parseFloat(lpAAA) <= 0) {
+          alert("Lütfen geçerli miktarlar daxil edin.");
           setTxLoading(false);
           return;
         }
@@ -534,12 +541,8 @@ export default function App() {
         const stableParsed = parseUnits(lpUSDC, stableDecimals);
         const aaaParsed = parseUnits(lpAAA, 18);
 
-        const erc20ABI = [
-          "function allowance(address owner, address spender) view returns (uint256)",
-          "function approve(address spender, uint256 amount) returns (bool)"
-        ];
-        const stableContract = new ethers.Contract(stableTokenAddress, erc20ABI, signer);
-        const aaaContract = new ethers.Contract(USER_CUSTOM_TOKEN_ADDRESS, erc20ABI, signer);
+        const stableContract = new ethers.Contract(stableTokenAddress, ERC20_ABI, signer);
+        const aaaContract = new ethers.Contract(USER_CUSTOM_TOKEN_ADDRESS, ERC20_ABI, signer);
 
         const allowanceStable = await stableContract.allowance(account, activePool);
         if (isLessThan(allowanceStable, stableParsed)) {
@@ -592,8 +595,8 @@ export default function App() {
       }
 
       if (type === "mint_sakusd") {
-        if (!mintAmount || isNaN(mintAmount)) {
-          alert("Gecersiz miktar.");
+        if (!mintAmount || isNaN(mintAmount) || parseFloat(mintAmount) <= 0) {
+          alert("Zəhmət olmasa, sıfırdan böyük keçərli bir məbləğ daxil edin.");
           setTxLoading(false);
           return;
         }
@@ -601,18 +604,14 @@ export default function App() {
         const collateralObj = tokens[mintCollateral];
         const amountInParsed = parseUnits(mintAmount, collateralObj.decimals);
 
-        const erc20ABI = [
-          "function allowance(address owner, address spender) view returns (uint256)",
-          "function approve(address spender, uint256 amount) returns (bool)"
-        ];
-        const collateralContract = new ethers.Contract(collateralObj.address, erc20ABI, signer);
+        const collateralContract = new ethers.Contract(collateralObj.address, ERC20_ABI, signer);
         
         let currentAllowance = 0n;
         try {
           currentAllowance = await collateralContract.allowance(account, SAKUSD_MINTER_ADDRESS);
         } catch (allowanceErr) {
           console.warn("Allowance check failed:", allowanceErr);
-          alert(`Hata: ${collateralObj.symbol} token sözleşmesi bu adreste on-chain olarak bulunamadı. Lütfen adresi kontrol edin veya başka bir teminat (örneğin gerçek USDC veya EURC) seçin.`);
+          alert(`Hata: ${collateralObj.symbol} token sözleşmesi bu adreste on-chain olarak bulunamadı.`);
           setTxLoading(false);
           return;
         }
@@ -644,14 +643,23 @@ export default function App() {
       }
 
       if (type === "redeem_sakusd") {
-        if (!redeemAmount || isNaN(redeemAmount)) {
-          alert("Gecersiz miktar.");
+        if (!redeemAmount || isNaN(redeemAmount) || parseFloat(redeemAmount) <= 0) {
+          alert("Zəhmət olmasa, sıfırdan böyük keçərli bir məbləğ daxil edin.");
           setTxLoading(false);
           return;
         }
 
         const collateralObj = tokens[mintCollateral];
         const amountToBurnParsed = parseUnits(redeemAmount, 18); 
+
+        const sakusdContract = new ethers.Contract(SAKUSD_TOKEN_ADDRESS, ERC20_ABI, signer);
+        const allowanceRedeem = await sakusdContract.allowance(account, SAKUSD_MINTER_ADDRESS);
+        
+        if (isLessThan(allowanceRedeem, amountToBurnParsed)) {
+          alert("Lütfen önce sakUSD harcama yetkisini (Approve) onaylayın.");
+          const txApp = await sakusdContract.approve(SAKUSD_MINTER_ADDRESS, amountToBurnParsed);
+          await txApp.wait();
+        }
 
         const minterABI = ["function redeem(address collateralToken, uint256 sakUSDAmount) external"];
         const minterContract = new ethers.Contract(SAKUSD_MINTER_ADDRESS, minterABI, signer);
@@ -666,9 +674,8 @@ export default function App() {
         await fetchBalances();
       }
 
-      // SAKUSD STAKE
       if (type === "stake_sakusd") {
-        if (!stakeAmountInput || isNaN(stakeAmountInput)) {
+        if (!stakeAmountInput || isNaN(stakeAmountInput) || parseFloat(stakeAmountInput) <= 0) {
           alert("Gecerli bir miktar girin.");
           setTxLoading(false);
           return;
@@ -676,11 +683,7 @@ export default function App() {
 
         const amountParsed = parseUnits(stakeAmountInput, 18);
 
-        const erc20ABI = [
-          "function allowance(address owner, address spender) view returns (uint256)",
-          "function approve(address spender, uint256 amount) returns (bool)"
-        ];
-        const tokenContract = new ethers.Contract(SAKUSD_TOKEN_ADDRESS, erc20ABI, signer);
+        const tokenContract = new ethers.Contract(SAKUSD_TOKEN_ADDRESS, ERC20_ABI, signer);
         const currentAllowance = await tokenContract.allowance(account, SAKUSD_MINTER_ADDRESS);
 
         if (isLessThan(currentAllowance, amountParsed)) {
@@ -703,9 +706,8 @@ export default function App() {
         await fetchSavingsData();
       }
 
-      // UNSTAKE TALEBİ BAŞLATMA
       if (type === "request_unstake") {
-        if (!unstakeAmountInput || isNaN(unstakeAmountInput)) {
+        if (!unstakeAmountInput || isNaN(unstakeAmountInput) || parseFloat(unstakeAmountInput) <= 0) {
           alert("Gecerli bir miktar girin.");
           setTxLoading(false);
           return;
@@ -726,7 +728,6 @@ export default function App() {
         await fetchSavingsData();
       }
 
-      // KİLİTLİ STAKE CÜZDANA ÇEKME
       if (type === "claim_unstaked_req") {
         const index = payload;
         const minterABI = ["function claimUnstaked(uint256 index) external"];
@@ -741,7 +742,6 @@ export default function App() {
         await fetchSavingsData();
       }
 
-      // BİRİKEN FAİZ ÖDÜLLERİNİ TALEP ETME
       if (type === "claim_rewards") {
         const minterABI = ["function claimRewards() external"];
         const minterContract = new ethers.Contract(SAKUSD_MINTER_ADDRESS, minterABI, signer);
@@ -756,9 +756,8 @@ export default function App() {
         await fetchSavingsData();
       }
 
-      // TRANSFER (SEND) İŞLEMİ
       if (type === "send_token") {
-        if (!sendRecipient || !sendAmount || isNaN(sendAmount)) {
+        if (!sendRecipient || !sendAmount || isNaN(sendAmount) || parseFloat(sendAmount) <= 0) {
           alert("Lütfen geçerli bir alıcı adresi ve miktar girin.");
           setTxLoading(false);
           return;
@@ -775,10 +774,9 @@ export default function App() {
         const symbolToTransfer = sendToken === "AAA" ? "AAA" : "sakUSD";
         const amountParsed = parseUnits(sendAmount, 18); 
 
-        const erc20ABI = ["function transfer(address to, uint256 amount) returns (bool)"];
-        const tokenContract = new ethers.Contract(tokenToTransfer, erc20ABI, signer);
+        const erc20Contract = new ethers.Contract(tokenToTransfer, ERC20_ABI, signer);
 
-        const transferTx = await tokenContract.transfer(sendRecipient, amountParsed);
+        const transferTx = await erc20Contract.transfer(sendRecipient, amountParsed);
         alert(`Transfer işlemi gönderildi! Tx: ${transferTx.hash}`);
         await transferTx.wait();
 
@@ -796,7 +794,6 @@ export default function App() {
     setTxLoading(false);
   };
 
-  // Dinamik On-Chain Faucet İstek Yöneticisi
   const handleFaucet = async (tokenSymbol) => {
     if (tokenSymbol === "USDC" || tokenSymbol === "EURC" || tokenSymbol === "cirBTC" || tokenSymbol === "USDT") {
       window.open("https://faucet.circle.com/", "_blank");
@@ -829,7 +826,6 @@ export default function App() {
     setTxLoading(false);
   };
 
-  // Dinamik Yüzdelik (%) Hesaplama Yardımcı Fonksiyonu
   const handlePercentClick = (percent, balance, decimals, setter) => {
     if (!balance || isNaN(balance)) return;
     const bal = parseFloat(balance);
@@ -838,7 +834,6 @@ export default function App() {
     setter(calculatedAmount.toFixed(decimals === 8 ? 6 : 4));
   };
 
-  // Rakam Girişini Düzenleyen ve Başlangıç Sıfırını Temizleyen Yardımcı Fonksiyonlar (Premium UX)
   const handleNumberInput = (setter) => (e) => {
     let val = e.target.value;
     if (val.startsWith("0") && val.length > 1 && val[1] !== ".") {
