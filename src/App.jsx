@@ -1,6 +1,31 @@
 import { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
 
+// --- BÜTÜN LAZIMI QLOBAL ÜNVANLAR VƏ SABİTLƏR (İTMİŞ ADRESLƏRİN BƏRPASI) ---
+const ARC_USDC_ADDRESS = "0x3600000000000000000000000000000000000000".toLowerCase();
+const ARC_EURC_ADDRESS = "0x89b50855aa3be2f677cd6303cec089b5f319d72a".toLowerCase();
+const ARC_CIRBTC_ADDRESS = "0xf0c4a4ce82a5746abaad9425360ab04fbba432bf".toLowerCase();
+const USER_CUSTOM_TOKEN_ADDRESS = "0x54552f2ec52423d2fbe94c25f0bad61b9108aae8".toLowerCase();
+
+const SAKASENA_USDC_POOL_ADDRESS = "0xbe0f19f85a5cd1cac56e6f31c85f6cae805e56c3".toLowerCase();
+const SAKASENA_EURC_POOL_ADDRESS = "0xbbc6cd33291edfe9e4e927129901db0e58ba705b".toLowerCase();
+const SAKASENA_BTC_POOL_ADDRESS = "0x1815df186c43506e7d9113e6c1d19326610aa448".toLowerCase();
+const SAKASENA_USDC_EURC_POOL_ADDRESS = "0xE50eeb474BB6D7Afc148da3023836B2Afa358D3c".toLowerCase();
+
+const SAKUSD_MINTER_ADDRESS = "0x1e27b23bc7662db4accf371b96b14ea5d81e0f83".toLowerCase();
+const SAKUSD_TOKEN_ADDRESS = "0x085bc2b26d637685d2d3b742f10d14d8d77557b1".toLowerCase();
+
+const TOKEN_PRICES = {
+  USDC: 1.00,
+  EURC: 1.25, // Sizin yeni qəti sabit məzənnəniz (1 USDC = 0.8 EURC)
+  cirBTC: 67450.00,
+  WUSDC: 1.00, 
+  sakUSD: 1.00, 
+  AAA: 5.40,
+  USDT: 1.00,
+  DAI: 1.00
+};
+
 // ETHERS V5 VE V6 ÇİFT SÜRÜM UYUMLULUK KATMANI (Mobil ve PC tarayıcılar için optimize edilmiştir)
 const isV6 = typeof ethers.BrowserProvider !== 'undefined';
 
