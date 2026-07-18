@@ -92,7 +92,7 @@ const NETWORKS = {
       AAA: { symbol: "AAA", name: "anaraydinli AAA Token", address: "0x54552f2ec52423d2fbe94c25f0bad61b9108aae8", decimals: 18, icon: "🪙" }
     },
     minterAddress: "0x1e27b23bc7662db4accf371b96b14ea5d81e0f83",
-    aavePoolAddress: "0x6Ae43d3271ff68408398a123F67CE4a42f50005C" // Sepolia rəsmi Aave V3 Pool ünvanı
+    aavePoolAddress: "0x6Ae43d3271ff68408398a123F67CE4a42f50005C".toLowerCase() // Sepolia rəsmi Aave V3 Pool ünvanı
   },
   421614: {
     name: "Arbitrum Sepolia",
