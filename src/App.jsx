@@ -638,7 +638,16 @@ export default function App() {
     try {
       const signer = await getSignerInstance(provider);
 
-      if (type === "swap") {
+if (type === "swap") {
+        // 1. Şəbəkə yoxlanışını birbaşa ən başa qoyuruq (Mükəmməl UX)
+        if (chainId !== 5042002) {
+          alert("Swap əməliyyatı yalnız Arc Testnet şəbəkəsində aktivdir. Lütfen Arc Testnet-ə keçin.");
+          await switchNetwork(5042002);
+          setTxLoading(false);
+          return;
+        }
+
+        // 2. Digər dəyişənlər dərhal ondan sonra gəlir
         const activePool = getPoolAddress(fromToken, toToken);
         const tokenInObj = config.tokens[fromToken];
         const amountInParsed = parseUnits(amountIn, tokenInObj.decimals); 
