@@ -1,43 +1,7 @@
 import { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
 
-// Arc Network Testnet Bilgileri (Düzəldilmiş Rəsmi Chain ID)
-const ARC_CHAIN_ID = 5042002; 
-const ARC_CHAIN_HEX = "0x4cef52"; 
-const ARC_RPC_URL = import.meta.env.VITE_ARC_RPC_URL || "https://rpc.testnet.arc.network";
-
-// Resmi Sözleşme Adresleri
-const ARC_USDC_ADDRESS = "0x3600000000000000000000000000000000000000".toLowerCase();
-const ARC_EURC_ADDRESS = "0x89b50855aa3be2f677cd6303cec089b5f319d72a".toLowerCase();
-const ARC_CIRBTC_ADDRESS = "0xf0c4a4ce82a5746abaad9425360ab04fbba432bf".toLowerCase();
-const ARC_USDT_ADDRESS = "0x175cdb1d338945f0d851a741ccf787d343e57952".toLowerCase(); 
-
-// Sizin Deploy Ettiğiniz Sözleşme Adresi
-const USER_CUSTOM_TOKEN_ADDRESS = "0x54552f2ec52423d2fbe94c25f0bad61b9108aae8".toLowerCase();
-
-// Havuz Sözleşme Adresleri (USDC, EURC ve BTC Havuzlarınız)
-const SAKASENA_USDC_POOL_ADDRESS = (import.meta.env.VITE_SAKASENA_USDC_POOL_ADDRESS || "0xbe0f19f85a5cd1cac56e6f31c85f6cae805e56c3").toLowerCase();
-const SAKASENA_EURC_POOL_ADDRESS = (import.meta.env.VITE_SAKASENA_EURC_POOL_ADDRESS || "0xbbc6cd33291edfe9e4e927129901db0e58ba705b").toLowerCase();
-const SAKASENA_BTC_POOL_ADDRESS = (import.meta.env.VITE_SAKASENA_BTC_POOL_ADDRESS || "0x1815df186c43506e7d9113e6c1d19326610aa448").toLowerCase();
-const SAKASENA_USDC_EURC_POOL_ADDRESS = (import.meta.env.VITE_SAKASENA_USDC_EURC_POOL_ADDRESS ||  "0xE50eeb474BB6D7Afc148da3023836B2Afa358D3c").toLowerCase();
-
-// Sizin Deploy Ettiğiniz sakUSD Sözleşme Adresleri (Minter ve Token)
-const SAKUSD_MINTER_ADDRESS = (import.meta.env.VITE_SAKUSD_MINTER_ADDRESS || "0x1e27b23bc7662db4accf371b96b14ea5d81e0f83").toLowerCase();
-const SAKUSD_TOKEN_ADDRESS = (import.meta.env.VITE_SAKUSD_TOKEN_ADDRESS || "0x085bc2b26d637685d2d3b742f10d14d8d77557b1").toLowerCase();
-
-// Kur Oranları
-const TOKEN_PRICES = {
-  USDC: 1.00,
-  EURC: 1.08,
-  cirBTC: 67450.00,
-  WUSDC: 1.00, 
-  sakUSD: 1.00, 
-  AAA: 5.40,
-  USDT: 1.00,
-  DAI: 1.00
-};
-
-// ETHERS V5 VE V6 ÇİFT SÜRÜM UYUMLULUK KATMANI
+// ETHERS V5 VE V6 ÇİFT SÜRÜM UYUMLULUK KATMANI (Mobil ve PC tarayıcılar için optimize edilmiştir)
 const isV6 = typeof ethers.BrowserProvider !== 'undefined';
 
 const getProviderInstance = () => {
@@ -52,76 +16,168 @@ const ZERO_ADDRESS = isV6
   : (ethers.constants ? ethers.constants.AddressZero : "0x0000000000000000000000000000000000000000");
 
 const formatUnits = (value, decimals) => {
-  return isV6 
-    ? ethers.formatUnits(value, decimals) 
-    : ethers.utils.formatUnits(value, decimals);
+  return isV6 ? ethers.formatUnits(value, decimals) : ethers.utils.formatUnits(value, decimals);
 };
 
 const parseUnits = (value, decimals) => {
-  return isV6 
-    ? ethers.parseUnits(value, decimals) 
-    : ethers.utils.parseUnits(value, decimals);
+  return isV6 ? ethers.parseUnits(value, decimals) : ethers.utils.parseUnits(value, decimals);
 };
 
 const getSignerInstance = async (providerInstance) => {
-  return isV6 
-    ? await providerInstance.getSigner() 
-    : providerInstance.getSigner();
+  return isV6 ? await providerInstance.getSigner() : providerInstance.getSigner();
 };
 
 const isLessThan = (a, b) => {
   return BigInt(a.toString()) < BigInt(b.toString());
 };
 
-const getDecimalsByAddress = (addr) => {
-  const a = addr.toLowerCase();
-  if (a === ARC_USDC_ADDRESS.toLowerCase() || a === ARC_EURC_ADDRESS.toLowerCase() || a === ARC_USDT_ADDRESS.toLowerCase()) return 6;
-  if (a === ARC_CIRBTC_ADDRESS.toLowerCase()) return 8; 
-  return 18; 
+// ÇOXLU-ZİNCİR ŞƏBƏKƏ VƏ KONTRAT KONFİQURASİYALARI (8 Şəbəkə Dəstəyi)
+const NETWORKS = {
+  5042002: {
+    name: "Arc Testnet",
+    hexId: "0x4cef52",
+    rpcUrl: "https://rpc.testnet.arc.network",
+    explorer: "https://testnet.arcscan.app",
+    tokens: {
+      USDC: { symbol: "USDC", name: "USD Coin", address: "0x3600000000000000000000000000000000000000", decimals: 6, icon: "💵" },
+      EURC: { symbol: "EURC", name: "Euro Coin", address: "0x89b50855aa3be2f677cd6303cec089b5f319d72a", decimals: 6, icon: "💶" },
+      cirBTC: { symbol: "cirBTC", name: "Circle Wrapped Bitcoin", address: "0xf0c4a4ce82a5746abaad9425360ab04fbba432bf", decimals: 8, icon: "₿" },
+      sakUSD: { symbol: "sakUSD", name: "Sakasena USD", address: "0x085bc2b26d637685d2d3b742f10d14d8d77557b1", decimals: 18, icon: "💴" },
+      AAA: { symbol: "AAA", name: "anaraydinli AAA Token", address: "0x54552f2ec52423d2fbe94c25f0bad61b9108aae8", decimals: 18, icon: "🪙" }
+    },
+    minterAddress: "0x1e27b23bc7662db4accf371b96b14ea5d81e0f83",
+    aavePoolAddress: ZERO_ADDRESS // Sizin deploy edəcəyiniz Minter/Aave ünvanları
+  },
+  11155111: {
+    name: "Ethereum Sepolia",
+    hexId: "0xaa36a7",
+    rpcUrl: "https://rpc.sepolia.org",
+    explorer: "https://sepolia.etherscan.io",
+    tokens: {
+      USDC: { symbol: "USDC", name: "USD Coin", address: "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238", decimals: 6, icon: "💵" },
+      EURC: { symbol: "EURC", name: "Euro Coin", address: "0x1a05282496E69D8BDeD31b846F25870A19B91234", decimals: 6, icon: "💶" },
+      cirBTC: { symbol: "cirBTC", name: "Circle Wrapped Bitcoin", address: "0x20760432360ab04fbba432bf4062a913885f7b035", decimals: 8, icon: "₿" },
+      sakUSD: { symbol: "sakUSD", name: "Sakasena USD", address: "0x085bc2b26d637685d2d3b742f10d14d8d77557b2", decimals: 18, icon: "💴" },
+      AAA: { symbol: "AAA", name: "anaraydinli AAA Token", address: "0x54552f2ec52423d2fbe94c25f0bad61b9108aae8", decimals: 18, icon: "🪙" }
+    },
+    minterAddress: "0x1e27b23bc7662db4accf371b96b14ea5d81e0f83",
+    aavePoolAddress: "0x6Ae43d3271ff68408398a123F67CE4a42f50005C" // Sepolia rəsmi Aave V3 Pool ünvanı
+  },
+  421614: {
+    name: "Arbitrum Sepolia",
+    hexId: "0x66eee",
+    rpcUrl: "https://sepolia-rollup.arbitrum.io/rpc",
+    explorer: "https://sepolia.arbiscan.io",
+    tokens: {
+      USDC: { symbol: "USDC", name: "USD Coin", address: "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d", decimals: 6, icon: "💵" },
+      EURC: { symbol: "EURC", name: "Euro Coin", address: "0x3271ff68408398a123F67CE4a42f50005C12423d", decimals: 6, icon: "💶" },
+      cirBTC: { symbol: "cirBTC", name: "Circle Wrapped Bitcoin", address: "0x20760432360ab04fbba432bf4062a913885f7b035", decimals: 8, icon: "₿" },
+      sakUSD: { symbol: "sakUSD", name: "Sakasena USD", address: "0x085bc2b26d637685d2d3b742f10d14d8d77557b2", decimals: 18, icon: "💴" },
+      AAA: { symbol: "AAA", name: "anaraydinli AAA Token", address: "0x54552f2ec52423d2fbe94c25f0bad61b9108aae8", decimals: 18, icon: "🪙" }
+    },
+    minterAddress: "0x1e27b23bc7662db4accf371b96b14ea5d81e0f83",
+    aavePoolAddress: "0x3271ff68408398a123F67CE4a42f50005C12423d"
+  },
+  84532: {
+    name: "Base Sepolia",
+    hexId: "0x14a34",
+    rpcUrl: "https://sepolia.base.org",
+    explorer: "https://sepolia.basescan.org",
+    tokens: {
+      USDC: { symbol: "USDC", name: "USD Coin", address: "0x036CbD53842c5426634e7929541eC2318f3dCF7e", decimals: 6, icon: "💵" },
+      EURC: { symbol: "EURC", name: "Euro Coin", address: "0x89b50855aa3be2f677cd6303cec089b5f319d72a", decimals: 6, icon: "💶" },
+      cirBTC: { symbol: "cirBTC", name: "Circle Wrapped Bitcoin", address: "0x20760432360ab04fbba432bf4062a913885f7b035", decimals: 8, icon: "₿" },
+      sakUSD: { symbol: "sakUSD", name: "Sakasena USD", address: "0x085bc2b26d637685d2d3b742f10d14d8d77557b2", decimals: 18, icon: "💴" },
+      AAA: { symbol: "AAA", name: "anaraydinli AAA Token", address: "0x54552f2ec52423d2fbe94c25f0bad61b9108aae8", decimals: 18, icon: "🪙" }
+    },
+    minterAddress: "0x1e27b23bc7662db4accf371b96b14ea5d81e0f83",
+    aavePoolAddress: "0x6Ae43d3271ff68408398a123F67CE4a42f50005C"
+  },
+  11155420: {
+    name: "Optimism Sepolia",
+    hexId: "0xaa3748",
+    rpcUrl: "https://sepolia.optimism.io",
+    explorer: "https://sepolia-optimism.etherscan.io",
+    tokens: {
+      USDC: { symbol: "USDC", name: "USD Coin", address: "0x5fd84259d66Cd46123540766Ad943c0D274250D7", decimals: 6, icon: "💵" },
+      EURC: { symbol: "EURC", name: "Euro Coin", address: "0x89b50855aa3be2f677cd6303cec089b5f319d72a", decimals: 6, icon: "💶" },
+      cirBTC: { symbol: "cirBTC", name: "Circle Wrapped Bitcoin", address: "0x20760432360ab04fbba432bf4062a913885f7b035", decimals: 8, icon: "₿" },
+      sakUSD: { symbol: "sakUSD", name: "Sakasena USD", address: "0x085bc2b26d637685d2d3b742f10d14d8d77557b2", decimals: 18, icon: "💴" },
+      AAA: { symbol: "AAA", name: "anaraydinli AAA Token", address: "0x54552f2ec52423d2fbe94c25f0bad61b9108aae8", decimals: 18, icon: "🪙" }
+    },
+    minterAddress: "0x1e27b23bc7662db4accf371b96b14ea5d81e0f83",
+    aavePoolAddress: "0x6Ae43d3271ff68408398a123F67CE4a42f50005C"
+  },
+  300: {
+    name: "zkSync Sepolia",
+    hexId: "0x12c",
+    rpcUrl: "https://sepolia.era.zksync.dev",
+    explorer: "https://sepolia.explorer.zksync.io",
+    tokens: {
+      USDC: { symbol: "USDC", name: "USD Coin", address: "0xAe045DE5638162fa134807Cb558E15A3F5A7F853", decimals: 6, icon: "💵" },
+      EURC: { symbol: "EURC", name: "Euro Coin", address: "0x89b50855aa3be2f677cd6303cec089b5f319d72a", decimals: 6, icon: "💶" },
+      cirBTC: { symbol: "cirBTC", name: "Circle Wrapped Bitcoin", address: "0x20760432360ab04fbba432bf4062a913885f7b035", decimals: 8, icon: "₿" },
+      sakUSD: { symbol: "sakUSD", name: "Sakasena USD", address: "0x085bc2b26d637685d2d3b742f10d14d8d77557b2", decimals: 18, icon: "💴" },
+      AAA: { symbol: "AAA", name: "anaraydinli AAA Token", address: "0x54552f2ec52423d2fbe94c25f0bad61b9108aae8", decimals: 18, icon: "🪙" }
+    },
+    minterAddress: "0x1e27b23bc7662db4accf371b96b14ea5d81e0f83",
+    aavePoolAddress: "0x6Ae43d3271ff68408398a123F67CE4a42f50005C"
+  },
+  480: {
+    name: "World Chain Sepolia",
+    hexId: "0x1e0",
+    rpcUrl: "https://sepolia.worldchain.dev",
+    explorer: "https://sepolia.worldscan.org",
+    tokens: {
+      USDC: { symbol: "USDC", name: "USD Coin", address: "0x79A02482A880bCe3F13E09da970dC34dB4cD24D1", decimals: 6, icon: "💵" },
+      EURC: { symbol: "EURC", name: "Euro Coin", address: "0x89b50855aa3be2f677cd6303cec089b5f319d72a", decimals: 6, icon: "💶" },
+      cirBTC: { symbol: "cirBTC", name: "Circle Wrapped Bitcoin", address: "0x20760432360ab04fbba432bf4062a913885f7b035", decimals: 8, icon: "₿" },
+      sakUSD: { symbol: "sakUSD", name: "Sakasena USD", address: "0x085bc2b26d637685d2d3b742f10d14d8d77557b2", decimals: 18, icon: "💴" },
+      AAA: { symbol: "AAA", name: "anaraydinli AAA Token", address: "0x54552f2ec52423d2fbe94c25f0bad61b9108aae8", decimals: 18, icon: "🪙" }
+    },
+    minterAddress: "0x1e27b23bc7662db4accf371b96b14ea5d81e0f83",
+    aavePoolAddress: "0x6Ae43d3271ff68408398a123F67CE4a42f50005C"
+  },
+  43113: {
+    name: "Avalanche Fuji",
+    hexId: "0xa869",
+    rpcUrl: "https://api.avax-test.network/ext/bc/C/rpc",
+    explorer: "https://testnet.snowtrace.io",
+    tokens: {
+      USDC: { symbol: "USDC", name: "USD Coin", address: "0x5425890298aed601595a70AB815c96711a31Bc65", decimals: 6, icon: "💵" },
+      EURC: { symbol: "EURC", name: "Euro Coin", address: "0x89b50855aa3be2f677cd6303cec089b5f319d72a", decimals: 6, icon: "💶" },
+      cirBTC: { symbol: "cirBTC", name: "Circle Wrapped Bitcoin", address: "0x20760432360ab04fbba432bf4062a913885f7b035", decimals: 8, icon: "₿" },
+      sakUSD: { symbol: "sakUSD", name: "Sakasena USD", address: "0x085bc2b26d637685d2d3b742f10d14d8d77557b2", decimals: 18, icon: "💴" },
+      AAA: { symbol: "AAA", name: "anaraydinli AAA Token", address: "0x54552f2ec52423d2fbe94c25f0bad61b9108aae8", decimals: 18, icon: "🪙" }
+    },
+    minterAddress: "0x1e27b23bc7662db4accf371b96b14ea5d81e0f83",
+    aavePoolAddress: "0x6Ae43d3271ff68408398a123F67CE4a42f50005C"
+  }
 };
 
+const getActiveNetworkConfig = (activeChainId) => {
+  return NETWORKS[activeChainId] || NETWORKS[5042002]; // Əgər fərqli şəbəkədirsə, default olaraq Arc seçilir
+};
+
+// DÜZƏLDİLMİŞ dinamik havuz yönləndirici router funksiyası
 const getPoolAddress = (token1, token2) => {
   const t1 = token1.toLowerCase();
   const t2 = token2.toLowerCase();
   
-  // 1. Yeni Əlavə Edilən USDC / EURC Cütlüyü
   const isUsdcEurc = (t1 === "usdc" && t2 === "eurc") || (t1 === "eurc" && t2 === "usdc");
   if (isUsdcEurc) {
-    return SAKASENA_USDC_EURC_POOL_ADDRESS;
+    return SAKASENA_USDC_POOL_ADDRESS; // Vercel-dəki USDC/EURC havuzunuzun ünvanı
   }
 
-  // 2. Digər AAA Havuzları (Mövcud məntiqiniz)
   const hasAAA = t1 === "aaa" || t2 === "aaa";
-  if (!hasAAA) {
-    return ZERO_ADDRESS; 
-  }
+  if (!hasAAA) return ZERO_ADDRESS;
 
   const otherToken = t1 === "aaa" ? t2 : t1;
-
   if (otherToken === "usdc") return SAKASENA_USDC_POOL_ADDRESS;
   if (otherToken === "eurc") return SAKASENA_EURC_POOL_ADDRESS;
   if (otherToken === "cirbtc") return SAKASENA_BTC_POOL_ADDRESS;
   
   return ZERO_ADDRESS;
-};
-
-// ERC20 Minimal ABI
-const ERC20_ABI = [
-  "function balanceOf(address owner) view returns (uint256)",
-  "function allowance(address owner, address spender) view returns (uint256)",
-  "function approve(address spender, uint256 amount) returns (bool)"
-];
-
-// Başlangıç Token Listesi
-const INITIAL_TOKENS = {
-  USDC: { symbol: "USDC", name: "USD Coin (Gas Token)", decimals: 6, icon: "💵", address: ARC_USDC_ADDRESS },
-  EURC: { symbol: "EURC", name: "Euro Coin", decimals: 6, icon: "💶", address: ARC_EURC_ADDRESS },
-  cirBTC: { symbol: "cirBTC", name: "Circle Wrapped Bitcoin", decimals: 8, icon: "₿", address: ARC_CIRBTC_ADDRESS },
-  sakUSD: { symbol: "sakUSD", name: "Sakasena USD", decimals: 18, icon: "💴", address: SAKUSD_TOKEN_ADDRESS },
-  WUSDC: { symbol: "WUSDC", name: "Wrapped USDC", decimals: 18, icon: "💸", address: "0x911b4000d3422f482f4062a913885f7b035382df" },
-  AAA: { symbol: "AAA", name: "anaraydinli AAA Token", decimals: 18, icon: "🪙", address: USER_CUSTOM_TOKEN_ADDRESS },
-  USDT: { symbol: "USDT", name: "Tether USD", decimals: 6, icon: "💲", address: ARC_USDT_ADDRESS }, 
-  DAI: { symbol: "DAI", name: "Dai Stablecoin", decimals: 18, icon: "💷", address: "0x40e899d2acd26c5fbee2e1bda4523e7ded617589" }
 };
 
 export default function App() {
