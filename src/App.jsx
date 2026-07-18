@@ -430,9 +430,11 @@ export default function App() {
             const formatted = parseFloat(formatUnits(raw, token.decimals)); 
             const decimalsToShow = key === "cirBTC" ? 4 : 2;
             newBalances[key] = formatted.toFixed(decimalsToShow);
-          } catch (err) {
-            newBalances[key] = "0.00";
-          }
+// Yeni versiya:
+} catch (err) {
+  console.error(`${key} balansı oxunarkən xəta baş verdi:`, err); // <--- Bunu əlavə etdik!
+  newBalances[key] = "0.00";
+}
         } else {
           newBalances[key] = "0.00";
         }
