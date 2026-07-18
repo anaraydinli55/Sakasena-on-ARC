@@ -988,25 +988,41 @@ if (type === "swap") {
           ))}
         </div>
         
-        {/* Sağ: Cüzdan Göstergeleri ve Bağlantı */}
-        <div className="flex items-center space-x-4 shrink-0">
+{/* Sağ: Çoxlu Zincir Seçicisi, Göstergeler ve Bağlantı */}
+        <div className="flex items-center space-x-3 shrink-0">
           {account && (
             <div className="hidden md:flex items-center space-x-2 bg-gray-900 px-3 py-1.5 rounded-lg text-sm border border-gray-800">
               <span className="text-violet-400 font-bold">💎 {spPoints} SP</span>
               <span className="text-gray-500">|</span>
-              <span className="text-gray-300">Gas (USDC): {balances.USDC}</span>
+              <span className="text-gray-300">Gas (USDC): {balances.USDC || "0.00"}</span>
             </div>
           )}
+          
+          {/* Şəbəkə Seçim Dropdown Menyusu */}
+          {account && (
+            <select
+              value={chainId || 5042002}
+              onChange={(e) => switchNetwork(Number(e.target.value))}
+              className="bg-[#100e1f] text-white px-3.5 py-2 rounded-xl text-xs font-semibold border border-gray-800 focus:outline-none focus:border-violet-600 transition"
+            >
+              {Object.keys(NETWORKS).map((id) => (
+                <option key={id} value={id}>
+                  🌐 {NETWORKS[id].name}
+                </option>
+              ))}
+            </select>
+          )}
+
           {account ? (
             <button 
-              onClick={checkAndSwitchNetwork}
+              onClick={() => switchNetwork(chainId)}
               className={`px-4 py-2 rounded-xl text-sm font-semibold transition ${
-                chainId === ARC_CHAIN_ID 
+                NETWORKS[chainId] 
                   ? "bg-emerald-950 text-emerald-400 border border-emerald-800" 
                   : "bg-rose-950 text-rose-400 border border-rose-800 animate-pulse"
               }`}
             >
-              {chainId === ARC_CHAIN_ID ? "Arc Testnet Connected" : "Switch to Arc Testnet"}
+              {NETWORKS[chainId] ? "Connected" : "Wrong Network"}
             </button>
           ) : (
             <button 
