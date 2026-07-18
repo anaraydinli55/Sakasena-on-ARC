@@ -856,7 +856,7 @@ export default function App() {
   };
 
   const handleFaucet = async (tokenSymbol) => {
-    if (tokenSymbol === "USDC" || tokenSymbol === "EURC" || tokenSymbol === "cirBTC" || tokenSymbol === "USDT") {
+    if (tokenSymbol === "USDC" || tokenSymbol === "EURC" || tokenSymbol === "cirBTC") {
       window.open("https://faucet.circle.com/", "_blank");
       return;
     }
