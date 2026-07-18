@@ -187,7 +187,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState("swap"); 
   const [activePoolType, setActivePoolType] = useState("USDC"); 
   
-  const [tokens, setTokens] = useState(INITIAL_TOKENS);
+  const [tokens, setTokens] = useState(NETWORKS[5042002].tokens);
   const [balances, setBalances] = useState({ USDC: "0.00", EURC: "0.00", cirBTC: "0.0000", sakUSD: "0.00", WUSDC: "0.00", AAA: "0.00", USDT: "0.00", DAI: "0.00" }); 
   
   // Swap Form States
