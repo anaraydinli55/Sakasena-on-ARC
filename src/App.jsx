@@ -382,34 +382,44 @@ export default function App() {
     try {
       const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
       setAccount(accounts[0]);
-      await checkAndSwitchNetwork();
+      await switchNetwork(5042002);
     } catch (error) {
       console.error(error);
     }
   };
 
-  const checkAndSwitchNetwork = async () => {
+  // UNIVERSAL ŞƏBƏKƏ DƏYİŞDİRİCİ VƏ AVTOMATİK ƏLAVƏ EDİCİ (MetaMask, Rabby və Mobil Uyğun)
+  const switchNetwork = async (targetChainId) => {
+    const config = NETWORKS[targetChainId];
+    if (!config) return;
+
     try {
+      // 1. İlk növbədə şəbəkəni dəyişməyi sınayırıq
       await window.ethereum.request({
         method: 'wallet_switchEthereumChain',
-        params: [{ chainId: ARC_CHAIN_HEX }],
+        params: [{ chainId: config.hexId }],
       });
     } catch (switchError) {
-      if (switchError.code === 4902) {
-        try {
-          await window.ethereum.request({
-            method: 'wallet_addEthereumChain',
-            params: [{
-              chainId: ARC_CHAIN_HEX,
-              chainName: "Arc Testnet",
-              nativeCurrency: { name: "USD Coin", symbol: "USDC", decimals: 6 },
-              rpcUrls: [ARC_RPC_URL],
-              blockExplorerUrls: ["https://explorer.testnet.arc.network"]
-            }]
-          });
-        } catch (addError) {
-          console.error(addError);
-        }
+      // Rabby və digər cüzdanlar üçün tam uyumluluk (Hər hansı bir xətada birbaşa əlavə etməni yoxlayır)
+      console.warn("Şebekeye geçiş yapılamadı, cüzdana otomatik ekleme deneniyor...", switchError);
+      
+      try {
+        // 2. Əgər şəbəkə cüzdanda yoxdursa, onu avtomatik olaraq bütün detalları ilə cüzdana əlavə edirik (Add Network)
+        await window.ethereum.request({
+          method: 'wallet_addEthereumChain',
+          params: [{
+            chainId: config.hexId,
+            chainName: config.name,
+            nativeCurrency: targetChainId === 43113 
+              ? { name: "AVAX", symbol: "AVAX", decimals: 18 } 
+              : { name: "Ether", symbol: "ETH", decimals: 18 },
+            rpcUrls: [config.rpcUrl],
+            blockExplorerUrls: [config.explorer]
+          }]
+        });
+      } catch (addError) {
+        console.error("Şebeke cüzdana eklenemedi:", addError);
+        alert(`Lütfen cüzdanınızdan manuel olarak ${config.name} ağına geçin veya ağı ekleyin.`);
       }
     }
   };
