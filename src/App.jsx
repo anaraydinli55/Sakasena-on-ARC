@@ -971,9 +971,9 @@ if (type === "swap") {
           </span>
         </div>
         
-        {/* Orta: Navbar Navigasyon Tabları (Dinamik Grid / Flex) */}
+{/* Orta: Navbar Navigasyon Tabları (Lending Əlavə Edildi) */}
         <div className="grid grid-cols-3 md:flex bg-[#100e1f] p-1 rounded-xl border border-gray-800 shrink-0 w-full md:w-auto max-w-sm md:max-w-none">
-          {["swap", "pool", "mint", "savings", "send", "faucet"].map((tab) => (
+          {["swap", "pool", "mint", "savings", "lending", "send", "faucet"].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -983,7 +983,15 @@ if (type === "swap") {
                   : "text-gray-400 hover:text-gray-200"
               }`}
             >
-              {tab === "pool" ? "Liquidity" : (tab === "mint" ? "Mint SakUSD" : (tab === "savings" ? "Savings" : (tab === "send" ? "Send" : tab)))}
+              {tab === "pool" ? "Liquidity" : (
+                tab === "mint" ? "Mint SakUSD" : (
+                  tab === "savings" ? "Savings" : (
+                    tab === "send" ? "Send" : (
+                      tab === "lending" ? "Borrow & Repay" : tab
+                    )
+                  )
+                )
+              )}
             </button>
           ))}
         </div>
@@ -1679,6 +1687,109 @@ if (type === "swap") {
             </div>
           )}
 
+          {/* AAVE V3 BORC ALMA / ÖDƏMƏ (LENDING) TABI PANELİ */}
+          {activeTab === "lending" && (
+            <div>
+              <h2 className="text-xl font-bold mb-2 flex items-center justify-between">
+                <span>Aave V3 Money Market</span>
+                <span className="text-xs text-emerald-400 bg-emerald-950 px-2 py-1 rounded-lg">Active APY: ~4.5%</span>
+              </h2>
+              <p className="text-sm text-gray-400 mb-6">
+                Sakasena girovlarınızı Aave-yə yerləşdirərək rəsmi sınaq <strong>USDC</strong> borcu alın və istədiyiniz an geri ödəyin.
+              </p>
+
+              <div className="space-y-4 mb-6">
+                {/* GIROV YATIRMA (SUPPLY) ALANI */}
+                <div className="bg-[#1c183a] p-4 rounded-2xl border border-gray-800 focus-within:border-violet-600 transition">
+                  <div className="flex justify-between text-xs text-gray-400 mb-2">
+                    <span>Deposit Collateral (Girov Yatır)</span>
+                    <span>Balance: {balances[collateralToken] || "0.00"} {collateralToken}</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <input 
+                      type="number" 
+                      placeholder="0"
+                      value={supplyAmount}
+                      onFocus={handleFocus(supplyAmount, setSupplyAmount)}
+                      onBlur={handleBlur(supplyAmount, setSupplyAmount)}
+                      onChange={handleNumberInput(setSupplyAmount)}
+                      className="bg-transparent text-xl font-bold focus:outline-none w-full text-white"
+                    />
+                    <select 
+                      value={collateralToken} 
+                      onChange={(e) => setCollateralToken(e.target.value)}
+                      className="bg-[#211e47] text-white px-3 py-1.5 rounded-xl font-semibold border border-gray-700"
+                    >
+                      <option value="sakUSD">💴 sakUSD</option>
+                      <option value="cirBTC">₿ cirBTC</option>
+                    </select>
+                    <button 
+                      onClick={() => handleAction("aave_supply")}
+                      disabled={txLoading || parseFloat(supplyAmount) <= 0}
+                      className="bg-violet-600 hover:bg-violet-500 px-5 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-50 shrink-0"
+                    >
+                      Deposit
+                    </button>
+                  </div>
+                </div>
+
+                {/* BORC ALMA (BORROW) ALANI */}
+                <div className="bg-[#1c183a] p-4 rounded-2xl border border-gray-800 focus-within:border-violet-600 transition">
+                  <div className="flex justify-between text-xs text-gray-400 mb-2">
+                    <span>Borrow USDC (Borc Al)</span>
+                    <span>Max Borrow: Safe LTV ~75%</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <input 
+                      type="number" 
+                      placeholder="0"
+                      value={borrowAmount}
+                      onFocus={handleFocus(borrowAmount, setBorrowAmount)}
+                      onBlur={handleBlur(borrowAmount, setBorrowAmount)}
+                      onChange={handleNumberInput(setBorrowAmount)}
+                      className="bg-transparent text-xl font-bold focus:outline-none w-full text-white"
+                    />
+                    <span className="text-sm font-semibold text-gray-400 pr-3">💵 USDC</span>
+                    <button 
+                      onClick={() => handleAction("aave_borrow")}
+                      disabled={txLoading || parseFloat(borrowAmount) <= 0}
+                      className="bg-indigo-600 hover:bg-indigo-500 px-5 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-50 shrink-0"
+                    >
+                      Borrow
+                    </button>
+                  </div>
+                </div>
+
+                {/* BORCUN GERİ ÖDƏNİLMƏSİ (REPAY) ALANI */}
+                <div className="bg-[#1c183a] p-4 rounded-2xl border border-gray-800 focus-within:border-violet-600 transition">
+                  <div className="flex justify-between text-xs text-gray-400 mb-2">
+                    <span>Repay USDC Loan (Borcu Ödə)</span>
+                    <span>Your Wallet: {balances.USDC || "0.00"} USDC</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <input 
+                      type="number" 
+                      placeholder="0"
+                      value={repayAmount}
+                      onFocus={handleFocus(repayAmount, setRepayAmount)}
+                      onBlur={handleBlur(repayAmount, setRepayAmount)}
+                      onChange={handleNumberInput(setRepayAmount)}
+                      className="bg-transparent text-xl font-bold focus:outline-none w-full text-white"
+                    />
+                    <span className="text-sm font-semibold text-gray-400 pr-3">💵 USDC</span>
+                    <button 
+                      onClick={() => handleAction("aave_repay")}
+                      disabled={txLoading || parseFloat(repayAmount) <= 0}
+                      className="bg-emerald-600 hover:bg-emerald-500 px-5 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-50 shrink-0"
+                    >
+                      Repay
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          
           {activeTab === "faucet" && (
             <div className="text-center">
               <h2 className="text-xl font-bold mb-3">Arc Testnet Faucet</h2>
