@@ -377,20 +377,21 @@ export default function App() {
     }
   };
 
-  const fetchBalances = async () => {
+ const fetchBalances = async () => {
     if (!provider || !account) return;
     try {
       const minABI = ["function balanceOf(address owner) view returns (uint256)"];
       const newBalances = {};
+      const config = getActiveNetworkConfig(chainId);
 
-      for (const key of Object.keys(tokens)) {
-        const token = tokens[key];
+      for (const key of Object.keys(config.tokens)) {
+        const token = config.tokens[key];
         if (token.address && token.address !== ZERO_ADDRESS) { 
           try {
             const contract = new ethers.Contract(token.address, minABI, provider);
             const raw = await contract.balanceOf(account);
             const formatted = parseFloat(formatUnits(raw, token.decimals)); 
-            const decimalsToShow = token.symbol === "cirBTC" ? 4 : 2;
+            const decimalsToShow = key === "cirBTC" ? 4 : 2;
             newBalances[key] = formatted.toFixed(decimalsToShow);
           } catch (err) {
             newBalances[key] = "0.00";
@@ -405,7 +406,7 @@ export default function App() {
       console.error("Bakiyeler sorgulanırken hata oluştu:", err);
     }
   };
-
+  
   const fetchPoolReserves = async () => {
     if (!provider || !account) return;
     
