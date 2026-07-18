@@ -629,6 +629,12 @@ export default function App() {
   const handleAction = async (type, payload = null) => {
     const config = getActiveNetworkConfig(chainId);
     setTxLoading(true);
+    // Əgər istifadəçi bizim siyahıdakı 8 şəbəkədən kənar bir yerdədirsə, Arc-a keçid təklif edirik
+    if (!NETWORKS[chainId]) {
+      await switchNetwork(5042002);
+      setTxLoading(false);
+      return;
+    }
     try {
       const signer = await getSignerInstance(provider);
 
