@@ -241,6 +241,12 @@ export default function App() {
         .then(id => setChainId(parseInt(id, 16)))
         .catch(err => console.warn(err));
 
+      // Hər şəbəkə dəyişdikdə tokens siyahısını da avtomatik yeniləyirik
+  useEffect(() => {
+    const config = getActiveNetworkConfig(chainId);
+    setTokens(config.tokens);
+  }, [chainId]);
+
       // Mobildə accountsChanged və chainChanged hadisələrinin rəvan işləməsi
       const handleAccounts = (accounts) => {
         if (accounts.length > 0) setAccount(accounts[0]);
