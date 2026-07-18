@@ -231,24 +231,49 @@ export default function App() {
   const [repayAmount, setRepayAmount] = useState("0");
   const [aaveBalances, setAaveBalances] = useState({ supplied: "0.00", borrowed: "0.00" });
 
+// Mobil və PC uyğun cüzdan bağlantısı izləyicisi
   useEffect(() => {
     if (window.ethereum) {
       const web3Provider = getProviderInstance();
       setProvider(web3Provider);
       
       window.ethereum.request({ method: 'eth_chainId' })
-        .then(id => setChainId(parseInt(id, 16)));
+        .then(id => setChainId(parseInt(id, 16)))
+        .catch(err => console.warn(err));
 
-      window.ethereum.on('accountsChanged', (accounts) => {
+      // Mobildə accountsChanged və chainChanged hadisələrinin rəvan işləməsi
+      const handleAccounts = (accounts) => {
         if (accounts.length > 0) setAccount(accounts[0]);
         else setAccount("");
-      });
+      };
 
-      window.ethereum.on('chainChanged', (hexId) => {
+      const handleChain = (hexId) => {
         setChainId(parseInt(hexId, 16));
-      });
+      };
+
+      window.ethereum.on('accountsChanged', handleAccounts);
+      window.ethereum.on('chainChanged', handleChain);
+
+      return () => {
+        if (window.ethereum.removeListener) {
+          window.ethereum.removeListener('accountsChanged', handleAccounts);
+          window.ethereum.removeListener('chainChanged', handleChain);
+        }
+      };
     }
   }, []);
+
+  // Hər şəbəkə dəyişdikdə balansları avtomatik sinxronlaşdırır
+  useEffect(() => {
+    if (account && provider) {
+      const loadAllData = async () => {
+        await fetchBalances();
+        await fetchPoolReserves();
+        await fetchSavingsData();
+      };
+      loadAllData();
+    }
+  }, [account, chainId, provider, fromToken, toToken, activePoolType, activeTab]);
 
   // Balansların və digər dataların sinxron şəkildə çəkilməsi
   useEffect(() => {
