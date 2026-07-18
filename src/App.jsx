@@ -223,6 +223,14 @@ export default function App() {
   const [faucetLoading, setFaucetLoading] = useState(false);
   const [txLoading, setTxLoading] = useState(false);
 
+  // Aave Lending States
+  const [lendingToken, setLendingToken] = useState("USDC"); // Borclanacaq asset (USDC)
+  const [collateralToken, setCollateralToken] = useState("sakUSD"); // Girov qoyulacaq asset (sakUSD və ya cirBTC)
+  const [supplyAmount, setSupplyAmount] = useState("0");
+  const [borrowAmount, setBorrowAmount] = useState("0");
+  const [repayAmount, setRepayAmount] = useState("0");
+  const [aaveBalances, setAaveBalances] = useState({ supplied: "0.00", borrowed: "0.00" });
+
   useEffect(() => {
     if (window.ethereum) {
       const web3Provider = getProviderInstance();
