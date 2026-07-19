@@ -256,7 +256,7 @@ export default function App() {
 
   // Aave Lending States
   const [lendingToken, setLendingToken] = useState("USDC"); // Borclanacaq asset (USDC)
-  const [collateralToken, setCollateralToken] = useState("sakUSD"); // Girov qoyulacaq asset (sakUSD və ya cirBTC)
+  const [collateralToken, setCollateralToken] = useState("USDC"); // Girov qoyulacaq asset (sakUSD və ya cirBTC)
   const [supplyAmount, setSupplyAmount] = useState("0");
   const [borrowAmount, setBorrowAmount] = useState("0");
   const [repayAmount, setRepayAmount] = useState("0");
