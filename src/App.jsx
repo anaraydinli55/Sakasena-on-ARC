@@ -121,7 +121,7 @@ const NETWORKS = {
       sakUSD: { symbol: "sakUSD", name: "Sakasena USD", address: "0xe6559EDD9540777E1FC11C44db5059d008b02Fb5".toLowerCase(), decimals: 18, icon: "💴" },
       AAA: { symbol: "AAA", name: "anaraydinli AAA Token", address: "0x54552f2ec52423d2fbe94c25f0bad61b9108aae8", decimals: 18, icon: "🪙" }
     },
-    minterAddress: "0x3bD1C9261Fbf5A35BD73EaFa7372cb36eeCac02F",
+    minterAddress: "0xccbc0B684Cc775dD2A42313eEDb00e0BC1e3B7fE",
     aavePoolAddress: "0x6Ae43d3271ff68408398a123F67CE4a42f50005C"
   },
   11155420: {
