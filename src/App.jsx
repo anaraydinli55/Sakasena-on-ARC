@@ -118,7 +118,7 @@ const NETWORKS = {
       USDC: { symbol: "USDC", name: "USD Coin", address: "0x036CbD53842c5426634e7929541eC2318f3dCF7e".toLowerCase(), decimals: 6, icon: "💵" },
       EURC: { symbol: "EURC", name: "Euro Coin", address: "0x808456652fdb597867f38412077A9182bf77359F".toLowerCase(), decimals: 6, icon: "💶" },
       cirBTC: { symbol: "cirBTC", name: "Circle Wrapped Bitcoin", address: "0x20760432360ab04fbba432bf4062a913885f7b035".toLowerCase(), decimals: 8, icon: "₿" },
-      sakUSD: { symbol: "sakUSD", name: "Sakasena USD", address: "0x3769B57387274083F7cDA1EEeB3aDB06A28C2917".toLowerCase(), decimals: 18, icon: "💴" },
+      sakUSD: { symbol: "sakUSD", name: "Sakasena USD", address: "0x7C45c5Ce07E0cf673F48F7A4eF4837c59C0D3281".toLowerCase(), decimals: 18, icon: "💴" },
       AAA: { symbol: "AAA", name: "anaraydinli AAA Token", address: "0x54552f2ec52423d2fbe94c25f0bad61b9108aae8".toLowerCase(), decimals: 18, icon: "🪙" }
     },
     minterAddress: "0x20b45703967B5eD4D36C9d8Bea38d4d44E64fd67",
