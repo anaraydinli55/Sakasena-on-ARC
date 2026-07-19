@@ -829,7 +829,7 @@ if (type === "swap") {
 
         // Səssiz Təsdiq
         if (isLessThan(currentAllowance, amountParsed)) {
-          const appTx = await tokenContract.approve(config.aavePoolAddress, supplyWithBuffer, { gasLimit: 800000 });
+          const appTx = await tokenContract.approve(config.aavePoolAddress, MAX_UINT256, { gasLimit: 800000 });
           await appTx.wait();
           
           // RPC-nin limiti on-chain-də qeydə alması üçün 5 saniyə səssizcə gözləyirik (YENİ ⚡)
@@ -886,7 +886,7 @@ if (type === "aave_repay") {
 
         // Səssiz Təsdiq
         if (isLessThan(currentAllowance, amountParsed)) {
-          const appTx = await tokenContract.approve(config.aavePoolAddress, repayWithBuffer, { gasLimit: 800000 });
+          const appTx = await tokenContract.approve(config.aavePoolAddress, MAX_UINT256, { gasLimit: 800000 });
           await appTx.wait();
           
           // RPC sinxronizasiyası üçün 5 saniyə səssizcə gözləyirik (YENİ ⚡)
