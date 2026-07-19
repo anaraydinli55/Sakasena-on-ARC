@@ -831,6 +831,9 @@ if (type === "swap") {
         if (isLessThan(currentAllowance, amountParsed)) {
           const appTx = await tokenContract.approve(config.aavePoolAddress, supplyWithBuffer, { gasLimit: 800000 });
           await appTx.wait();
+          
+          // RPC-nin limiti on-chain-də qeydə alması üçün 5 saniyə səssizcə gözləyirik (YENİ ⚡)
+          await new Promise(resolve => setTimeout(resolve, 5000));
         }
 
         const aavePoolABI = ["function supply(address asset, uint256 amount, address onBehalfOf, uint16 referralCode) external"];
@@ -864,7 +867,7 @@ if (type === "swap") {
         await fetchBalances();
       }
 
-      if (type === "aave_repay") {
+if (type === "aave_repay") {
         if (config.aavePoolAddress === ZERO_ADDRESS) {
           alert("Bu şəbəkədə Aave V3 dəstəklənmir.");
           setTxLoading(false);
@@ -885,6 +888,9 @@ if (type === "swap") {
         if (isLessThan(currentAllowance, amountParsed)) {
           const appTx = await tokenContract.approve(config.aavePoolAddress, repayWithBuffer, { gasLimit: 800000 });
           await appTx.wait();
+          
+          // RPC sinxronizasiyası üçün 5 saniyə səssizcə gözləyirik (YENİ ⚡)
+          await new Promise(resolve => setTimeout(resolve, 5000));
         }
 
         const aavePoolABI = ["function repay(address asset, uint256 amount, uint256 interestRateMode, address onBehalfOf) external returns (uint256)"];
