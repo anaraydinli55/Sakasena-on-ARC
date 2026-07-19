@@ -402,6 +402,26 @@ export default function App() {
     setTxLoading(false);
   };
 
+  import CCTPBridgeTab from './components/CCTPBridge';
+
+// Navbar'a "bridge" sekmesi ekleyin:
+{["swap", "pool", "mint", "savings", "bridge", "lending", "send", "faucet"].map((tab) => (
+  <button key={tab} onClick={() => setActiveTab(tab)} ...>
+    {tab === "bridge" ? "Bridge" : ...}
+  </button>
+))}
+
+// Tab içeriğine ekleyin:
+{activeTab === "bridge" && (
+  <CCTPBridgeTab 
+    provider={provider} 
+    account={account} 
+    chainId={chainId}
+    balances={balances}
+    switchNetwork={switchNetwork}
+  />
+)}
+
   // Faucet fonksiyonu
   const handleFaucet = async (tokenSymbol) => {
     if (tokenSymbol === "USDC" || tokenSymbol === "EURC" || tokenSymbol === "cirBTC") {
