@@ -1726,13 +1726,14 @@ if (type === "swap") {
                       className="bg-transparent text-xl font-bold focus:outline-none w-full text-white"
                     />
                     <select 
-                      value={collateralToken} 
-                      onChange={(e) => setCollateralToken(e.target.value)}
-                      className="bg-[#211e47] text-white px-3 py-1.5 rounded-xl font-semibold border border-gray-700"
-                    >
-                      <option value="sakUSD">💴 sakUSD</option>
-                      <option value="cirBTC">₿ cirBTC</option>
-                    </select>
+  value={collateralToken} 
+  onChange={(e) => setCollateralToken(e.target.value)}
+  className="bg-[#211e47] text-white px-3 py-1.5 rounded-xl font-semibold border border-gray-700"
+>
+  <option value="USDC">💵 USDC</option>
+  <option value="EURC">💶 EURC</option>
+  <option value="USDT">💲 USDT</option>
+</select>
                     <button 
                       onClick={() => handleAction("aave_supply")}
                       disabled={txLoading || parseFloat(supplyAmount) <= 0}
