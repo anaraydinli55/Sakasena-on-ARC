@@ -1,717 +1,179 @@
+// ============================================
+// ANA APP COMPONENT
+// Bütün parçaları birleştirir
+// ============================================
 import { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
 
-// --- ARXİTEKTURA ŞƏBƏKƏ VƏ BLOKÇEYN SABİTLƏRİ ---
-const ARC_CHAIN_ID = 5042002;
-const ARC_CHAIN_HEX = "0x4cef52";
-const ARC_RPC_URL = import.meta.env.VITE_ARC_RPC_URL || "https://rpc.testnet.arc.network";
+// Sabitler ve konfigürasyon
+import { 
+  ARC_CHAIN_ID, ARC_ADDRESSES, TOKEN_PRICES,
+  MAX_UINT256, formatUnits, parseUnits, isLessThan,
+  isAaveSupported, AAVE_SUPPORTED_TOKENS 
+} from './constants';
 
-// --- BÜTÜN REALFI MÜQAVİLƏ ÜNVANLARI (100% BƏRPA OLUNDU) ---
-const ARC_USDC_ADDRESS = "0x3600000000000000000000000000000000000000".toLowerCase();
-const ARC_EURC_ADDRESS = "0x89b50855aa3be2f677cd6303cec089b5f319d72a".toLowerCase();
-const ARC_CIRBTC_ADDRESS = "0xf0c4a4ce82a5746abaad9425360ab04fbba432bf".toLowerCase();
-const USER_CUSTOM_TOKEN_ADDRESS = "0x54552f2ec52423d2fbe94c25f0bad61b9108aae8".toLowerCase();
+import { NETWORKS, getActiveNetworkConfig, getPoolAddress } from './networks';
 
-const SAKASENA_USDC_POOL_ADDRESS = "0xbe0f19f85a5cd1cac56e6f31c85f6cae805e56c3".toLowerCase();
-const SAKASENA_EURC_POOL_ADDRESS = "0xbbc6cd33291edfe9e4e927129901db0e58ba705b".toLowerCase();
-const SAKASENA_BTC_POOL_ADDRESS = "0x1815df186c43506e7d9113e6c1d19326610aa448".toLowerCase();
-const SAKASENA_USDC_EURC_POOL_ADDRESS = "0xE50eeb474BB6D7Afc148da3023836B2Afa358D3c".toLowerCase();
+// Hook'lar
+import { useWallet } from './hooks/useWallet';
+import { useBalances } from './hooks/useBalances';
+import { useSavings } from './hooks/useSavings';
 
-const SAKUSD_MINTER_ADDRESS = "0x1e27b23bc7662db4accf371b96b14ea5d81e0f83".toLowerCase();
-const SAKUSD_TOKEN_ADDRESS = "0x085bc2b26d637685d2d3b742f10d14d8d77557b1".toLowerCase();
-
-// --- PEŞƏKAR SABİT MƏZƏNNƏLƏR (1 USDC = 0.8 EURC) ---
-const TOKEN_PRICES = {
-  USDC: 1.00,
-  EURC: 1.25, 
-  cirBTC: 67450.00,
-  WUSDC: 1.00, 
-  sakUSD: 1.00, 
-  AAA: 5.40,
-  USDT: 1.00,
-  DAI: 1.00
-};
-
-// ETHERS V5 VE V6 ÇİFT SÜRÜM UYUMLULUK KATMANI (Mobil ve PC tarayıcılar için optimize edilmiştir)
-const isV6 = typeof ethers.BrowserProvider !== 'undefined';
-
-const getProviderInstance = () => {
-  if (typeof window === 'undefined' || !window.ethereum) return null;
-  return isV6 
-    ? new ethers.BrowserProvider(window.ethereum) 
-    : new ethers.providers.Web3Provider(window.ethereum);
-};
-
-const ZERO_ADDRESS = isV6 
-  ? ethers.ZeroAddress 
-  : (ethers.constants ? ethers.constants.AddressZero : "0x0000000000000000000000000000000000000000");
-
-const formatUnits = (value, decimals) => {
-  return isV6 ? ethers.formatUnits(value, decimals) : ethers.utils.formatUnits(value, decimals);
-};
-
-const parseUnits = (value, decimals) => {
-  return isV6 ? ethers.parseUnits(value, decimals) : ethers.utils.parseUnits(value, decimals);
-};
-
-const getSignerInstance = async (providerInstance) => {
-  return isV6 ? await providerInstance.getSigner() : providerInstance.getSigner();
-};
-
-const isLessThan = (a, b) => {
-  return BigInt(a.toString()) < BigInt(b.toString());
-};
-
-// ÇOXLU-ZİNCİR ŞƏBƏKƏ VƏ KONTRAT KONFİQURASİYALARI (8 Şəbəkə Dəstəyi)
-const NETWORKS = {
-  5042002: {
-    name: "Arc Testnet",
-    hexId: "0x4cef52",
-    rpcUrl: "https://rpc.testnet.arc.network",
-    explorer: "https://testnet.arcscan.app",
-    tokens: {
-      USDC: { symbol: "USDC", name: "USD Coin", address: "0x3600000000000000000000000000000000000000", decimals: 6, icon: "💵" },
-      EURC: { symbol: "EURC", name: "Euro Coin", address: "0x89b50855aa3be2f677cd6303cec089b5f319d72a", decimals: 6, icon: "💶" },
-      cirBTC: { symbol: "cirBTC", name: "Circle Wrapped Bitcoin", address: "0xf0c4a4ce82a5746abaad9425360ab04fbba432bf", decimals: 8, icon: "₿" },
-      sakUSD: { symbol: "sakUSD", name: "Sakasena USD", address: "0x085bc2b26d637685d2d3b742f10d14d8d77557b1", decimals: 18, icon: "💴" },
-      AAA: { symbol: "AAA", name: "anaraydinli AAA Token", address: "0x54552f2ec52423d2fbe94c25f0bad61b9108aae8", decimals: 18, icon: "🪙" }
-    },
-    minterAddress: "0x1e27b23bc7662db4accf371b96b14ea5d81e0f83",
-    aavePoolAddress: ZERO_ADDRESS // Sizin deploy edəcəyiniz Minter/Aave ünvanları
-  },
-  11155111: {
-    name: "Ethereum Sepolia",
-    hexId: "0xaa36a7",
-    rpcUrl: "https://rpc.sepolia.org",
-    explorer: "https://sepolia.etherscan.io",
-    tokens: {
-      USDC: { symbol: "USDC", name: "USD Coin", address: "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238", decimals: 6, icon: "💵" },
-      EURC: { symbol: "EURC", name: "Euro Coin", address: "0x1a05282496E69D8BDeD31b846F25870A19B91234", decimals: 6, icon: "💶" },
-      cirBTC: { symbol: "cirBTC", name: "Circle Wrapped Bitcoin", address: "0x20760432360ab04fbba432bf4062a913885f7b035", decimals: 8, icon: "₿" },
-      sakUSD: { symbol: "sakUSD", name: "Sakasena USD", address: "0x085bc2b26d637685d2d3b742f10d14d8d77557b1".toLowerCase(), decimals: 18, icon: "💴" },
-      AAA: { symbol: "AAA", name: "anaraydinli AAA Token", address: "0x54552f2ec52423d2fbe94c25f0bad61b9108aae8", decimals: 18, icon: "🪙" }
-    },
-    minterAddress: "0x1e27b23bc7662db4accf371b96b14ea5d81e0f83",
-    aavePoolAddress: "0x6Ae43d3271ff68408398a123F67CE4a42f50005C".toLowerCase() // Sepolia rəsmi Aave V3 Pool ünvanı
-  },
-  421614: {
-    name: "Arbitrum Sepolia",
-    hexId: "0x66eee",
-    rpcUrl: "https://sepolia-rollup.arbitrum.io/rpc",
-    explorer: "https://sepolia.arbiscan.io",
-    tokens: {
-      USDC: { symbol: "USDC", name: "USD Coin", address: "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d", decimals: 6, icon: "💵" },
-      EURC: { symbol: "EURC", name: "Euro Coin", address: "0x3271ff68408398a123F67CE4a42f50005C12423d", decimals: 6, icon: "💶" },
-      cirBTC: { symbol: "cirBTC", name: "Circle Wrapped Bitcoin", address: "0x20760432360ab04fbba432bf4062a913885f7b035", decimals: 8, icon: "₿" },
-      sakUSD: { symbol: "sakUSD", name: "Sakasena USD", address: "0x085bc2b26d637685d2d3b742f10d14d8d77557b1".toLowerCase(), decimals: 18, icon: "💴" },
-      AAA: { symbol: "AAA", name: "anaraydinli AAA Token", address: "0x54552f2ec52423d2fbe94c25f0bad61b9108aae8", decimals: 18, icon: "🪙" }
-    },
-    minterAddress: "0x1e27b23bc7662db4accf371b96b14ea5d81e0f83",
-    aavePoolAddress: "0x3271ff68408398a123F67CE4a42f50005C12423d"
-  },
-  84532: {
-    name: "Base Sepolia",
-    hexId: "0x14a34",
-    rpcUrl: "https://base-sepolia-rpc.publicnode.com",
-    explorer: "https://sepolia.basescan.org",
-    tokens: {
-      USDC: { symbol: "USDC", name: "USD Coin", address: "0x036CbD53842c5426634e7929541eC2318f3dCF7e".toLowerCase(), decimals: 6, icon: "💵" },
-      EURC: { symbol: "EURC", name: "Euro Coin", address: "0x808456652fdb597867f38412077A9182bf77359F".toLowerCase(), decimals: 6, icon: "💶" },
-      cirBTC: { symbol: "cirBTC", name: "Circle Wrapped Bitcoin", address: "0x20760432360ab04fbba432bf4062a913885f7b035".toLowerCase(), decimals: 8, icon: "₿" },
-      sakUSD: { symbol: "sakUSD", name: "Sakasena USD", address: "0x7C45c5Ce07E0cf673F48F7A4eF4837c59C0D3281".toLowerCase(), decimals: 18, icon: "💴" },
-      AAA: { symbol: "AAA", name: "anaraydinli AAA Token", address: "0x54552f2ec52423d2fbe94c25f0bad61b9108aae8".toLowerCase(), decimals: 18, icon: "🪙" }
-    },
-    minterAddress: "0x20b45703967B5eD4D36C9d8Bea38d4d44E64fd67",
-    aavePoolAddress: "0x8bAB6d1b75f19e9eD9fCe8b9BD338844fF79aE27".toLowerCase()
-  },
-  11155420: {
-    name: "Optimism Sepolia",
-    hexId: "0xaa3748",
-    rpcUrl: "https://sepolia.optimism.io",
-    explorer: "https://sepolia-optimism.etherscan.io",
-    tokens: {
-      USDC: { symbol: "USDC", name: "USD Coin", address: "0x5fd84259d66Cd46123540766Ad943c0D274250D7", decimals: 6, icon: "💵" },
-      EURC: { symbol: "EURC", name: "Euro Coin", address: "0x89b50855aa3be2f677cd6303cec089b5f319d72a", decimals: 6, icon: "💶" },
-      cirBTC: { symbol: "cirBTC", name: "Circle Wrapped Bitcoin", address: "0x20760432360ab04fbba432bf4062a913885f7b035", decimals: 8, icon: "₿" },
-      sakUSD: { symbol: "sakUSD", name: "Sakasena USD", address: "0x085bc2b26d637685d2d3b742f10d14d8d77557b1".toLowerCase(), decimals: 18, icon: "💴" },
-      AAA: { symbol: "AAA", name: "anaraydinli AAA Token", address: "0x54552f2ec52423d2fbe94c25f0bad61b9108aae8", decimals: 18, icon: "🪙" }
-    },
-    minterAddress: "0x1e27b23bc7662db4accf371b96b14ea5d81e0f83",
-    aavePoolAddress: "0x6Ae43d3271ff68408398a123F67CE4a42f50005C"
-  },
-  300: {
-    name: "zkSync Sepolia",
-    hexId: "0x12c",
-    rpcUrl: "https://sepolia.era.zksync.dev",
-    explorer: "https://sepolia.explorer.zksync.io",
-    tokens: {
-      USDC: { symbol: "USDC", name: "USD Coin", address: "0xAe045DE5638162fa134807Cb558E15A3F5A7F853", decimals: 6, icon: "💵" },
-      EURC: { symbol: "EURC", name: "Euro Coin", address: "0x89b50855aa3be2f677cd6303cec089b5f319d72a", decimals: 6, icon: "💶" },
-      cirBTC: { symbol: "cirBTC", name: "Circle Wrapped Bitcoin", address: "0x20760432360ab04fbba432bf4062a913885f7b035", decimals: 8, icon: "₿" },
-      sakUSD: { symbol: "sakUSD", name: "Sakasena USD", address: "0x085bc2b26d637685d2d3b742f10d14d8d77557b1".toLowerCase(), decimals: 18, icon: "💴" },
-      AAA: { symbol: "AAA", name: "anaraydinli AAA Token", address: "0x54552f2ec52423d2fbe94c25f0bad61b9108aae8", decimals: 18, icon: "🪙" }
-    },
-    minterAddress: "0x1e27b23bc7662db4accf371b96b14ea5d81e0f83",
-    aavePoolAddress: "0x6Ae43d3271ff68408398a123F67CE4a42f50005C"
-  },
-  480: {
-    name: "World Chain Sepolia",
-    hexId: "0x1e0",
-    rpcUrl: "https://sepolia.worldchain.dev",
-    explorer: "https://sepolia.worldscan.org",
-    tokens: {
-      USDC: { symbol: "USDC", name: "USD Coin", address: "0x79A02482A880bCe3F13E09da970dC34dB4cD24D1", decimals: 6, icon: "💵" },
-      EURC: { symbol: "EURC", name: "Euro Coin", address: "0x89b50855aa3be2f677cd6303cec089b5f319d72a", decimals: 6, icon: "💶" },
-      cirBTC: { symbol: "cirBTC", name: "Circle Wrapped Bitcoin", address: "0x20760432360ab04fbba432bf4062a913885f7b035", decimals: 8, icon: "₿" },
-      sakUSD: { symbol: "sakUSD", name: "Sakasena USD", address: "0x085bc2b26d637685d2d3b742f10d14d8d77557b1".toLowerCase(), decimals: 18, icon: "💴" },
-      AAA: { symbol: "AAA", name: "anaraydinli AAA Token", address: "0x54552f2ec52423d2fbe94c25f0bad61b9108aae8", decimals: 18, icon: "🪙" }
-    },
-    minterAddress: "0x1e27b23bc7662db4accf371b96b14ea5d81e0f83",
-    aavePoolAddress: "0x6Ae43d3271ff68408398a123F67CE4a42f50005C"
-  },
-  43113: {
-    name: "Avalanche Fuji",
-    hexId: "0xa869",
-    rpcUrl: "https://api.avax-test.network/ext/bc/C/rpc",
-    explorer: "https://testnet.snowtrace.io",
-    tokens: {
-      USDC: { symbol: "USDC", name: "USD Coin", address: "0x5425890298aed601595a70AB815c96711a31Bc65", decimals: 6, icon: "💵" },
-      EURC: { symbol: "EURC", name: "Euro Coin", address: "0x89b50855aa3be2f677cd6303cec089b5f319d72a", decimals: 6, icon: "💶" },
-      cirBTC: { symbol: "cirBTC", name: "Circle Wrapped Bitcoin", address: "0x20760432360ab04fbba432bf4062a913885f7b035", decimals: 8, icon: "₿" },
-      sakUSD: { symbol: "sakUSD", name: "Sakasena USD", address: "0x085bc2b26d637685d2d3b742f10d14d8d77557b1".toLowerCase(), decimals: 18, icon: "💴" },
-      AAA: { symbol: "AAA", name: "anaraydinli AAA Token", address: "0x54552f2ec52423d2fbe94c25f0bad61b9108aae8", decimals: 18, icon: "🪙" }
-    },
-    minterAddress: "0x1e27b23bc7662db4accf371b96b14ea5d81e0f83",
-    aavePoolAddress: "0x6Ae43d3271ff68408398a123F67CE4a42f50005C"
-  }
-};
-
-const getActiveNetworkConfig = (activeChainId) => {
-  return NETWORKS[activeChainId] || NETWORKS[5042002]; // Əgər fərqli şəbəkədirsə, default olaraq Arc seçilir
-};
-
-// DÜZƏLDİLMİŞ dinamik havuz yönləndirici router funksiyası
-const getPoolAddress = (token1, token2) => {
-  const t1 = token1.toLowerCase();
-  const t2 = token2.toLowerCase();
-  
-  const isUsdcEurc = (t1 === "usdc" && t2 === "eurc") || (t1 === "eurc" && t2 === "usdc");
-  if (isUsdcEurc) {
-    return SAKASENA_USDC_POOL_ADDRESS; // Vercel-dəki USDC/EURC havuzunuzun ünvanı
-  }
-
-  const hasAAA = t1 === "aaa" || t2 === "aaa";
-  if (!hasAAA) return ZERO_ADDRESS;
-
-  const otherToken = t1 === "aaa" ? t2 : t1;
-  if (otherToken === "usdc") return SAKASENA_USDC_POOL_ADDRESS;
-  if (otherToken === "eurc") return SAKASENA_EURC_POOL_ADDRESS;
-  if (otherToken === "cirbtc") return SAKASENA_BTC_POOL_ADDRESS;
-  
-  return ZERO_ADDRESS;
-};
+// Component'ler
+import { Header } from './components/Header';
+import { StatsCards } from './components/StatsCards';
+import { AAABanner } from './components/AAABanner';
+import { SwapTab } from './components/SwapTab';
+import { PoolTab } from './components/PoolTab';
+import { MintTab } from './components/MintTab';
+import { SavingsTab } from './components/SavingsTab';
+import { SendTab } from './components/SendTab';
+import { LendingTab } from './components/LendingTab';
+import { FaucetTab } from './components/FaucetTab';
 
 export default function App() {
-  const [provider, setProvider] = useState(null);
-  const [account, setAccount] = useState("");
-  const [chainId, setChainId] = useState(null);
+  // Wallet hook
+  const { provider, account, chainId, connectWallet, switchNetwork, getSigner } = useWallet();
+
+  // Balans hook
+  const { balances, poolReserves, userPoolBalances, fetchBalances, fetchPoolReserves } = useBalances(provider, account, chainId);
+
+  // Savings hook
+  const { savingsData, fetchSavingsData } = useSavings(provider, account, chainId);
+
+  // State'ler
   const [activeTab, setActiveTab] = useState("swap"); 
   const [activePoolType, setActivePoolType] = useState("USDC"); 
-  
   const [tokens, setTokens] = useState(NETWORKS[5042002].tokens);
-  const [balances, setBalances] = useState({ USDC: "0.00", EURC: "0.00", cirBTC: "0.0000", sakUSD: "0.00", WUSDC: "0.00", AAA: "0.00", USDT: "0.00", DAI: "0.00" }); 
-  
-  // Swap Form States
+  const [spPoints, setSpPoints] = useState(1250);
+  const [txLoading, setTxLoading] = useState(false);
+
+  // Swap state'leri
   const [fromToken, setFromToken] = useState("USDC");
   const [toToken, setToToken] = useState("AAA"); 
   const [amountIn, setAmountIn] = useState("0");
   const [amountOut, setAmountOut] = useState("");
 
-  // Liquidity Pool Form States
+  // Pool state'leri
   const [lpUSDC, setLpUSDC] = useState("0");
   const [lpAAA, setLpAAA] = useState("0");
-  const [poolReserves, setPoolReserves] = useState({ stableAmount: "0.00", aaaAmount: "0.00", stableSymbol: "USDC", totalShares: "0" });
 
-  // Kullanıcının Havuzdaki Kişisel Rezerv Payları
-  const [userPoolBalances, setUserPoolBalances] = useState({ stableAmount: "0.00", aaaAmount: "0.00", stableSymbol: "USDC" });
-
-  // Mint / Redeem Form States
+  // Mint state'leri
   const [mintCollateral, setMintCollateral] = useState("USDC");
   const [mintAmount, setMintAmount] = useState("0");
   const [redeemAmount, setRedeemAmount] = useState("0");
 
-  // Savings (Staking) Form States
+  // Savings state'leri
   const [stakeAmountInput, setStakeAmountInput] = useState("0");
   const [unstakeAmountInput, setUnstakeAmountInput] = useState("0");
-  const [savingsData, setSavingsData] = useState({ staked: "0.00", pendingRewards: "0.00", requests: [] });
 
-  // Send Token Form States
+  // Send state'leri
   const [sendToken, setSendToken] = useState("AAA"); 
   const [sendRecipient, setSendRecipient] = useState("");
   const [sendAmount, setSendAmount] = useState("0");
 
-  const [spPoints, setSpPoints] = useState(1250);
-  const [faucetLoading, setFaucetLoading] = useState(false);
-  const [txLoading, setTxLoading] = useState(false);
-
-  // Aave Lending States
-  const [lendingToken, setLendingToken] = useState("USDC"); // Borclanacaq asset (USDC)
-  const [collateralToken, setCollateralToken] = useState("USDC"); // Girov qoyulacaq asset (sakUSD və ya cirBTC)
+  // Lending state'leri
+  const [lendingToken, setLendingToken] = useState("USDC");
+  const [collateralToken, setCollateralToken] = useState("USDC");
   const [supplyAmount, setSupplyAmount] = useState("0");
   const [borrowAmount, setBorrowAmount] = useState("0");
   const [repayAmount, setRepayAmount] = useState("0");
-  const [aaveBalances, setAaveBalances] = useState({ supplied: "0.00", borrowed: "0.00" });
 
-// Mobil və PC uyğun cüzdan bağlantısı izləyicisi
-  useEffect(() => {
-    if (window.ethereum) {
-      const web3Provider = getProviderInstance();
-      setProvider(web3Provider);
-      
-      window.ethereum.request({ method: 'eth_chainId' })
-        .then(id => setChainId(parseInt(id, 16)))
-        .catch(err => console.warn(err));
-
-      // Mobildə accountsChanged və chainChanged hadisələrinin rəvan işləməsi
-      const handleAccounts = (accounts) => {
-        if (accounts.length > 0) setAccount(accounts[0]);
-        else setAccount("");
-      };
-
-      const handleChain = (hexId) => {
-        setChainId(parseInt(hexId, 16));
-      };
-
-      window.ethereum.on('accountsChanged', handleAccounts);
-      window.ethereum.on('chainChanged', handleChain);
-
-      return () => {
-        if (window.ethereum.removeListener) {
-          window.ethereum.removeListener('accountsChanged', handleAccounts);
-          window.ethereum.removeListener('chainChanged', handleChain);
-        }
-      };
-    }
-  }, []);
-
-  // Hər şəbəkə dəyişdikdə tokens siyahısını da avtomatik yeniləyirik
+  // Token listesini güncelle
   useEffect(() => {
     const config = getActiveNetworkConfig(chainId);
     setTokens(config.tokens);
   }, [chainId]);
 
-  // Hər şəbəkə dəyişdikdə balansları avtomatik sinxronlaşdırır
+  // Verileri yükle
   useEffect(() => {
     if (account && provider) {
       const loadAllData = async () => {
         await fetchBalances();
-        await fetchPoolReserves();
+        await fetchPoolReserves(activePoolType, fromToken, toToken, activeTab);
         await fetchSavingsData();
       };
       loadAllData();
     }
-  }, [account, chainId, provider, fromToken, toToken, activePoolType, activeTab]);
+  }, [account, chainId, provider, activeTab, activePoolType, fromToken, toToken]);
 
-  // Balansların və digər dataların sinxron şəkildə çəkilməsi
-  useEffect(() => {
-    if (account && chainId === ARC_CHAIN_ID && provider) {
-      const loadAllData = async () => {
-        await fetchBalances();
-        await fetchPoolReserves();
-        await fetchSavingsData();
-      };
-      loadAllData();
-    }
-  }, [account, chainId, provider, fromToken, toToken, activePoolType, activeTab]); 
-
-  // Dinamik Fiyatlama Hesaplama (USDC / EURC üçün sabit qiymət override-ı ilə)
-  useEffect(() => {
-    const calculateSwapOutput = async () => {
-      if (!amountIn || isNaN(amountIn) || parseFloat(amountIn) <= 0) {
-        setAmountOut("");
-        return;
-      }
-
-      // 1. USDC / EURC üçün qəti sabit (kati) qiymət hesablaması
-      const isUsdcEurc = (fromToken === "USDC" && toToken === "EURC");
-      const isEurcUsdc = (fromToken === "EURC" && toToken === "USDC");
-
-      if (isUsdcEurc) {
-        setAmountOut((parseFloat(amountIn) * 0.8).toFixed(4));
-        return;
-      }
-      if (isEurcUsdc) {
-        setAmountOut((parseFloat(amountIn) * 1.25).toFixed(4));
-        return;
-      }
-
-      if (!provider || chainId !== ARC_CHAIN_ID) return;
-
-      const activePool = getPoolAddress(fromToken, toToken);
-      if (activePool === ZERO_ADDRESS) {
-        setAmountOut("Havuz Bulunamadı");
-        return;
-      }
-
-      try {
-        const poolABI = ["function getAmountOut(address tokenIn, uint256 amountIn) view returns (uint256)"];
-        const poolContract = new ethers.Contract(activePool, poolABI, provider);
-        const tokenInAddress = tokens[fromToken].address;
-
-        if (tokenInAddress && tokenInAddress !== ZERO_ADDRESS) { 
-          const amountInParsed = parseUnits(amountIn, tokens[fromToken].decimals); 
-          const rawAmountOut = await poolContract.getAmountOut(tokenInAddress, amountInParsed);
-          const formattedAmountOut = formatUnits(rawAmountOut, tokens[toToken].decimals); 
-          setAmountOut(parseFloat(formattedAmountOut).toFixed(tokens[toToken].decimals === 8 ? 6 : 4));
-        } else {
-          setAmountOut((parseFloat(amountIn) * 0.997).toFixed(4));
-        }
-      } catch (err) {
-        console.warn("Fiyat hesaplanamadı:", err);
-        setAmountOut("Likidite Yetersiz");
-      }
-    };
-
-    calculateSwapOutput();
-  }, [amountIn, fromToken, toToken, tokens, provider, chainId]);
-  const connectWallet = async () => {
-    if (!window.ethereum) {
-      alert("Lütfen MetaMask veya Rabby Wallet kurun.");
-      return;
-    }
-    try {
-      const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-      setAccount(accounts[0]);
-      await switchNetwork(5042002);
-    } catch (error) {
-      console.error(error);
-    }
+  // Yardımcı fonksiyonlar
+  const handlePercentClick = (percent, balance, decimals, setter) => {
+    if (!balance || isNaN(balance)) return;
+    const bal = parseFloat(balance);
+    if (bal <= 0) return;
+    setter((bal * percent / 100).toFixed(decimals === 8 ? 6 : 4));
   };
 
-  // UNIVERSAL ŞƏBƏKƏ DƏYİŞDİRİCİ VƏ AVTOMATİK ƏLAVƏ EDİCİ (MetaMask, Rabby və Mobil Uyğun)
-  const switchNetwork = async (targetChainId) => {
-    const config = NETWORKS[targetChainId];
-    if (!config) return;
-
-    try {
-      // 1. İlk növbədə şəbəkəni dəyişməyi sınayırıq
-      await window.ethereum.request({
-        method: 'wallet_switchEthereumChain',
-        params: [{ chainId: config.hexId }],
-      });
-    } catch (switchError) {
-      // Rabby və digər cüzdanlar üçün tam uyumluluk (Hər hansı bir xətada birbaşa əlavə etməni yoxlayır)
-      console.warn("Şebekeye geçiş yapılamadı, cüzdana otomatik ekleme deneniyor...", switchError);
-      
-      try {
-        // 2. Əgər şəbəkə cüzdanda yoxdursa, onu avtomatik olaraq bütün detalları ilə cüzdana əlavə edirik (Add Network)
-        await window.ethereum.request({
-          method: 'wallet_addEthereumChain',
-          params: [{
-            chainId: config.hexId,
-            chainName: config.name,
-            nativeCurrency: targetChainId === 43113 
-              ? { name: "AVAX", symbol: "AVAX", decimals: 18 } 
-              : { name: "Ether", symbol: "ETH", decimals: 18 },
-            rpcUrls: [config.rpcUrl],
-            blockExplorerUrls: [config.explorer]
-          }]
-        });
-      } catch (addError) {
-        console.error("Şebeke cüzdana eklenemedi:", addError);
-        alert(`Lütfen cüzdanınızdan manuel olarak ${config.name} ağına geçin veya ağı ekleyin.`);
-      }
-    }
+  const handleNumberInput = (setter) => (e) => {
+    let val = e.target.value;
+    if (val.startsWith("0") && val.length > 1 && val[1] !== ".") val = val.slice(1);
+    setter(val);
   };
 
- const fetchBalances = async () => {
-    if (!provider || !account) return;
-    try {
-      const minABI = ["function balanceOf(address owner) view returns (uint256)"];
-      const newBalances = {};
-      const config = getActiveNetworkConfig(chainId);
-
-      for (const key of Object.keys(config.tokens)) {
-        const token = config.tokens[key];
-        if (token.address && token.address !== ZERO_ADDRESS) { 
-          try {
-            const contract = new ethers.Contract(token.address, minABI, provider);
-            const raw = await contract.balanceOf(account);
-            const formatted = parseFloat(formatUnits(raw, token.decimals)); 
-            const decimalsToShow = key === "cirBTC" ? 4 : 2;
-            newBalances[key] = formatted.toFixed(decimalsToShow);
-// Yeni versiya:
-} catch (err) {
-  console.error(`${key} balansı oxunarkən xəta baş verdi:`, err); // <--- Bunu əlavə etdik!
-  newBalances[key] = "0.00";
-}
-        } else {
-          newBalances[key] = "0.00";
-        }
-      }
-
-      setBalances(newBalances);
-    } catch (err) {
-      console.error("Bakiyeler sorgulanırken hata oluştu:", err);
-    }
-  };
-  
-  const fetchPoolReserves = async () => {
-    if (!provider || !account) return;
-    
-    const activePool = activeTab === "pool"
-      ? getPoolAddress(activePoolType, "AAA") 
-      : getPoolAddress(fromToken, toToken);
-
-    if (activePool === ZERO_ADDRESS) return;
-
-    try {
-      const genericABI = [
-        "function tokenA() view returns (address)",
-        "function tokenB() view returns (address)",
-        "function reserveA() view returns (uint256)",
-        "function reserveB() view returns (uint256)",
-        "function totalShares() view returns (uint256)",
-        "function lpShares(address) view returns (uint256)" 
-      ];
-      const contract = new ethers.Contract(activePool, genericABI, provider);
-      
-      const [tA, tB, resA, resB, shares, userShares] = await Promise.all([
-        contract.tokenA(),
-        contract.tokenB(),
-        contract.reserveA(),
-        contract.reserveB(),
-        contract.totalShares(),
-        contract.lpShares(account)
-      ]);
-
-      const decimalsA = getDecimalsByAddress(tA);
-      const decimalsB = getDecimalsByAddress(tB);
-
-      const formattedResA = parseFloat(formatUnits(resA, decimalsA)).toFixed(decimalsA === 8 ? 4 : 2);
-      const formattedResB = parseFloat(formatUnits(resB, decimalsB)).toFixed(decimalsB === 8 ? 4 : 2);
-
-      const isAStableOrBTC = decimalsA === 6 || decimalsA === 8;
-      const stableSymbol = isAStableOrBTC ? tokens[Object.keys(tokens).find(k => tokens[k].address.toLowerCase() === tA.toLowerCase())]?.symbol || "Stable" : tokens[Object.keys(tokens).find(k => tokens[k].address.toLowerCase() === tB.toLowerCase())]?.symbol || "Stable";
-
-      const uShares = BigInt(userShares.toString());
-      const tShares = BigInt(shares.toString());
-      const rA = BigInt(resA.toString());
-      const rB = BigInt(resB.toString());
-
-      let userStableAmount = "0.00";
-      let userAaaAmount = "0.00";
-
-      if (tShares > 0n && uShares > 0n) {
-        const userShareA = (uShares * rA) / tShares;
-        const userShareB = (uShares * rB) / tShares;
-        
-        userStableAmount = parseFloat(formatUnits(userShareA, decimalsA)).toFixed(decimalsA === 8 ? 4 : 2);
-        userAaaAmount = parseFloat(formatUnits(userShareB, decimalsB)).toFixed(decimalsB === 8 ? 4 : 2);
-      }
-
-      setPoolReserves({
-        stableAmount: isAStableOrBTC ? formattedResA : formattedResB,
-        aaaAmount: isAStableOrBTC ? formattedResB : formattedResA,
-        stableSymbol: stableSymbol,
-        totalShares: shares.toString()
-      });
-
-      setUserPoolBalances({
-        stableAmount: isAStableOrBTC ? userStableAmount : userAaaAmount,
-        aaaAmount: isAStableOrBTC ? userAaaAmount : userStableAmount,
-        stableSymbol: stableSymbol
-      });
-
-    } catch (err) {
-      try {
-        const oldABI = [
-          "function reserveUSDC() view returns (uint256)",
-          "function reserveAAA() view returns (uint256)",
-          "function totalShares() view returns (uint256)",
-          "function lpShares(address) view returns (uint256)"
-        ];
-        const oldContract = new ethers.Contract(activePool, oldABI, provider);
-        const [resUSDC, resAAA, shares, userShares] = await Promise.all([
-          oldContract.reserveUSDC(),
-          oldContract.reserveAAA(),
-          oldContract.totalShares(),
-          oldContract.lpShares(account)
-        ]);
-
-        const uShares = BigInt(userShares.toString());
-        const tShares = BigInt(shares.toString());
-        const rUSDC = BigInt(resUSDC.toString());
-        const rAAA = BigInt(resAAA.toString());
-
-        let userStableAmount = "0.00";
-        let userAaaAmount = "0.00";
-
-        if (tShares > 0n && uShares > 0n) {
-          const userShareUSDC = (uShares * rUSDC) / tShares;
-          const userShareAAA = (uShares * rAAA) / tShares;
-          
-          userStableAmount = parseFloat(formatUnits(userShareUSDC, 6)).toFixed(2);
-          userAaaAmount = parseFloat(formatUnits(userShareAAA, 18)).toFixed(2);
-        }
-
-        setPoolReserves({
-          stableAmount: parseFloat(formatUnits(resUSDC, 6)).toFixed(2),
-          aaaAmount: parseFloat(formatUnits(resAAA, 18)).toFixed(2),
-          stableSymbol: "USDC",
-          totalShares: shares.toString()
-        });
-
-        setUserPoolBalances({
-          stableAmount: userStableAmount,
-          aaaAmount: userAaaAmount,
-          stableSymbol: "USDC"
-        });
-      } catch (oldErr) {
-        console.warn("Havuz rezervleri alınamadı:", oldErr);
-      }
-    }
+  const handleFocus = (val, setter) => () => {
+    if (val === "0" || val === "0.0" || val === "0.00") setter("");
   };
 
-  const fetchSavingsData = async () => {
-    if (!provider || !account || SAKUSD_MINTER_ADDRESS === ZERO_ADDRESS) return;
-    try {
-      const minterABI = [
-        {
-          "inputs": [{"name": "", "type": "address"}],
-          "name": "stakedBalance",
-          "outputs": [{"name": "", "type": "uint256"}],
-          "stateMutability": "view",
-          "type": "function"
-        },
-        {
-          "inputs": [{"name": "user", "type": "address"}],
-          "name": "calculatePendingRewards",
-          "outputs": [{"name": "", "type": "uint256"}],
-          "stateMutability": "view",
-          "type": "function"
-        },
-        {
-          "inputs": [{"name": "user", "type": "address"}],
-          "name": "getUnstakeRequests",
-          "outputs": [
-            {
-              "components": [
-                {"name": "amount", "type": "uint256"},
-                {"name": "releaseTime", "type": "uint256"}
-              ],
-              "name": "",
-              "type": "tuple[]"
-            }
-          ],
-          "stateMutability": "view",
-          "type": "function"
-        }
-      ];
-      
-      const contract = new ethers.Contract(SAKUSD_MINTER_ADDRESS, minterABI, provider);
-      
-      const [staked, pending, reqs] = await Promise.all([
-        contract.stakedBalance(account),
-        contract.calculatePendingRewards(account),
-        contract.getUnstakeRequests(account)
-      ]);
-
-      const requestsMapped = Array.from(reqs).map((r, i) => {
-        const amountVal = r.amount !== undefined ? r.amount : r[0];
-        const releaseVal = r.releaseTime !== undefined ? r.releaseTime : r[1];
-        return {
-          index: i,
-          amount: parseFloat(formatUnits(amountVal, 18)).toFixed(2),
-          releaseTime: Number(releaseVal)
-        };
-      });
-
-      setSavingsData({
-        staked: parseFloat(formatUnits(staked, 18)).toFixed(2),
-        pendingRewards: parseFloat(formatUnits(pending, 18)).toFixed(4),
-        requests: requestsMapped
-      });
-    } catch (err) {
-      console.warn("Tasarruf bilgileri alınamadı:", err);
-    }
+  const handleBlur = (val, setter) => () => {
+    if (val === "" || isNaN(val)) setter("0");
   };
 
-// SƏSSİZ VƏ AVTOMATİK YÖNETİCİ (EXACT APPROVAL + 5% FEE BUFFER + GAS LIMITS + AAVE V3 BORROW/REPAY)
+  // Ana işlem fonksiyonu
   const handleAction = async (type, payload = null) => {
     const config = getActiveNetworkConfig(chainId);
     setTxLoading(true);
-    // Əgər istifadəçi bizim siyahıdakı 8 şəbəkədən kənar bir yerdədirsə, Arc-a keçid təklif edirik
+
     if (!NETWORKS[chainId]) {
       await switchNetwork(5042002);
       setTxLoading(false);
       return;
     }
+
     try {
-      const signer = await getSignerInstance(provider);
+      const signer = await getSigner();
 
-if (type === "swap") {
-        // 1. Şəbəkə yoxlanışını birbaşa ən başa qoyuruq (Mükəmməl UX)
+      // SWAP
+      if (type === "swap") {
         if (chainId !== 5042002) {
-          alert("Swap əməliyyatı yalnız Arc Testnet şəbəkəsində aktivdir. Lütfen Arc Testnet-ə keçin.");
-          await switchNetwork(5042002);
-          setTxLoading(false);
-          return;
+          alert("Swap yalniz Arc Testnet'de aktiftir.");
+          await switchNetwork(5042002); setTxLoading(false); return;
         }
-
-        // 2. Digər dəyişənlər dərhal ondan sonra gəlir
         const activePool = getPoolAddress(fromToken, toToken);
         const tokenInObj = config.tokens[fromToken];
         const amountInParsed = parseUnits(amountIn, tokenInObj.decimals); 
-
-        // 0.3% komissiya və sürüşmələr üçün 5% təhlükəsizlik buferi əlavə edirik (1.05 qatı)
         const amountInWithBuffer = (BigInt(amountInParsed.toString()) * 105n) / 100n;
 
-        const erc20ABI = [
-          "function allowance(address owner, address spender) view returns (uint256)",
-          "function approve(address spender, uint256 amount) returns (bool)"
-        ];
+        const erc20ABI = ["function allowance(address owner, address spender) view returns (uint256)", "function approve(address spender, uint256 amount) returns (bool)"];
         const tokenInContract = new ethers.Contract(tokenInObj.address, erc20ABI, signer);
         const currentAllowance = await tokenInContract.allowance(account, activePool);
-        
-        // Əgər limit yetərsizdirsə, səssizcə Approve edirik (HEÇ BİR brauzer alert-i çıxmadan!)
+
         if (isLessThan(currentAllowance, amountInParsed)) { 
-          const approveTx = await tokenInContract.approve(activePool, amountInWithBuffer, {
-            gasLimit: 800000
-          });
+          const approveTx = await tokenInContract.approve(activePool, amountInWithBuffer, { gasLimit: 800000 });
           await approveTx.wait();
         }
 
         const poolABI = ["function swap(address tokenIn, uint256 amountIn) external returns (uint256)"];
         const poolContract = new ethers.Contract(activePool, poolABI, signer);
-        
-        const swapTx = await poolContract.swap(tokenInObj.address, amountInParsed, {
-          gasLimit: 1000000
-        });
+        const swapTx = await poolContract.swap(tokenInObj.address, amountInParsed, { gasLimit: 1000000 });
         await swapTx.wait();
-        
-        alert("Swap əməliyyatı uğurla tamamlandı!");
+
+        alert("Swap basariyla tamamlandi!");
         setSpPoints(prev => prev + 50);
-        await fetchBalances();
-        await fetchPoolReserves();
+        await fetchBalances(); await fetchPoolReserves(activePoolType, fromToken, toToken, activeTab);
       }
 
+      // ADD LIQUIDITY
       if (type === "add_lp") {
         const activePool = getPoolAddress(activePoolType, "AAA");
         if (!lpUSDC || !lpAAA || parseFloat(lpUSDC) <= 0 || parseFloat(lpAAA) <= 0) {
-          alert("Lütfen her iki miktar alanını da doldurun.");
-          setTxLoading(false);
-          return;
+          alert("Lutfen her iki miktar alanini da doldurun."); setTxLoading(false); return;
         }
-
         const stableTokenObj = config.tokens[activePoolType];
         const stableParsed = parseUnits(lpUSDC, stableTokenObj.decimals);
         const aaaParsed = parseUnits(lpAAA, 18);
 
-        const erc20ABI = [
-          "function allowance(address owner, address spender) view returns (uint256)",
-          "function approve(address spender, uint256 amount) returns (bool)"
-        ];
+        const erc20ABI = ["function allowance(address owner, address spender) view returns (uint256)", "function approve(address spender, uint256 amount) returns (bool)"];
         const stableContract = new ethers.Contract(stableTokenObj.address, erc20ABI, signer);
         const aaaContract = new ethers.Contract(config.tokens.AAA.address, erc20ABI, signer);
 
@@ -723,7 +185,6 @@ if (type === "swap") {
           const txApp = await stableContract.approve(activePool, stableBuffer, { gasLimit: 800000 });
           await txApp.wait();
         }
-
         const allowanceAAA = await aaaContract.allowance(account, activePool);
         if (isLessThan(allowanceAAA, aaaParsed)) {
           const txApp = await aaaContract.approve(activePool, aaaBuffer, { gasLimit: 800000 });
@@ -734,1132 +195,331 @@ if (type === "swap") {
           "function tokenA() view returns (address)",
           "function addLiquidity(uint256 amountA, uint256 amountB) external returns (uint256)"
         ], signer);
-
         let lpTx = await poolContract.addLiquidity(stableParsed, aaaParsed, { gasLimit: 1000000 });
         await lpTx.wait();
-        
-        alert("Likidite başarıyla eklendi!");
+
+        alert("Likidite eklendi!");
         setSpPoints(prev => prev + 150);
-        await fetchBalances();
-        await fetchPoolReserves();
+        await fetchBalances(); await fetchPoolReserves(activePoolType, fromToken, toToken, activeTab);
       }
 
+      // MINT SAKUSD
       if (type === "mint_sakusd") {
         if (!mintAmount || isNaN(mintAmount) || parseFloat(mintAmount) <= 0) {
-          alert("Gecersiz miktar.");
-          setTxLoading(false);
-          return;
+          alert("Gecersiz miktar."); setTxLoading(false); return;
         }
-
         const collateralObj = config.tokens[mintCollateral];
         const amountInParsed = parseUnits(mintAmount, collateralObj.decimals);
-
-        const erc20ABI = [
-          "function allowance(address owner, address spender) view returns (uint256)",
-          "function approve(address spender, uint256 amount) returns (bool)"
-        ];
+        const erc20ABI = ["function allowance(address owner, address spender) view returns (uint256)", "function approve(address spender, uint256 amount) returns (bool)"];
         const collateralContract = new ethers.Contract(collateralObj.address, erc20ABI, signer);
-        
         const amountWithBuffer = (BigInt(amountInParsed.toString()) * 101n) / 100n;
         const currentAllowance = await collateralContract.allowance(account, config.minterAddress);
-
         if (isLessThan(currentAllowance, amountInParsed)) {
           const appTx = await collateralContract.approve(config.minterAddress, amountWithBuffer, { gasLimit: 800000 });
           await appTx.wait();
         }
-
         const minterContract = new ethers.Contract(config.minterAddress, ["function mint(address collateralToken, uint256 amountIn) external"], signer);
         const mintTx = await minterContract.mint(collateralObj.address, amountInParsed, { gasLimit: 1000000 });
         await mintTx.wait();
-
-        alert("sakUSD başarıyla basıldı!");
+        alert("sakUSD basildi!");
         setSpPoints(prev => prev + 100);
         await fetchBalances();
       }
 
+      // REDEEM SAKUSD
       if (type === "redeem_sakusd") {
         if (!redeemAmount || isNaN(redeemAmount) || parseFloat(redeemAmount) <= 0) {
-          alert("Gecersiz miktar.");
-          setTxLoading(false);
-          return;
+          alert("Gecersiz miktar."); setTxLoading(false); return;
         }
-
         const collateralObj = config.tokens[mintCollateral];
         const amountToBurnParsed = parseUnits(redeemAmount, 18); 
-
-        const erc20ABI = [
-          "function allowance(address owner, address spender) view returns (uint256)",
-          "function approve(address spender, uint256 amount) returns (bool)"
-        ];
+        const erc20ABI = ["function allowance(address owner, address spender) view returns (uint256)", "function approve(address spender, uint256 amount) returns (bool)"];
         const sakusdContract = new ethers.Contract(config.tokens.sakUSD.address, erc20ABI, signer);
         const currentAllowance = await sakusdContract.allowance(account, config.minterAddress);
         const burnWithBuffer = (BigInt(amountToBurnParsed.toString()) * 101n) / 100n;
-
         if (isLessThan(currentAllowance, amountToBurnParsed)) {
           const appTx = await sakusdContract.approve(config.minterAddress, burnWithBuffer, { gasLimit: 800000 });
           await appTx.wait();
         }
-
         const minterContract = new ethers.Contract(config.minterAddress, ["function redeem(address collateralToken, uint256 sakUSDAmount) external"], signer);
         const redeemTx = await minterContract.redeem(collateralObj.address, amountToBurnParsed, { gasLimit: 1000000 });
         await redeemTx.wait();
-
-        alert("Teminat başarıyla geri alındı!");
+        alert("Teminat geri alindi!");
         await fetchBalances();
       }
 
-      // --- AAVE V3 LENDING & BORROWING AMELIYYATLARI (YENİ) ---
-      
+      // SEND TOKEN
+      if (type === "send_token") {
+        if (!sendRecipient || !sendAmount || parseFloat(sendAmount) <= 0) {
+          alert("Lutfen alici adresi ve miktar girin."); setTxLoading(false); return;
+        }
+        const tokenObj = config.tokens[sendToken];
+        const amountParsed = parseUnits(sendAmount, tokenObj.decimals);
+        const erc20ABI = ["function transfer(address to, uint256 amount) returns (bool)"];
+        const tokenContract = new ethers.Contract(tokenObj.address, erc20ABI, signer);
+        const tx = await tokenContract.transfer(sendRecipient, amountParsed, { gasLimit: 100000 });
+        await tx.wait();
+        alert(`${sendAmount} ${sendToken} gonderildi!`);
+        setSendAmount("0"); setSendRecipient("");
+        await fetchBalances();
+      }
+
+      // STAKE
+      if (type === "stake_sakusd") {
+        if (!stakeAmountInput || isNaN(stakeAmountInput) || parseFloat(stakeAmountInput) <= 0) {
+          alert("Gecersiz miktar."); setTxLoading(false); return;
+        }
+        const amountParsed = parseUnits(stakeAmountInput, 18);
+        const erc20ABI = ["function allowance(address owner, address spender) view returns (uint256)", "function approve(address spender, uint256 amount) returns (bool)"];
+        const sakusdContract = new ethers.Contract(config.tokens.sakUSD.address, erc20ABI, signer);
+        const currentAllowance = await sakusdContract.allowance(account, config.minterAddress);
+        const stakeWithBuffer = (BigInt(amountParsed.toString()) * 101n) / 100n;
+        if (isLessThan(currentAllowance, amountParsed)) {
+          const appTx = await sakusdContract.approve(config.minterAddress, stakeWithBuffer, { gasLimit: 800000 });
+          await appTx.wait();
+        }
+        const minterContract = new ethers.Contract(config.minterAddress, ["function stake(uint256 amount) external"], signer);
+        const stakeTx = await minterContract.stake(amountParsed, { gasLimit: 1000000 });
+        await stakeTx.wait();
+        alert("sakUSD stake edildi!");
+        setStakeAmountInput("0");
+        await fetchBalances(); await fetchSavingsData();
+      }
+
+      // REQUEST UNSTAKE
+      if (type === "request_unstake") {
+        if (!unstakeAmountInput || isNaN(unstakeAmountInput) || parseFloat(unstakeAmountInput) <= 0) {
+          alert("Gecersiz miktar."); setTxLoading(false); return;
+        }
+        const amountParsed = parseUnits(unstakeAmountInput, 18);
+        const minterContract = new ethers.Contract(config.minterAddress, ["function requestUnstake(uint256 amount) external"], signer);
+        const unstakeTx = await minterContract.requestUnstake(amountParsed, { gasLimit: 1000000 });
+        await unstakeTx.wait();
+        alert("Geri cekim talebi olusturuldu! 14 gun sonra cekebilirsiniz.");
+        setUnstakeAmountInput("0");
+        await fetchSavingsData();
+      }
+
+      // CLAIM REWARDS
+      if (type === "claim_rewards") {
+        const minterContract = new ethers.Contract(config.minterAddress, ["function claimRewards() external"], signer);
+        const claimTx = await minterContract.claimRewards({ gasLimit: 1000000 });
+        await claimTx.wait();
+        alert("Oduller talep edildi!");
+        await fetchBalances(); await fetchSavingsData();
+      }
+
+      // CLAIM UNSTAKED
+      if (type === "claim_unstaked_req") {
+        const requestIndex = payload;
+        const minterContract = new ethers.Contract(config.minterAddress, ["function claimUnstaked(uint256 requestIndex) external"], signer);
+        const claimTx = await minterContract.claimUnstaked(requestIndex, { gasLimit: 1000000 });
+        await claimTx.wait();
+        alert("Geri cekim tamamlandi!");
+        await fetchSavingsData();
+      }
+
+      // AAVE SUPPLY
       if (type === "aave_supply") {
-        if (config.aavePoolAddress === ZERO_ADDRESS) {
-          alert("Bu şəbəkədə Aave V3 dəstəklənmir.");
-          setTxLoading(false);
-          return;
+        if (!config.isAaveSupported) {
+          alert("Bu sebekede Aave V3 desteklenmiyor."); setTxLoading(false); return;
+        }
+        if (!AAVE_SUPPORTED_TOKENS.includes(collateralToken)) {
+          alert(`Aave V3 sadece su token'lari destekler: ${AAVE_SUPPORTED_TOKENS.join(", ")}`);
+          setTxLoading(false); return;
         }
         const collatObj = config.tokens[collateralToken];
         const amountParsed = parseUnits(supplyAmount, collatObj.decimals);
-
-        const erc20ABI = [
-          "function allowance(address owner, address spender) view returns (uint256)",
-          "function approve(address spender, uint256 amount) returns (bool)"
-        ];
+        const erc20ABI = ["function allowance(address owner, address spender) view returns (uint256)", "function approve(address spender, uint256 amount) returns (bool)"];
         const tokenContract = new ethers.Contract(collatObj.address, erc20ABI, signer);
         const currentAllowance = await tokenContract.allowance(account, config.aavePoolAddress);
-        const supplyWithBuffer = (BigInt(amountParsed.toString()) * 101n) / 100n;
-
-        // Səssiz Təsdiq
         if (isLessThan(currentAllowance, amountParsed)) {
           const appTx = await tokenContract.approve(config.aavePoolAddress, MAX_UINT256, { gasLimit: 800000 });
           await appTx.wait();
-          
-          // RPC-nin limiti on-chain-də qeydə alması üçün 5 saniyə səssizcə gözləyirik (YENİ ⚡)
           await new Promise(resolve => setTimeout(resolve, 5000));
         }
-
         const aavePoolABI = ["function supply(address asset, uint256 amount, address onBehalfOf, uint16 referralCode) external"];
         const poolContract = new ethers.Contract(config.aavePoolAddress, aavePoolABI, signer);
-        
         const tx = await poolContract.supply(collatObj.address, amountParsed, account, 0, { gasLimit: 1000000 });
         await tx.wait();
-
-        alert("Girov uğurla Aave platformasına yerləşdirildi!");
+        alert("Girov Aave'ye yerlestirildi!");
         setSupplyAmount("0");
         await fetchBalances();
       }
 
+      // AAVE BORROW
       if (type === "aave_borrow") {
-        if (config.aavePoolAddress === ZERO_ADDRESS) {
-          alert("Bu şəbəkədə Aave V3 dəstəklənmir.");
-          setTxLoading(false);
-          return;
+        if (!config.isAaveSupported) {
+          alert("Bu sebekede Aave V3 desteklenmiyor."); setTxLoading(false); return;
+        }
+        if (!AAVE_SUPPORTED_TOKENS.includes(lendingToken)) {
+          alert(`Aave V3 sadece su token'lari destekler: ${AAVE_SUPPORTED_TOKENS.join(", ")}`);
+          setTxLoading(false); return;
         }
         const loanObj = config.tokens[lendingToken];
         const amountParsed = parseUnits(borrowAmount, loanObj.decimals);
-
         const aavePoolABI = ["function borrow(address asset, uint256 amount, uint256 interestRateMode, uint16 referralCode, address onBehalfOf) external"];
         const poolContract = new ethers.Contract(config.aavePoolAddress, aavePoolABI, signer);
-
         const tx = await poolContract.borrow(loanObj.address, amountParsed, 2, 0, account, { gasLimit: 1200000 });
         await tx.wait();
-
-        alert("USDC borc alma əməliyyatı uğurla tamamlandı!");
+        alert("Borc alma tamamlandi!");
         setBorrowAmount("0");
         await fetchBalances();
       }
 
-if (type === "aave_repay") {
-        if (config.aavePoolAddress === ZERO_ADDRESS) {
-          alert("Bu şəbəkədə Aave V3 dəstəklənmir.");
-          setTxLoading(false);
-          return;
+      // AAVE REPAY
+      if (type === "aave_repay") {
+        if (!config.isAaveSupported) {
+          alert("Bu sebekede Aave V3 desteklenmiyor."); setTxLoading(false); return;
+        }
+        if (!AAVE_SUPPORTED_TOKENS.includes(lendingToken)) {
+          alert(`Aave V3 sadece su token'lari destekler: ${AAVE_SUPPORTED_TOKENS.join(", ")}`);
+          setTxLoading(false); return;
         }
         const loanObj = config.tokens[lendingToken];
         const amountParsed = parseUnits(repayAmount, loanObj.decimals);
-
-        const erc20ABI = [
-          "function allowance(address owner, address spender) view returns (uint256)",
-          "function approve(address spender, uint256 amount) returns (bool)"
-        ];
+        const erc20ABI = ["function allowance(address owner, address spender) view returns (uint256)", "function approve(address spender, uint256 amount) returns (bool)"];
         const tokenContract = new ethers.Contract(loanObj.address, erc20ABI, signer);
         const currentAllowance = await tokenContract.allowance(account, config.aavePoolAddress);
-        const repayWithBuffer = (BigInt(amountParsed.toString()) * 101n) / 100n;
-
-        // Səssiz Təsdiq
         if (isLessThan(currentAllowance, amountParsed)) {
           const appTx = await tokenContract.approve(config.aavePoolAddress, MAX_UINT256, { gasLimit: 800000 });
           await appTx.wait();
-          
-          // RPC sinxronizasiyası üçün 5 saniyə səssizcə gözləyirik (YENİ ⚡)
           await new Promise(resolve => setTimeout(resolve, 5000));
         }
-
         const aavePoolABI = ["function repay(address asset, uint256 amount, uint256 interestRateMode, address onBehalfOf) external returns (uint256)"];
         const poolContract = new ethers.Contract(config.aavePoolAddress, aavePoolABI, signer);
-
         const tx = await poolContract.repay(loanObj.address, amountParsed, 2, account, { gasLimit: 1000000 });
         await tx.wait();
-
-        alert("Borcunuz rəsmi olaraq geri ödənildi!");
+        alert("Borc odendi!");
         setRepayAmount("0");
         await fetchBalances();
       }
 
     } catch (err) {
       console.error(err);
-      alert(`İşlem sırasında bir hata oluştu: ${err.reason || err.message || err}`);
+      alert(`Islem sirasinda hata: ${err.reason || err.message || err}`);
     }
     setTxLoading(false);
   };
 
+  // Faucet fonksiyonu
   const handleFaucet = async (tokenSymbol) => {
     if (tokenSymbol === "USDC" || tokenSymbol === "EURC" || tokenSymbol === "cirBTC") {
-      window.open("https://faucet.circle.com/", "_blank");
-      return;
+      window.open("https://faucet.circle.com/", "_blank"); return;
     }
-
     if (chainId !== ARC_CHAIN_ID || !provider || !account) {
-      alert("Lütfen cüzdanınızı bağlayın ve Arc Testnet ağına geçin.");
-      return;
+      alert("Lutfen cuzdaninizi baglayin ve Arc Testnet'e gecin."); return;
     }
-
     setTxLoading(true);
     try {
-      const signer = await getSignerInstance(provider);
-      
+      const signer = await getSigner();
       if (tokenSymbol === "AAA") {
         const aaaABI = ["function mint(address to, uint256 amount) external"];
-        const aaaContract = new ethers.Contract(USER_CUSTOM_TOKEN_ADDRESS, aaaABI, signer);
-        
-        const tx = await aaaContract.mint(account, parseUnits("10", 18), {
-          gasLimit: 1000000
-        });
+        const aaaContract = new ethers.Contract(ARC_ADDRESSES.AAA, aaaABI, signer);
+        const tx = await aaaContract.mint(account, parseUnits("10", 18), { gasLimit: 1000000 });
         await tx.wait();
-        alert("10 AAA token cüzdanınıza başarıyla aktarıldı!");
+        alert("10 AAA token aktarildi!");
         await fetchBalances();
       }
     } catch (err) {
-      console.error("Faucet hatası:", err);
-      alert("Faucet işlemi başarıısız oldu. AAA token kontratının yetkili cüzdanında (owner) olduğunuzdan emin olun.");
+      console.error("Faucet hatasi:", err);
+      alert("Faucet basarisiz. Owner yetkisini kontrol edin.");
     }
     setTxLoading(false);
   };
 
-  const handlePercentClick = (percent, balance, decimals, setter) => {
-    if (!balance || isNaN(balance)) return;
-    const bal = parseFloat(balance);
-    if (bal <= 0) return;
-    const calculatedAmount = (bal * percent) / 100;
-    setter(calculatedAmount.toFixed(decimals === 8 ? 6 : 4));
-  };
+  // Aktif sekmeyi render et
+  const renderTab = () => {
+    const commonProps = {
+      tokens, balances, handleAction, txLoading,
+      handleNumberInput, handleFocus, handleBlur
+    };
 
-  const handleNumberInput = (setter) => (e) => {
-    let val = e.target.value;
-    if (val.startsWith("0") && val.length > 1 && val[1] !== ".") {
-      val = val.slice(1);
+    switch (activeTab) {
+      case "swap":
+        return (
+          <SwapTab {...commonProps} provider={provider} chainId={chainId}
+            fromToken={fromToken} setFromToken={setFromToken}
+            toToken={toToken} setToToken={setToToken}
+            amountIn={amountIn} setAmountIn={setAmountIn}
+            amountOut={amountOut} setAmountOut={setAmountOut}
+            handlePercentClick={handlePercentClick}
+          />
+        );
+      case "pool":
+        return (
+          <PoolTab {...commonProps}
+            poolReserves={poolReserves} userPoolBalances={userPoolBalances}
+            activePoolType={activePoolType} setActivePoolType={setActivePoolType}
+            lpUSDC={lpUSDC} setLpUSDC={setLpUSDC}
+            lpAAA={lpAAA} setLpAAA={setLpAAA}
+          />
+        );
+      case "mint":
+        return (
+          <MintTab {...commonProps}
+            mintCollateral={mintCollateral} setMintCollateral={setMintCollateral}
+            mintAmount={mintAmount} setMintAmount={setMintAmount}
+            redeemAmount={redeemAmount} setRedeemAmount={setRedeemAmount}
+          />
+        );
+      case "savings":
+        return (
+          <SavingsTab {...commonProps}
+            savingsData={savingsData}
+            stakeAmountInput={stakeAmountInput} setStakeAmountInput={setStakeAmountInput}
+            unstakeAmountInput={unstakeAmountInput} setUnstakeAmountInput={setUnstakeAmountInput}
+          />
+        );
+      case "send":
+        return (
+          <SendTab {...commonProps}
+            sendToken={sendToken} setSendToken={setSendToken}
+            sendRecipient={sendRecipient} setSendRecipient={setSendRecipient}
+            sendAmount={sendAmount} setSendAmount={setSendAmount}
+          />
+        );
+      case "lending":
+        return (
+          <LendingTab {...commonProps}
+            lendingToken={lendingToken} setLendingToken={setLendingToken}
+            collateralToken={collateralToken} setCollateralToken={setCollateralToken}
+            supplyAmount={supplyAmount} setSupplyAmount={setSupplyAmount}
+            borrowAmount={borrowAmount} setBorrowAmount={setBorrowAmount}
+            repayAmount={repayAmount} setRepayAmount={setRepayAmount}
+          />
+        );
+      case "faucet":
+        return <FaucetTab handleFaucet={handleFaucet} txLoading={txLoading} />;
+      default:
+        return <SwapTab {...commonProps} />;
     }
-    setter(val);
   };
-
-  const handleFocus = (val, setter) => () => {
-    if (val === "0" || val === "0.0" || val === "0.00") {
-      setter("");
-    }
-  };
-
-  const handleBlur = (val, setter) => () => {
-    if (val === "" || isNaN(val)) {
-      setter("0");
-    }
-  };
-
-  const activeStableSymbol = activePoolType;
 
   return (
     <div className="min-h-screen flex flex-col justify-between bg-[#0b0914] text-[#f3f4f6]">
-      <header className="border-b border-gray-800 bg-[#0d0b1a] px-6 py-4 flex flex-col md:flex-row items-center justify-between gap-4">
-        {/* Sol: Logo */}
-        <div className="flex items-center space-x-3 shrink-0">
-          <span className="text-2xl font-bold bg-gradient-to-r from-violet-400 to-indigo-400 bg-clip-text text-transparent">
-            ArcSakasena
-          </span>
-          <span className="text-xs bg-indigo-900 text-indigo-200 px-2.5 py-0.5 rounded-full font-semibold">
-            Arc Chain L1
-          </span>
-        </div>
-        
-{/* Orta: Navbar Navigasyon Tabları (Lending Əlavə Edildi) */}
-        <div className="grid grid-cols-3 md:flex bg-[#100e1f] p-1 rounded-xl border border-gray-800 shrink-0 w-full md:w-auto max-w-sm md:max-w-none">
-          {["swap", "pool", "mint", "savings", "lending", "send", "faucet"].map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-3.5 py-1.5 rounded-lg text-xs md:text-sm font-semibold capitalize transition ${
-                activeTab === tab 
-                  ? "bg-violet-900 text-white shadow-md shadow-violet-900/30" 
-                  : "text-gray-400 hover:text-gray-200"
-              }`}
-            >
-              {tab === "pool" ? "Liquidity" : (
-                tab === "mint" ? "Mint SakUSD" : (
-                  tab === "savings" ? "Savings" : (
-                    tab === "send" ? "Send" : (
-                      tab === "lending" ? "Borrow & Repay" : tab
-                    )
-                  )
-                )
-              )}
-            </button>
-          ))}
-        </div>
-        
-{/* Sağ: Çoxlu Zincir Seçicisi, Göstergeler ve Bağlantı */}
-        <div className="flex items-center space-x-3 shrink-0">
-          {account && (
-            <div className="hidden md:flex items-center space-x-2 bg-gray-900 px-3 py-1.5 rounded-lg text-sm border border-gray-800">
-              <span className="text-violet-400 font-bold">💎 {spPoints} SP</span>
-              <span className="text-gray-500">|</span>
-              <span className="text-gray-300">Gas (USDC): {balances.USDC || "0.00"}</span>
-            </div>
-          )}
-          
-          {/* Şəbəkə Seçim Dropdown Menyusu */}
-          {account && (
-            <select
-              value={chainId || 5042002}
-              onChange={(e) => switchNetwork(Number(e.target.value))}
-              className="bg-[#100e1f] text-white px-3.5 py-2 rounded-xl text-xs font-semibold border border-gray-800 focus:outline-none focus:border-violet-600 transition"
-            >
-              {Object.keys(NETWORKS).map((id) => (
-                <option key={id} value={id}>
-                  🌐 {NETWORKS[id].name}
-                </option>
-              ))}
-            </select>
-          )}
+      <Header 
+        account={account} chainId={chainId} spPoints={spPoints} balances={balances}
+        connectWallet={connectWallet} switchNetwork={switchNetwork}
+        activeTab={activeTab} setActiveTab={setActiveTab}
+      />
 
-          {account ? (
-            <button 
-              onClick={() => switchNetwork(chainId)}
-              className={`px-4 py-2 rounded-xl text-sm font-semibold transition ${
-                NETWORKS[chainId] 
-                  ? "bg-emerald-950 text-emerald-400 border border-emerald-800" 
-                  : "bg-rose-950 text-rose-400 border border-rose-800 animate-pulse"
-              }`}
-            >
-              {NETWORKS[chainId] ? "Connected" : "Wrong Network"}
-            </button>
-          ) : (
-            <button 
-              onClick={connectWallet}
-              className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white px-5 py-2 rounded-xl text-sm font-semibold shadow-lg transition"
-            >
-              Connect Wallet
-            </button>
-          )}
-        </div>
-      </header>
-
-     <main className="flex-grow max-w-4xl w-full mx-auto px-4 py-10">
-        
-        {account && chainId === ARC_CHAIN_ID && (
-          <div className="mb-6 p-5 rounded-2xl bg-gradient-to-r from-indigo-950 to-[#121024] border border-violet-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-xl">
-            <div className="w-full md:w-auto">
-              <span className="text-xs font-semibold uppercase tracking-wider text-violet-400 font-medium">Your Deployed Custom Token</span>
-              <h3 className="text-xl font-bold text-white mt-1 flex items-center gap-2">
-                🪙 {tokens.AAA.name} ({tokens.AAA.symbol})
-              </h3>
-              <p className="text-xs text-gray-400 mt-1">Volatile Asset • Price: $5.40 • <span className="text-emerald-400 font-semibold">1,300+ Active Holders on Arcscan</span></p>
-              
-              {/* Adres Kopyalama Alanı */}
-              <div className="relative mt-3 flex items-center bg-[#1b173c]/50 p-2.5 pr-12 rounded-xl border border-gray-800 w-full max-w-full overflow-hidden group">
-                <span className="text-xs text-gray-300 font-mono break-all select-all flex-grow">
-                  {USER_CUSTOM_TOKEN_ADDRESS}
-                </span>
-
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    navigator.clipboard.writeText(USER_CUSTOM_TOKEN_ADDRESS);
-                    alert("AAA Kontrat Adresi başarıyla kopyalandı!");
-                  }}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-violet-400 transition-colors p-2 z-10"
-                  title="Kontrat Adresini Kopyala"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                  </svg>
-                </button>
-              </div>
-            </div>
-            <div className="text-left md:text-right shrink-0">
-              <span className="text-xs text-gray-400 font-medium block">Your Balance</span>
-              <p className="text-2xl font-bold text-violet-300 mt-1">{balances.AAA} {tokens.AAA.symbol}</p>
-            </div>
-          </div>
-        )}
-
-        {/* İstatistik Kartları Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <div className="bg-[#121024] p-4 rounded-2xl border border-gray-800 text-center">
-            <p className="text-xs text-gray-400 mb-1">Total Value Locked</p>
-            <p className="text-lg font-bold text-white">$24,841,509</p>
-          </div>
-          <div className="bg-[#121024] p-4 rounded-2xl border border-gray-800 text-center">
-            <p className="text-xs text-gray-400 mb-1">24h Swap Volume</p>
-            <p className="text-lg font-bold text-white">$3,109,425</p>
-          </div>
-          <div className="bg-[#121024] p-4 rounded-2xl border border-gray-800 text-center">
-            <p className="text-xs text-gray-400 mb-1">My {userPoolBalances.stableSymbol || "Stable"} in Pool</p>
-            <p className="text-lg font-bold text-emerald-400">{userPoolBalances.stableAmount} {userPoolBalances.stableSymbol}</p>
-          </div>
-          <div className="bg-[#121024] p-4 rounded-2xl border border-gray-800 text-center">
-            <p className="text-xs text-gray-400 mb-1">My AAA in Pool</p>
-            <p className="text-lg font-bold text-indigo-300">{userPoolBalances.aaaAmount} {tokens.AAA.symbol}</p>
-          </div>
-        </div>
+      <main className="flex-grow max-w-4xl w-full mx-auto px-4 py-10">
+        <AAABanner account={account} chainId={chainId} balances={balances} tokens={tokens} />
+        <StatsCards userPoolBalances={userPoolBalances} tokens={tokens} />
 
         <div className="max-w-md mx-auto bg-[#13112a] rounded-3xl p-6 border border-gray-800 neon-glow shadow-2xl">
-          {activeTab === "swap" && (
-            <div>
-              <h2 className="text-xl font-bold mb-4 flex items-center justify-between">
-                <span>Multi-Asset Swap</span>
-                <span className="text-xs text-violet-400 bg-violet-950 px-2 py-1 rounded">Dynamic Price DEX</span>
-              </h2>
-
-              <div className="bg-[#1c183a] p-4 rounded-2xl mb-3 border border-gray-800 focus-within:border-violet-600 transition">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-xs text-gray-400 font-medium">From</span>
-                  <span className="text-xs text-gray-400">Balance: {balances[fromToken]}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <input 
-                    type="number" 
-                    placeholder="0" 
-                    value={amountIn}
-                    onFocus={handleFocus(amountIn, setAmountIn)}
-                    onBlur={handleBlur(amountIn, setAmountIn)}
-                    onChange={handleNumberInput(setAmountIn)}
-                    className="bg-transparent text-2xl font-bold focus:outline-none w-2/3 text-white"
-                  />
-                  <select 
-                    value={fromToken} 
-                    onChange={(e) => {
-                      setFromToken(e.target.value);
-                      if(e.target.value === toToken) setToToken(Object.keys(tokens).find(t => t !== e.target.value));
-                    }}
-                    className="bg-[#211e47] text-white px-3 py-1.5 rounded-xl font-semibold border border-gray-700 focus:outline-none"
-                  >
-                    {Object.keys(tokens).map(t => (
-                      <option key={t} value={t}>{tokens[t].icon} {tokens[t].symbol}</option>
-                    ))}
-                  </select>
-                </div>
-                
-                {/* Swap Yüzde Butonları */}
-                <div className="flex space-x-2 mt-3 pt-2 border-t border-[#2a2456]/40">
-                  {[25, 50, 75, 100].map(p => (
-                    <button
-                      key={p}
-                      onClick={() => handlePercentClick(p, balances[fromToken], tokens[fromToken].decimals, setAmountIn)}
-                      className="bg-[#211e47] hover:bg-violet-900 hover:text-white text-[10px] text-gray-400 font-bold px-3 py-1 rounded-lg transition"
-                    >
-                      {p === 100 ? "MAX" : `${p}%`}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex justify-center my-2">
-                <button 
-                  onClick={() => {
-                    const temp = fromToken;
-                    setFromToken(toToken);
-                    setToToken(temp);
-                  }}
-                  className="bg-[#211e47] p-2.5 rounded-full hover:bg-violet-900 transition border border-gray-700"
-                >
-                  ⬇️
-                </button>
-              </div>
-
-              <div className="bg-[#1a1738] p-4 rounded-2xl mb-4 border border-gray-800">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-xs text-gray-400 font-medium">To (Estimated)</span>
-                  <span className="text-xs text-gray-400">Balance: {balances[toToken]}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <input 
-                    type="text" 
-                    placeholder="0" 
-                    value={amountOut}
-                    disabled
-                    className="bg-transparent text-2xl font-bold focus:outline-none w-2/3 text-white"
-                  />
-                  <select 
-                    value={toToken} 
-                    onChange={(e) => {
-                      setToToken(e.target.value);
-                      if(e.target.value === fromToken) setFromToken(Object.keys(tokens).find(t => t !== e.target.value));
-                    }}
-                    className="bg-[#211e47] text-white px-3 py-1.5 rounded-xl font-semibold border border-gray-700 focus:outline-none"
-                  >
-                    {Object.keys(tokens).map(t => (
-                      <option key={t} value={t}>{tokens[t].icon} {tokens[t].symbol}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="space-y-2 mb-6 text-sm text-gray-400 bg-[#100e21] p-3 rounded-xl border border-gray-900">
-                <div className="flex justify-between">
-                  <span>Exchange Rate:</span>
-                  <span className="text-white">
-                    1 {tokens[fromToken].symbol} ≈ {TOKEN_PRICES[fromToken] && TOKEN_PRICES[toToken] ? (TOKEN_PRICES[fromToken] / TOKEN_PRICES[toToken]).toFixed(4) : "0.999"} {tokens[toToken].symbol}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Price Impact / Slippage:</span>
-                  <span className="text-violet-400 font-medium">Dynamic vAMM (Uniswap V2)</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Swap Fee (0.3%):</span>
-                  <span className="text-white">{amountIn ? (parseFloat(amountIn) * 0.003).toFixed(4) : "0.00"} {tokens[fromToken].symbol}</span>
-                </div>
-              </div>
-
-              {account ? (
-                <button 
-                  onClick={() => handleAction("swap")}
-                  disabled={!amountIn || txLoading || amountOut === "Likidite Yetersiz" || amountOut === "Havuz Bulunamadı"}
-                  className="w-full py-4 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 font-bold transition shadow-lg text-white disabled:opacity-50"
-                >
-                  {txLoading ? "İşlem Gönderiliyor..." : "Swap Varlıklar"}
-                </button>
-              ) : (
-                <button 
-                  onClick={connectWallet}
-                  className="w-full py-4 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 font-bold text-white transition shadow-lg"
-                >
-                  Connect Wallet
-                </button>
-              )}
-            </div>
-          )}
-
-          {activeTab === "pool" && (
-            <div>
-              <h2 className="text-xl font-bold mb-2">Liquidity Provision</h2>
-              
-              {/* Havuz Seçici Toggle Butonları */}
-              <div className="flex space-x-2 bg-[#100e1f] p-1 rounded-xl mb-6 max-w-sm mx-auto border border-gray-800">
-                <button
-                  onClick={() => setActivePoolType("USDC")}
-                  className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition ${
-                    activePoolType === "USDC" ? "bg-violet-900 text-white" : "text-gray-400 hover:text-gray-200"
-                  }`}
-                >
-                  💵 USDC / AAA
-                </button>
-                <button
-                  onClick={() => setActivePoolType("EURC")}
-                  className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition ${
-                    activePoolType === "EURC" ? "bg-violet-900 text-white" : "text-gray-400 hover:text-gray-200"
-                  }`}
-                >
-                  💶 EURC / AAA
-                </button>
-                <button
-                  onClick={() => setActivePoolType("cirBTC")}
-                  className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition ${
-                    activePoolType === "cirBTC" ? "bg-violet-900 text-white" : "text-gray-400 hover:text-gray-200"
-                  }`}
-                >
-                  ₿ cirBTC / AAA
-                </button>
-              </div>
-
-              <p className="text-sm text-gray-400 mb-6 text-center">
-                Seçtiğiniz havuza doğrudan on-chain likidite ekleyin ve işlem ücretlerinden pay kazanın.
-              </p>
-
-              <div className="space-y-4 mb-6">
-                {/* LP STABLE GİRİŞ ALANI */}
-                <div className="bg-[#1c183a] p-4 rounded-2xl border border-gray-800 focus-within:border-violet-600 focus-within:shadow-[0_0_15px_rgba(139,92,246,0.25)] transition">
-                  <div className="flex justify-between text-xs text-gray-400 mb-2">
-                    <span>Add {activeStableSymbol}</span>
-                    <span>Balance: {balances[activeStableSymbol]}</span>
-                  </div>
-                  <input 
-                    type="number" 
-                    placeholder="0"
-                    value={lpUSDC}
-                    onFocus={handleFocus(lpUSDC, setLpUSDC)}
-                    onBlur={handleBlur(lpUSDC, setLpUSDC)}
-                    onChange={handleNumberInput(setLpUSDC)}
-                    className="bg-transparent text-xl font-bold focus:outline-none w-full text-white"
-                  />
-                  {/* Stable LP Yüzde Butonları */}
-                  <div className="flex space-x-2 mt-3 pt-2 border-t border-[#2a2456]/40">
-                    {[25, 50, 75, 100].map(p => (
-                      <button
-                        key={p}
-                        onClick={() => handlePercentClick(p, balances[activeStableSymbol], activeStableSymbol === "cirBTC" ? 8 : 6, setLpUSDC)}
-                        className="bg-[#211e47] hover:bg-violet-900 hover:text-white text-[10px] text-gray-400 font-bold px-3 py-1 rounded-lg transition"
-                      >
-                        {p === 100 ? "MAX" : `${p}%`}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* LP AAA GİRİŞ ALANI */}
-                <div className="bg-[#1c183a] p-4 rounded-2xl border border-gray-800 focus-within:border-violet-600 focus-within:shadow-[0_0_15px_rgba(139,92,246,0.25)] transition">
-                  <div className="flex justify-between text-xs text-gray-400 mb-2">
-                    <span>Add AAA Token</span>
-                    <span>Balance: {balances.AAA}</span>
-                  </div>
-                  <input 
-                    type="number" 
-                    placeholder="0"
-                    value={lpAAA}
-                    onFocus={handleFocus(lpAAA, setLpAAA)}
-                    onBlur={handleBlur(lpAAA, setLpAAA)}
-                    onChange={handleNumberInput(setLpAAA)}
-                    className="bg-transparent text-xl font-bold focus:outline-none w-full text-white"
-                  />
-                  {/* AAA LP Yüzde Butonları */}
-                  <div className="flex space-x-2 mt-3 pt-2 border-t border-[#2a2456]/40">
-                    {[25, 50, 75, 100].map(p => (
-                      <button
-                        key={p}
-                        onClick={() => handlePercentClick(p, balances.AAA, 18, setLpAAA)}
-                        className="bg-[#211e47] hover:bg-violet-900 hover:text-white text-[10px] text-gray-400 font-bold px-3 py-1 rounded-lg transition"
-                      >
-                        {p === 100 ? "MAX" : `${p}%`}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {account ? (
-                <button 
-                  onClick={() => handleAction("add_lp")}
-                  disabled={txLoading || parseFloat(lpUSDC) <= 0 || parseFloat(lpAAA) <= 0}
-                  className="w-full py-4 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 font-bold text-white transition shadow-lg disabled:opacity-50"
-                >
-                  {txLoading ? "İşlem Gönderiliyor..." : "Likidite Ekle (Add Liquidity)"}
-                </button>
-              ) : (
-                <button 
-                  onClick={connectWallet}
-                  className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 font-bold text-white transition"
-                >
-                  Connect Wallet
-                </button>
-              )}
-            </div>
-          )}
-
-          {activeTab === "mint" && (
-            <div>
-              <h2 className="text-xl font-bold mb-2">Multi-Collateral sakUSD</h2>
-              <p className="text-sm text-gray-400 mb-6">
-                USDC, EURC, USDT veya cirBTC teminatlarınızı kilitleyerek 1:1 veya BTC fiyat kurları üzerinden merkezsiz <strong>sakUSD</strong> basabilirsiniz.
-              </p>
-
-              <div className="bg-[#1a1738] p-4 rounded-2xl mb-4 border border-gray-800">
-                <label className="block text-xs text-gray-400 mb-2 font-medium">Teminat Varlığı Seçin (Collateral)</label>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold text-gray-300">Seçili Teminat Bakiyesi: {balances[mintCollateral]} {mintCollateral}</span>
-                  <select 
-                    value={mintCollateral} 
-                    onChange={(e) => setMintCollateral(e.target.value)}
-                    className="bg-[#211e47] text-white px-3 py-1.5 rounded-xl font-semibold border border-gray-700 focus:outline-none"
-                  >
-                    {["USDC", "EURC", "USDT", "cirBTC"].map(c => (
-                      <option key={c} value={c}>{tokens[c]?.icon} {c}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="space-y-4 mb-6">
-                {/* sakUSD MINT ETME GİRİŞ ALANI */}
-                <div className="bg-[#1c183a] p-4 rounded-2xl border border-gray-800 focus-within:border-violet-600 focus-within:shadow-[0_0_15px_rgba(139,92,246,0.25)] transition">
-                  <div className="flex justify-between text-xs text-gray-400 mb-2">
-                    <span>Mint sakUSD</span>
-                    <span>sakUSD Balance: {balances.sakUSD}</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <input 
-                      type="number" 
-                      placeholder="0"
-                      value={mintAmount}
-                      onFocus={handleFocus(mintAmount, setMintAmount)}
-                      onBlur={handleBlur(mintAmount, setMintAmount)}
-                      onChange={handleNumberInput(setMintAmount)}
-                      className="bg-transparent text-xl font-bold focus:outline-none w-full text-white"
-                    />
-                    <button 
-                      onClick={() => handleAction("mint_sakusd")}
-                      disabled={txLoading || parseFloat(mintAmount) <= 0}
-                      className="bg-violet-600 hover:bg-violet-500 px-5 py-2.5 rounded-xl text-sm font-bold transition text-white disabled:opacity-50 shrink-0"
-                    >
-                      Mint
-                    </button>
-                  </div>
-                  {/* Mint Yüzde Butonları */}
-                  <div className="flex space-x-2 mt-3 pt-2 border-t border-[#2a2456]/40">
-                    {[25, 50, 75, 100].map(p => (
-                      <button
-                        key={p}
-                        onClick={() => handlePercentClick(p, balances[mintCollateral], tokens[mintCollateral].decimals, setMintAmount)}
-                        className="bg-[#211e47] hover:bg-violet-900 hover:text-white text-[10px] text-gray-400 font-bold px-3 py-1 rounded-lg transition"
-                      >
-                        {p === 100 ? "MAX" : `${p}%`}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* sakUSD YAKMA (REDEEM) GİRİŞ ALANI */}
-                <div className="bg-[#1c183a] p-4 rounded-2xl border border-gray-800 focus-within:border-violet-600 focus-within:shadow-[0_0_15px_rgba(139,92,246,0.25)] transition">
-                  <div className="flex justify-between text-xs text-gray-400 mb-2">
-                    <span>Redeem sakUSD (Teminatı Geri Al)</span>
-                    <span>Collateral: {mintCollateral}</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <input 
-                      type="number" 
-                      placeholder="0"
-                      value={redeemAmount}
-                      onFocus={handleFocus(redeemAmount, setRedeemAmount)}
-                      onBlur={handleBlur(redeemAmount, setRedeemAmount)}
-                      onChange={handleNumberInput(setRedeemAmount)}
-                      className="bg-transparent text-xl font-bold focus:outline-none w-full text-white"
-                    />
-                    <button 
-                      onClick={() => handleAction("redeem_sakusd")}
-                      disabled={txLoading || parseFloat(redeemAmount) <= 0}
-                      className="bg-indigo-600 hover:bg-indigo-500 px-5 py-2.5 rounded-xl text-sm font-bold transition text-white disabled:opacity-50 shrink-0"
-                    >
-                      Redeem
-                    </button>
-                  </div>
-                  {/* Redeem Yüzde Butonları */}
-                  <div className="flex space-x-2 mt-3 pt-2 border-t border-[#2a2456]/40">
-                    {[25, 50, 75, 100].map(p => (
-                      <button
-                        key={p}
-                        onClick={() => handlePercentClick(p, balances.sakUSD, 18, setRedeemAmount)}
-                        className="bg-[#211e47] hover:bg-violet-900 hover:text-white text-[10px] text-gray-400 font-bold px-3 py-1 rounded-lg transition"
-                      >
-                        {p === 100 ? "MAX" : `${p}%`}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {activeTab === "savings" && (
-            <div>
-              <h2 className="text-xl font-bold mb-2">Sakasena Savings (%8 APY)</h2>
-              <p className="text-sm text-gray-400 mb-6">
-                sakUSD bakiyenizi tasarruf havuzuna yatırarak yıllık sabit <strong>%8 faiz getirisi</strong> kazanmaya başlayın.
-              </p>
-
-              {/* Bakiye Bilgilendirme Kartları */}
-              <div className="grid grid-cols-2 gap-3 mb-6">
-                <div className="bg-[#1a1738] p-4 rounded-2xl border border-gray-800 text-center">
-                  <span className="text-xs text-gray-400 block mb-1">Your Staked Balance</span>
-                  <span className="text-lg font-bold text-violet-300">{savingsData.staked} sakUSD</span>
-                </div>
-                <div className="bg-[#1a1738] p-4 rounded-2xl border border-gray-800 text-center flex flex-col justify-between items-center">
-                  <div>
-                    <span className="text-xs text-gray-400 block mb-1">Pending Rewards</span>
-                    <span className="text-lg font-bold text-emerald-400">{savingsData.pendingRewards} sakUSD</span>
-                  </div>
-                  <button 
-                    onClick={() => handleAction("claim_rewards")}
-                    disabled={txLoading || parseFloat(savingsData.pendingRewards) <= 0}
-                    className="mt-2 bg-emerald-700 hover:bg-emerald-600 text-white font-bold py-1 px-3 rounded-lg text-xs transition disabled:opacity-50"
-                  >
-                    Claim Rewards
-                  </button>
-                </div>
-              </div>
-
-              {/* Stake / Unstake Formları */}
-              <div className="space-y-4 mb-6">
-                {/* STAKE (KİLİTLEME) ALANI */}
-                <div className="bg-[#1c183a] p-4 rounded-2xl border border-gray-800 focus-within:border-violet-600 focus-within:shadow-[0_0_15px_rgba(139,92,246,0.25)] transition">
-                  <div className="flex justify-between text-xs text-gray-400 mb-2">
-                    <span>Stake sakUSD</span>
-                    <span>Wallet Balance: {balances.sakUSD}</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <input 
-                      type="number" 
-                      placeholder="0"
-                      value={stakeAmountInput}
-                      onFocus={handleFocus(stakeAmountInput, setStakeAmountInput)}
-                      onBlur={handleBlur(stakeAmountInput, setStakeAmountInput)}
-                      onChange={handleNumberInput(setStakeAmountInput)}
-                      className="bg-transparent text-xl font-bold focus:outline-none w-full text-white"
-                    />
-                    <button 
-                      onClick={() => handleAction("stake_sakusd")}
-                      disabled={txLoading || parseFloat(stakeAmountInput) <= 0}
-                      className="bg-violet-600 hover:bg-violet-500 px-5 py-2.5 rounded-xl text-sm font-bold transition text-white disabled:opacity-50 shrink-0"
-                    >
-                      Stake
-                    </button>
-                  </div>
-                  {/* Stake Yüzde Butonları */}
-                  <div className="flex space-x-2 mt-3 pt-2 border-t border-[#2a2456]/40">
-                    {[25, 50, 75, 100].map(p => (
-                      <button
-                        key={p}
-                        onClick={() => handlePercentClick(p, balances.sakUSD, 18, setStakeAmountInput)}
-                        className="bg-[#211e47] hover:bg-violet-900 hover:text-white text-[10px] text-gray-400 font-bold px-3 py-1 rounded-lg transition"
-                      >
-                        {p === 100 ? "MAX" : `${p}%`}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* UNSTAKE (GERİ ÇEKİM TALEBİ) ALANI */}
-                <div className="bg-[#1c183a] p-4 rounded-2xl border border-gray-800 focus-within:border-violet-600 focus-within:shadow-[0_0_15px_rgba(139,92,246,0.25)] transition">
-                  <div className="flex justify-between text-xs text-gray-400 mb-2">
-                    <span>Request Unstake (Geri Çekim Talebi)</span>
-                    <span>14 Günlük Kilit Süresi</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <input 
-                      type="number" 
-                      placeholder="0"
-                      value={unstakeAmountInput}
-                      onFocus={handleFocus(unstakeAmountInput, setUnstakeAmountInput)}
-                      onBlur={handleBlur(unstakeAmountInput, setUnstakeAmountInput)}
-                      onChange={handleNumberInput(setUnstakeAmountInput)}
-                      className="bg-transparent text-xl font-bold focus:outline-none w-full text-white"
-                    />
-                    <button 
-                      onClick={() => handleAction("request_unstake")}
-                      disabled={txLoading || parseFloat(unstakeAmountInput) <= 0}
-                      className="bg-indigo-600 hover:bg-indigo-500 px-5 py-2.5 rounded-xl text-sm font-bold transition text-white disabled:opacity-50 shrink-0"
-                    >
-                      Request Unstake
-                    </button>
-                  </div>
-                  {/* Unstake Yüzde Butonları */}
-                  <div className="flex space-x-2 mt-3 pt-2 border-t border-[#2a2456]/40">
-                    {[25, 50, 75, 100].map(p => (
-                      <button
-                        key={p}
-                        onClick={() => handlePercentClick(p, savingsData.staked, 18, setUnstakeAmountInput)}
-                        className="bg-[#211e47] hover:bg-violet-900 hover:text-white text-[10px] text-gray-400 font-bold px-3 py-1 rounded-lg transition"
-                      >
-                        {p === 100 ? "MAX" : `${p}%`}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Aktif Unstake Talepleri (14 günlük sayaçlar) */}
-              {savingsData.requests.length > 0 && (
-                <div className="bg-[#100e21] p-4 rounded-2xl border border-gray-900">
-                  <h3 className="text-xs font-semibold uppercase tracking-wider text-violet-400 mb-3">Aktif Geri Çekim Talepleriniz</h3>
-                  <div className="space-y-2">
-                    {savingsData.requests.map((r) => {
-                      const now = Math.floor(Date.now() / 1000);
-                      const isUnlocked = now >= r.releaseTime;
-                      const timeLeft = r.releaseTime - now;
-
-                      let statusText = "";
-                      if (isUnlocked) {
-                        statusText = "Kilit Açıldı! Çekilebilir.";
-                      } else {
-                        const days = Math.floor(timeLeft / 86400);
-                        const hours = Math.floor((timeLeft % 86400) / 3600);
-                        statusText = `Kalan Süre: ${days}g ${hours}s`;
-                      }
-
-                      return (
-                        <div key={r.index} className="flex justify-between items-center text-sm bg-[#16142d] p-3 rounded-xl border border-gray-800">
-                          <div>
-                            <p className="font-bold text-white">{r.amount} sakUSD</p>
-                            <p className="text-xs text-gray-400 mt-0.5">{statusText}</p>
-                          </div>
-                          <button 
-                            onClick={() => handleAction("claim_unstaked_req", r.index)}
-                            disabled={txLoading || !isUnlocked}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
-                              isUnlocked 
-                                ? "bg-emerald-600 hover:bg-emerald-500 text-white" 
-                                : "bg-gray-800 text-gray-500 cursor-not-allowed"
-                            }`}
-                          >
-                            Cüzdana Çek
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* SAKASENA SEND (CÜZDAN TRANSFER) TAB ALANI */}
-          {activeTab === "send" && (
-            <div>
-              <h2 className="text-xl font-bold mb-2">Send Token</h2>
-              <p className="text-sm text-gray-400 mb-6">
-                AAA veya sakUSD tokenlerinizi doğrudan başka bir cüzdan adresine hızlıca transfer edin.
-              </p>
-
-              {/* Gönderilecek Token Seçimi */}
-              <div className="bg-[#1a1738] p-4 rounded-2xl mb-4 border border-gray-800">
-                <label className="block text-xs text-gray-400 mb-2 font-medium">Gönderilecek Tokeni Seçin (Asset)</label>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold text-gray-300">Seçili Token Bakiyesi: {balances[sendToken]} {sendToken}</span>
-                  <select 
-                    value={sendToken} 
-                    onChange={(e) => setSendToken(e.target.value)}
-                    className="bg-[#211e47] text-white px-3 py-1.5 rounded-xl font-semibold border border-gray-700 focus:outline-none"
-                  >
-                    <option value="AAA">🪙 AAA</option>
-                    <option value="sakUSD">💴 sakUSD</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="space-y-4 mb-6">
-                {/* Alıcı Adresi Girişi */}
-                <div className="bg-[#1a1738] p-4 rounded-2xl border border-gray-800">
-                  <label className="block text-xs text-gray-400 mb-2 font-medium">Alıcı Cüzdan Adresi (Recipient Address)</label>
-                  <input 
-                    type="text" 
-                    placeholder="0x..." 
-                    value={sendRecipient}
-                    onChange={(e) => setSendRecipient(e.target.value.toLowerCase())} // bad checksum engelleme
-                    className="bg-transparent text-sm font-mono focus:outline-none w-full text-white"
-                  />
-                </div>
-
-                {/* Miktar Girişi */}
-                <div className="bg-[#1c183a] p-4 rounded-2xl border border-gray-800 focus-within:border-violet-600 focus-within:shadow-[0_0_15px_rgba(139,92,246,0.25)] transition">
-                  <div className="flex justify-between text-xs text-gray-400 mb-2">
-                    <span>Gönderilecek {sendToken} Miktarı</span>
-                    <span>Mevcut Bakiye: {balances[sendToken]} {sendToken}</span>
-                  </div>
-                  <input 
-                    type="number" 
-                    placeholder="0" 
-                    value={sendAmount}
-                    onFocus={handleFocus(sendAmount, setSendAmount)}
-                    onBlur={handleBlur(sendAmount, setSendAmount)}
-                    onChange={handleNumberInput(setSendAmount)}
-                    className="bg-transparent text-xl font-bold focus:outline-none w-full text-white"
-                  />
-                  {/* Send Yüzde Butonları */}
-                  <div className="flex space-x-2 mt-3 pt-2 border-t border-[#2a2456]/40">
-                    {[25, 50, 75, 100].map(p => (
-                      <button
-                        key={p}
-                        onClick={() => handlePercentClick(p, balances[sendToken], 18, setSendAmount)}
-                        className="bg-[#211e47] hover:bg-violet-900 hover:text-white text-[10px] text-gray-400 font-bold px-3 py-1 rounded-lg transition"
-                      >
-                        {p === 100 ? "MAX" : `${p}%`}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {account ? (
-                <button 
-                  onClick={() => handleAction("send_token")}
-                  disabled={txLoading || !sendRecipient || !sendAmount || parseFloat(sendAmount) <= 0}
-                  className="w-full py-4 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 font-bold text-white transition shadow-lg disabled:opacity-50"
-                >
-                  {txLoading ? "Gönderiliyor..." : `${sendToken} Gönder (Send)`}
-                </button>
-              ) : (
-                <button 
-                  onClick={connectWallet}
-                  className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 font-bold text-white transition shadow-lg"
-                >
-                  Connect Wallet
-                </button>
-              )}
-            </div>
-          )}
-
-          {/* AAVE V3 BORC ALMA / ÖDƏMƏ (LENDING) TABI PANELİ */}
-          {activeTab === "lending" && (
-            <div>
-              <h2 className="text-xl font-bold mb-2 flex items-center justify-between">
-                <span>Aave V3 Money Market</span>
-                <span className="text-xs text-emerald-400 bg-emerald-950 px-2 py-1 rounded-lg">Active APY: ~4.5%</span>
-              </h2>
-              <p className="text-sm text-gray-400 mb-6">
-                Sakasena girovlarınızı Aave-yə yerləşdirərək rəsmi sınaq <strong>USDC</strong> borcu alın və istədiyiniz an geri ödəyin.
-              </p>
-
-              <div className="space-y-4 mb-6">
-                {/* GIROV YATIRMA (SUPPLY) ALANI */}
-                <div className="bg-[#1c183a] p-4 rounded-2xl border border-gray-800 focus-within:border-violet-600 transition">
-                  <div className="flex justify-between text-xs text-gray-400 mb-2">
-                    <span>Deposit Collateral (Girov Yatır)</span>
-                    <span>Balance: {balances[collateralToken] || "0.00"} {collateralToken}</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <input 
-                      type="number" 
-                      placeholder="0"
-                      value={supplyAmount}
-                      onFocus={handleFocus(supplyAmount, setSupplyAmount)}
-                      onBlur={handleBlur(supplyAmount, setSupplyAmount)}
-                      onChange={handleNumberInput(setSupplyAmount)}
-                      className="bg-transparent text-xl font-bold focus:outline-none w-full text-white"
-                    />
-                    <select 
-  value={collateralToken} 
-  onChange={(e) => setCollateralToken(e.target.value)}
-  className="bg-[#211e47] text-white px-3 py-1.5 rounded-xl font-semibold border border-gray-700"
->
-  <option value="USDC">💵 USDC</option>
-  <option value="EURC">💶 EURC</option>
-  <option value="USDT">💲 USDT</option>
-</select>
-                    <button 
-                      onClick={() => handleAction("aave_supply")}
-                      disabled={txLoading || parseFloat(supplyAmount) <= 0}
-                      className="bg-violet-600 hover:bg-violet-500 px-5 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-50 shrink-0"
-                    >
-                      Deposit
-                    </button>
-                  </div>
-                </div>
-
-                {/* BORC ALMA (BORROW) ALANI */}
-                <div className="bg-[#1c183a] p-4 rounded-2xl border border-gray-800 focus-within:border-violet-600 transition">
-                  <div className="flex justify-between text-xs text-gray-400 mb-2">
-                    <span>Borrow USDC (Borc Al)</span>
-                    <span>Max Borrow: Safe LTV ~75%</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <input 
-                      type="number" 
-                      placeholder="0"
-                      value={borrowAmount}
-                      onFocus={handleFocus(borrowAmount, setBorrowAmount)}
-                      onBlur={handleBlur(borrowAmount, setBorrowAmount)}
-                      onChange={handleNumberInput(setBorrowAmount)}
-                      className="bg-transparent text-xl font-bold focus:outline-none w-full text-white"
-                    />
-                    <span className="text-sm font-semibold text-gray-400 pr-3">💵 USDC</span>
-                    <button 
-                      onClick={() => handleAction("aave_borrow")}
-                      disabled={txLoading || parseFloat(borrowAmount) <= 0}
-                      className="bg-indigo-600 hover:bg-indigo-500 px-5 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-50 shrink-0"
-                    >
-                      Borrow
-                    </button>
-                  </div>
-                </div>
-
-                {/* BORCUN GERİ ÖDƏNİLMƏSİ (REPAY) ALANI */}
-                <div className="bg-[#1c183a] p-4 rounded-2xl border border-gray-800 focus-within:border-violet-600 transition">
-                  <div className="flex justify-between text-xs text-gray-400 mb-2">
-                    <span>Repay USDC Loan (Borcu Ödə)</span>
-                    <span>Your Wallet: {balances.USDC || "0.00"} USDC</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <input 
-                      type="number" 
-                      placeholder="0"
-                      value={repayAmount}
-                      onFocus={handleFocus(repayAmount, setRepayAmount)}
-                      onBlur={handleBlur(repayAmount, setRepayAmount)}
-                      onChange={handleNumberInput(setRepayAmount)}
-                      className="bg-transparent text-xl font-bold focus:outline-none w-full text-white"
-                    />
-                    <span className="text-sm font-semibold text-gray-400 pr-3">💵 USDC</span>
-                    <button 
-                      onClick={() => handleAction("aave_repay")}
-                      disabled={txLoading || parseFloat(repayAmount) <= 0}
-                      className="bg-emerald-600 hover:bg-emerald-500 px-5 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-50 shrink-0"
-                    >
-                      Repay
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-          
-          {activeTab === "faucet" && (
-            <div className="text-center">
-              <h2 className="text-xl font-bold mb-3">Arc Testnet Faucet</h2>
-              <p className="text-sm text-gray-400 mb-6">
-                Arc Test ağı üzerinde platformumuzu denemek için tamamen ücretsiz stablecoin ve test varlıkları talep edebilirsiniz.
-              </p>
-              
-              <div className="bg-[#100e21] p-4 rounded-2xl border border-gray-900 text-left mb-6 space-y-4">
-                <span className="text-xs text-gray-500 font-semibold block mb-1">Circle Resmi Musluğu (External)</span>
-                
-                <div className="flex justify-between items-center text-sm bg-[#16142d] p-3 rounded-xl border border-gray-800">
-                  <div>
-                    <p className="font-bold text-white">💵 USDC / 💶 EURC / 💲 USDT / ₿ cirBTC</p>
-                    <p className="text-xs text-gray-400 mt-0.5">Circle Resmi Testnet Musluk Sayfası</p>
-                  </div>
-                  <button 
-                    onClick={() => handleFaucet("USDC")}
-                    className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-1.5 px-3.5 rounded-lg text-xs transition"
-                  >
-                     Circle Faucet'a Git 🌐
-                  </button>
-                </div>
-
-                <span className="text-xs text-gray-500 font-semibold block mb-1">On-Chain Sakasena Musluğu (Local)</span>
-
-                {/* Gerçek On-Chain AAA Mint Butonu */}
-                <div className="flex justify-between items-center text-sm bg-[#16142d] p-3 rounded-xl border border-gray-800">
-                  <div>
-                    <p className="font-bold text-white">🪙 10 AAA Token</p>
-                    <p className="text-xs text-gray-400 mt-0.5">Gerçek Zincir Üstü (On-Chain) Basım</p>
-                  </div>
-                  <button 
-                    onClick={() => handleFaucet("AAA")}
-                    disabled={txLoading}
-                    className="bg-violet-600 hover:bg-violet-500 text-white font-bold py-1.5 px-4 rounded-lg text-xs transition disabled:opacity-50"
-                  >
-                    {txLoading ? "Basılıyor..." : "10 AAA Al ⭐"}
-                  </button>
-                </div>
-
-                {/* Bilgilendirici sakUSD Kartı */}
-                <div className="p-3.5 bg-[#111026] rounded-xl border border-violet-900 text-xs text-violet-300 leading-relaxed">
-                  💴 <strong>sakUSD Nasıl Alınır?</strong> sakUSD basımı (mint) teminata dayalı olduğu için; üstteki butondan Circle Faucet'a giderek ücretsiz test USDC alabilir, ardından sitemizdeki <strong>Mint sakUSD</strong> sekmesinden 1:1 oranında ücretsiz sakUSD basabilirsiniz!
-                </div>
-              </div>
-            </div>
-          )}
+          {renderTab()}
         </div>
       </main>
 
-      <footer className="border-t border-gray-800 bg-[#0d0b1a] px-6 py-4 text-center text-sm text-gray-500">
-        <p>© 2026 ArcSakasena. Powered by Arc Network (Chain ID: 5042002).</p>
+      <footer className="bg-[#0d0b1a] border-t border-gray-800 py-6 text-center">
+        <p className="text-xs text-gray-500">
+          ArcSakasena DeFi Protocol • Built on Arc Blockchain L1 • 
+          <a href="https://testnet.arcscan.app" target="_blank" rel="noopener noreferrer" className="text-violet-400 hover:underline ml-1">Arcscan Explorer</a>
+        </p>
       </footer>
     </div>
   );
 }
+
