@@ -122,7 +122,7 @@ const NETWORKS = {
       AAA: { symbol: "AAA", name: "anaraydinli AAA Token", address: "0x54552f2ec52423d2fbe94c25f0bad61b9108aae8".toLowerCase(), decimals: 18, icon: "🪙" }
     },
     minterAddress: "0x20b45703967B5eD4D36C9d8Bea38d4d44E64fd67",
-    aavePoolAddress: "0x6Ae43d3271ff68408398a123F67CE4a42f50005C"
+    aavePoolAddress: "0x6Ae43d3271ff68408398a123F67CE4a42f50005C".toLowerCase()
   },
   11155420: {
     name: "Optimism Sepolia",
