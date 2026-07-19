@@ -405,7 +405,7 @@ export default function App() {
   import CCTPBridgeTab from './components/CCTPBridge';
 
 // Navbar'a "bridge" sekmesi ekleyin:
-{["swap", "pool", "mint", "savings", "bridge", "lending", "send", "faucet"].map((tab) => (
+{["swap", "pool", "bridge", "mint", "savings", "bridge", "lending", "send", "faucet"].map((tab) => (
   <button key={tab} onClick={() => setActiveTab(tab)} ...>
     {tab === "bridge" ? "Bridge" : ...}
   </button>
