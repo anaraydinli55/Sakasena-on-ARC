@@ -112,7 +112,7 @@ const NETWORKS = {
   84532: {
     name: "Base Sepolia",
     hexId: "0x14a34",
-    rpcUrl: "https://sepolia.base.org",
+    rpcUrl: "https://base-sepolia-rpc.publicnode.com",
     explorer: "https://sepolia.basescan.org",
     tokens: {
       USDC: { symbol: "USDC", name: "USD Coin", address: "0x036CbD53842c5426634e7929541eC2318f3dCF7e".toLowerCase(), decimals: 6, icon: "💵" },
