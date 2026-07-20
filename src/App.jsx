@@ -30,6 +30,7 @@ import { SavingsTab } from './components/SavingsTab';
 import { SendTab } from './components/SendTab';
 import { LendingTab } from './components/LendingTab';
 import { FaucetTab } from './components/FaucetTab';
+import CCTPBridgeTab from './components/CCTPBridge';
 
 export default function App() {
   // Wallet hook
@@ -402,26 +403,6 @@ export default function App() {
     setTxLoading(false);
   };
 
-  import CCTPBridgeTab from './components/CCTPBridge';
-
-// Navbar'a "bridge" sekmesi ekleyin:
-{["swap", "pool", "bridge", "mint", "savings", "bridge", "lending", "send", "faucet"].map((tab) => (
-  <button key={tab} onClick={() => setActiveTab(tab)} ...>
-    {tab === "bridge" ? "Bridge" : ...}
-  </button>
-))}
-
-// Tab içeriğine ekleyin:
-{activeTab === "bridge" && (
-  <CCTPBridgeTab 
-    provider={provider} 
-    account={account} 
-    chainId={chainId}
-    balances={balances}
-    switchNetwork={switchNetwork}
-  />
-)}
-
   // Faucet fonksiyonu
   const handleFaucet = async (tokenSymbol) => {
     if (tokenSymbol === "USDC" || tokenSymbol === "EURC" || tokenSymbol === "cirBTC") {
@@ -473,6 +454,16 @@ export default function App() {
             activePoolType={activePoolType} setActivePoolType={setActivePoolType}
             lpUSDC={lpUSDC} setLpUSDC={setLpUSDC}
             lpAAA={lpAAA} setLpAAA={setLpAAA}
+          />
+        );
+      case "bridge":
+        return (
+          <CCTPBridgeTab 
+            provider={provider} 
+            account={account} 
+            chainId={chainId}
+            balances={balances}
+            switchNetwork={switchNetwork}
           />
         );
       case "mint":
