@@ -1,8 +1,8 @@
 // ============================================
 // HEADER COMPONENT (GUNCELLENMIS - Bridge Sekmesi Eklendi)
 // ============================================
-import { isAaveSupported } from './constants';
-import { NETWORKS } from './networks';
+import { isAaveSupported } from '../constants';
+import { NETWORKS } from '../networks';
 
 export const Header = ({ 
   account, chainId, spPoints, balances, 
