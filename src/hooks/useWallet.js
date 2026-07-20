@@ -2,7 +2,7 @@
 // CUZDAN VE SEBEKE HOOK'U
 // ============================================
 import { useState, useEffect, useCallback } from 'react';
-import { getProviderInstance, getSignerInstance } from './constants';
+import { getProviderInstance, getSignerInstance } from '../constants';
 import { NETWORKS } from './networks';
 
 export const useWallet = () => {
