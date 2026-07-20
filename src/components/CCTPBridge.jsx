@@ -116,6 +116,9 @@ const tx = await messenger.depositForBurn(
   destConfig.domain,
   mintRecipient,
   sourceConfig.usdc,
+  ethers.ZeroHash,   // destinationCaller — hər kəs mint edə bilsin
+  0,                 // maxFee — Standard Transfer, pulsuz
+  2000,              // minFinalityThreshold — Standard Transfer
   { gasLimit: 500000 }
 );
 
