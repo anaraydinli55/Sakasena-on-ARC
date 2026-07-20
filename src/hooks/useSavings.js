@@ -3,7 +3,6 @@
 // ============================================
 import { useState, useCallback } from 'react';
 import { ethers } from 'ethers';
-import { formatUnits } from '../constants';
 import { formatUnits, ZERO_ADDRESS } from '../constants';
 import { getActiveNetworkConfig } from '../networks';
 
