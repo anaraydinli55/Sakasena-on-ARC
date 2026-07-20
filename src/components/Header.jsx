@@ -1,5 +1,5 @@
 // ============================================
-// HEADER COMPONENT
+// HEADER COMPONENT (GUNCELLENMIS - Bridge Sekmesi Eklendi)
 // ============================================
 import { isAaveSupported } from './constants';
 import { NETWORKS } from './networks';
@@ -10,15 +10,20 @@ export const Header = ({
 }) => {
 
   const getAvailableTabs = () => {
-    const baseTabs = ["swap", "pool", "mint", "savings", "send", "faucet"];
+    const baseTabs = ["swap", "pool", "bridge", "mint", "savings", "send", "faucet"];
     if (isAaveSupported(chainId)) return [...baseTabs, "lending"];
     return baseTabs;
   };
 
   const getTabLabel = (tab) => {
     const labels = {
-      swap: "Swap", pool: "Liquidity", mint: "Mint SakUSD",
-      savings: "Savings", send: "Send", faucet: "Faucet",
+      swap: "Swap", 
+      pool: "Liquidity", 
+      bridge: "Bridge",
+      mint: "Mint SakUSD",
+      savings: "Savings", 
+      send: "Send", 
+      faucet: "Faucet",
       lending: "Borrow & Repay"
     };
     return labels[tab] || tab;
@@ -37,7 +42,7 @@ export const Header = ({
       </div>
 
       {/* Nav Tabs */}
-      <div className="grid grid-cols-3 md:flex bg-[#100e1f] p-1 rounded-xl border border-gray-800 shrink-0 w-full md:w-auto max-w-sm md:max-w-none">
+      <div className="grid grid-cols-4 md:flex bg-[#100e1f] p-1 rounded-xl border border-gray-800 shrink-0 w-full md:w-auto max-w-sm md:max-w-none">
         {getAvailableTabs().map((tab) => (
           <button
             key={tab}
