@@ -1,7 +1,8 @@
 // ============================================
-// CUZDAN VE SEBEKE HOOK'U
+// CUZDAN VE SEBEKE HOOK'U (DUZELTILMIS)
 // ============================================
 import { useState, useEffect, useCallback } from 'react';
+import { ethers } from 'ethers';
 import { getProviderInstance, getSignerInstance } from '../constants';
 import { NETWORKS } from '../networks';
 
@@ -84,9 +85,11 @@ export const useWallet = () => {
   }, []);
 
   const getSigner = useCallback(async () => {
-    if (!provider) return null;
-    return await getSignerInstance(provider);
-  }, [provider]);
+    // Her zaman taze provider olustur - ag degisimi sonrasi gerekli
+    if (!window.ethereum) return null;
+    const freshProvider = new ethers.BrowserProvider(window.ethereum);
+    return await freshProvider.getSigner();
+  }, []);
 
   return {
     provider,
