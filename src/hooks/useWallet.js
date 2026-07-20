@@ -3,7 +3,7 @@
 // ============================================
 import { useState, useEffect, useCallback } from 'react';
 import { getProviderInstance, getSignerInstance } from '../constants';
-import { NETWORKS } from './networks';
+import { NETWORKS } from '../networks';
 
 export const useWallet = () => {
   const [provider, setProvider] = useState(null);
