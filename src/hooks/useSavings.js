@@ -4,7 +4,8 @@
 import { useState, useCallback } from 'react';
 import { ethers } from 'ethers';
 import { formatUnits } from '../constants';
-import { getActiveNetworkConfig, ZERO_ADDRESS } from '../networks';
+import { formatUnits, ZERO_ADDRESS } from '../constants';
+import { getActiveNetworkConfig } from '../networks';
 
 export const useSavings = (provider, account, chainId) => {
   const [savingsData, setSavingsData] = useState({ 
