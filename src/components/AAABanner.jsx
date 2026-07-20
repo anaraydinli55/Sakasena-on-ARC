@@ -1,7 +1,7 @@
 // ============================================
 // AAA TOKEN BANNER COMPONENT
 // ============================================
-import { ARC_ADDRESSES } from './constants';
+import { ARC_ADDRESSES } from '../constants';
 
 export const AAABanner = ({ account, chainId, balances, tokens }) => {
   if (!account || chainId !== 5042002) return null;
