@@ -1,10 +1,12 @@
 // ============================================
-// COKLU-ZINCIR SEBEKE KONFIGURASYONLARI
+// COKLU-ZINCIR SEBEKE KONFIGURASYONLARI (v2)
 // ============================================
-import { ZERO_ADDRESS, ARC_ADDRESSES } from './constants';
+import { ARC_ADDRESSES } from './constants';
+
+// ZERO_ADDRESS artik constants.js'den geliyor
+export { ZERO_ADDRESS } from './constants';
 
 // HER SEBEKE ICIN AYRI TOKEN ADRESLERI
-// Diger sebekelerde ZERO_ADDRESS olan yerleri deploy edip degistirin
 export const NETWORKS = {
   5042002: {
     name: "Arc Testnet",
@@ -20,7 +22,7 @@ export const NETWORKS = {
       AAA: { symbol: "AAA", name: "anaraydinli AAA Token", address: ARC_ADDRESSES.AAA, decimals: 18, icon: "🪙" }
     },
     minterAddress: ARC_ADDRESSES.MINTER,
-    aavePoolAddress: ZERO_ADDRESS,
+    aavePoolAddress: "0x0000000000000000000000000000000000000000",
     isAaveSupported: false
   },
   11155111: {
@@ -32,11 +34,11 @@ export const NETWORKS = {
     tokens: {
       USDC: { symbol: "USDC", name: "USD Coin", address: "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238", decimals: 6, icon: "💵" },
       EURC: { symbol: "EURC", name: "Euro Coin", address: "0x1a05282496E69D8BDeD31b846F25870A19B91234", decimals: 6, icon: "💶" },
-      cirBTC: { symbol: "cirBTC", name: "Circle Wrapped Bitcoin", address: ZERO_ADDRESS, decimals: 8, icon: "₿" },
-      sakUSD: { symbol: "sakUSD", name: "Sakasena USD", address: ZERO_ADDRESS, decimals: 18, icon: "💴" },
-      AAA: { symbol: "AAA", name: "anaraydinli AAA Token", address: ZERO_ADDRESS, decimals: 18, icon: "🪙" }
+      cirBTC: { symbol: "cirBTC", name: "Circle Wrapped Bitcoin", address: "0x0000000000000000000000000000000000000000", decimals: 8, icon: "₿" },
+      sakUSD: { symbol: "sakUSD", name: "Sakasena USD", address: "0x0000000000000000000000000000000000000000", decimals: 18, icon: "💴" },
+      AAA: { symbol: "AAA", name: "anaraydinli AAA Token", address: "0x0000000000000000000000000000000000000000", decimals: 18, icon: "🪙" }
     },
-    minterAddress: ZERO_ADDRESS,
+    minterAddress: "0x0000000000000000000000000000000000000000",
     aavePoolAddress: "0x6Ae43d3271ff68408398a123F67CE4a42f50005C",
     isAaveSupported: true
   },
@@ -49,11 +51,11 @@ export const NETWORKS = {
     tokens: {
       USDC: { symbol: "USDC", name: "USD Coin", address: "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d", decimals: 6, icon: "💵" },
       EURC: { symbol: "EURC", name: "Euro Coin", address: "0x3271ff68408398a123F67CE4a42f50005C12423d", decimals: 6, icon: "💶" },
-      cirBTC: { symbol: "cirBTC", name: "Circle Wrapped Bitcoin", address: ZERO_ADDRESS, decimals: 8, icon: "₿" },
-      sakUSD: { symbol: "sakUSD", name: "Sakasena USD", address: ZERO_ADDRESS, decimals: 18, icon: "💴" },
-      AAA: { symbol: "AAA", name: "anaraydinli AAA Token", address: ZERO_ADDRESS, decimals: 18, icon: "🪙" }
+      cirBTC: { symbol: "cirBTC", name: "Circle Wrapped Bitcoin", address: "0x0000000000000000000000000000000000000000", decimals: 8, icon: "₿" },
+      sakUSD: { symbol: "sakUSD", name: "Sakasena USD", address: "0x0000000000000000000000000000000000000000", decimals: 18, icon: "💴" },
+      AAA: { symbol: "AAA", name: "anaraydinli AAA Token", address: "0x0000000000000000000000000000000000000000", decimals: 18, icon: "🪙" }
     },
-    minterAddress: ZERO_ADDRESS,
+    minterAddress: "0x0000000000000000000000000000000000000000",
     aavePoolAddress: "0x3271ff68408398a123F67CE4a42f50005C12423d",
     isAaveSupported: true
   },
@@ -66,9 +68,9 @@ export const NETWORKS = {
     tokens: {
       USDC: { symbol: "USDC", name: "USD Coin", address: "0x036CbD53842c5426634e7929541eC2318f3dCF7e", decimals: 6, icon: "💵" },
       EURC: { symbol: "EURC", name: "Euro Coin", address: "0x808456652fdb597867f38412077A9182bf77359F", decimals: 6, icon: "💶" },
-      cirBTC: { symbol: "cirBTC", name: "Circle Wrapped Bitcoin", address: ZERO_ADDRESS, decimals: 8, icon: "₿" },
+      cirBTC: { symbol: "cirBTC", name: "Circle Wrapped Bitcoin", address: "0x0000000000000000000000000000000000000000", decimals: 8, icon: "₿" },
       sakUSD: { symbol: "sakUSD", name: "Sakasena USD", address: "0x7C45c5Ce07E0cf673F48F7A4eF4837c59C0D3281", decimals: 18, icon: "💴" },
-      AAA: { symbol: "AAA", name: "anaraydinli AAA Token", address: ZERO_ADDRESS, decimals: 18, icon: "🪙" }
+      AAA: { symbol: "AAA", name: "anaraydinli AAA Token", address: "0x0000000000000000000000000000000000000000", decimals: 18, icon: "🪙" }
     },
     minterAddress: "0x20b45703967B5eD4D36C9d8Bea38d4d44E64fd67",
     aavePoolAddress: "0x8bAB6d1b75f19e9eD9fCe8b9BD338844fF79aE27",
@@ -82,12 +84,12 @@ export const NETWORKS = {
     nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
     tokens: {
       USDC: { symbol: "USDC", name: "USD Coin", address: "0x5fd84259d66Cd46123540766Ad943c0D274250D7", decimals: 6, icon: "💵" },
-      EURC: { symbol: "EURC", name: "Euro Coin", address: ZERO_ADDRESS, decimals: 6, icon: "💶" },
-      cirBTC: { symbol: "cirBTC", name: "Circle Wrapped Bitcoin", address: ZERO_ADDRESS, decimals: 8, icon: "₿" },
-      sakUSD: { symbol: "sakUSD", name: "Sakasena USD", address: ZERO_ADDRESS, decimals: 18, icon: "💴" },
-      AAA: { symbol: "AAA", name: "anaraydinli AAA Token", address: ZERO_ADDRESS, decimals: 18, icon: "🪙" }
+      EURC: { symbol: "EURC", name: "Euro Coin", address: "0x0000000000000000000000000000000000000000", decimals: 6, icon: "💶" },
+      cirBTC: { symbol: "cirBTC", name: "Circle Wrapped Bitcoin", address: "0x0000000000000000000000000000000000000000", decimals: 8, icon: "₿" },
+      sakUSD: { symbol: "sakUSD", name: "Sakasena USD", address: "0x0000000000000000000000000000000000000000", decimals: 18, icon: "💴" },
+      AAA: { symbol: "AAA", name: "anaraydinli AAA Token", address: "0x0000000000000000000000000000000000000000", decimals: 18, icon: "🪙" }
     },
-    minterAddress: ZERO_ADDRESS,
+    minterAddress: "0x0000000000000000000000000000000000000000",
     aavePoolAddress: "0x6Ae43d3271ff68408398a123F67CE4a42f50005C",
     isAaveSupported: true
   },
@@ -99,12 +101,12 @@ export const NETWORKS = {
     nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
     tokens: {
       USDC: { symbol: "USDC", name: "USD Coin", address: "0xAe045DE5638162fa134807Cb558E15A3F5A7F853", decimals: 6, icon: "💵" },
-      EURC: { symbol: "EURC", name: "Euro Coin", address: ZERO_ADDRESS, decimals: 6, icon: "💶" },
-      cirBTC: { symbol: "cirBTC", name: "Circle Wrapped Bitcoin", address: ZERO_ADDRESS, decimals: 8, icon: "₿" },
-      sakUSD: { symbol: "sakUSD", name: "Sakasena USD", address: ZERO_ADDRESS, decimals: 18, icon: "💴" },
-      AAA: { symbol: "AAA", name: "anaraydinli AAA Token", address: ZERO_ADDRESS, decimals: 18, icon: "🪙" }
+      EURC: { symbol: "EURC", name: "Euro Coin", address: "0x0000000000000000000000000000000000000000", decimals: 6, icon: "💶" },
+      cirBTC: { symbol: "cirBTC", name: "Circle Wrapped Bitcoin", address: "0x0000000000000000000000000000000000000000", decimals: 8, icon: "₿" },
+      sakUSD: { symbol: "sakUSD", name: "Sakasena USD", address: "0x0000000000000000000000000000000000000000", decimals: 18, icon: "💴" },
+      AAA: { symbol: "AAA", name: "anaraydinli AAA Token", address: "0x0000000000000000000000000000000000000000", decimals: 18, icon: "🪙" }
     },
-    minterAddress: ZERO_ADDRESS,
+    minterAddress: "0x0000000000000000000000000000000000000000",
     aavePoolAddress: "0x6Ae43d3271ff68408398a123F67CE4a42f50005C",
     isAaveSupported: false
   },
@@ -116,12 +118,12 @@ export const NETWORKS = {
     nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
     tokens: {
       USDC: { symbol: "USDC", name: "USD Coin", address: "0x79A02482A880bCe3F13E09da970dC34dB4cD24D1", decimals: 6, icon: "💵" },
-      EURC: { symbol: "EURC", name: "Euro Coin", address: ZERO_ADDRESS, decimals: 6, icon: "💶" },
-      cirBTC: { symbol: "cirBTC", name: "Circle Wrapped Bitcoin", address: ZERO_ADDRESS, decimals: 8, icon: "₿" },
-      sakUSD: { symbol: "sakUSD", name: "Sakasena USD", address: ZERO_ADDRESS, decimals: 18, icon: "💴" },
-      AAA: { symbol: "AAA", name: "anaraydinli AAA Token", address: ZERO_ADDRESS, decimals: 18, icon: "🪙" }
+      EURC: { symbol: "EURC", name: "Euro Coin", address: "0x0000000000000000000000000000000000000000", decimals: 6, icon: "💶" },
+      cirBTC: { symbol: "cirBTC", name: "Circle Wrapped Bitcoin", address: "0x0000000000000000000000000000000000000000", decimals: 8, icon: "₿" },
+      sakUSD: { symbol: "sakUSD", name: "Sakasena USD", address: "0x0000000000000000000000000000000000000000", decimals: 18, icon: "💴" },
+      AAA: { symbol: "AAA", name: "anaraydinli AAA Token", address: "0x0000000000000000000000000000000000000000", decimals: 18, icon: "🪙" }
     },
-    minterAddress: ZERO_ADDRESS,
+    minterAddress: "0x0000000000000000000000000000000000000000",
     aavePoolAddress: "0x6Ae43d3271ff68408398a123F67CE4a42f50005C",
     isAaveSupported: false
   },
@@ -133,12 +135,12 @@ export const NETWORKS = {
     nativeCurrency: { name: "AVAX", symbol: "AVAX", decimals: 18 },
     tokens: {
       USDC: { symbol: "USDC", name: "USD Coin", address: "0x5425890298aed601595a70AB815c96711a31Bc65", decimals: 6, icon: "💵" },
-      EURC: { symbol: "EURC", name: "Euro Coin", address: ZERO_ADDRESS, decimals: 6, icon: "💶" },
-      cirBTC: { symbol: "cirBTC", name: "Circle Wrapped Bitcoin", address: ZERO_ADDRESS, decimals: 8, icon: "₿" },
-      sakUSD: { symbol: "sakUSD", name: "Sakasena USD", address: ZERO_ADDRESS, decimals: 18, icon: "💴" },
-      AAA: { symbol: "AAA", name: "anaraydinli AAA Token", address: ZERO_ADDRESS, decimals: 18, icon: "🪙" }
+      EURC: { symbol: "EURC", name: "Euro Coin", address: "0x0000000000000000000000000000000000000000", decimals: 6, icon: "💶" },
+      cirBTC: { symbol: "cirBTC", name: "Circle Wrapped Bitcoin", address: "0x0000000000000000000000000000000000000000", decimals: 8, icon: "₿" },
+      sakUSD: { symbol: "sakUSD", name: "Sakasena USD", address: "0x0000000000000000000000000000000000000000", decimals: 18, icon: "💴" },
+      AAA: { symbol: "AAA", name: "anaraydinli AAA Token", address: "0x0000000000000000000000000000000000000000", decimals: 18, icon: "🪙" }
     },
-    minterAddress: ZERO_ADDRESS,
+    minterAddress: "0x0000000000000000000000000000000000000000",
     aavePoolAddress: "0x6Ae43d3271ff68408398a123F67CE4a42f50005C",
     isAaveSupported: false
   }
@@ -156,12 +158,12 @@ export const getPoolAddress = (token1, token2) => {
   if (isUsdcEurc) return ARC_ADDRESSES.POOLS.USDC_EURC;
 
   const hasAAA = t1 === "aaa" || t2 === "aaa";
-  if (!hasAAA) return ZERO_ADDRESS;
+  if (!hasAAA) return "0x0000000000000000000000000000000000000000";
 
   const otherToken = t1 === "aaa" ? t2 : t1;
   if (otherToken === "usdc") return ARC_ADDRESSES.POOLS.USDC;
   if (otherToken === "eurc") return ARC_ADDRESSES.POOLS.EURC;
   if (otherToken === "cirbtc") return ARC_ADDRESSES.POOLS.BTC;
 
-  return ZERO_ADDRESS;
+  return "0x0000000000000000000000000000000000000000";
 };

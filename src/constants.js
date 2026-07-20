@@ -1,5 +1,5 @@
 // ============================================
-// SAKASENA ON ARC - SABITLER VE KONFIGURASYON
+// SAKASENA ON ARC - SABITLER VE KONFIGURASYON (v6 uyumlu)
 // ============================================
 import { ethers } from 'ethers';
 
@@ -30,37 +30,36 @@ export const TOKEN_PRICES = {
   WUSDC: 1.00, sakUSD: 1.00, AAA: 5.40, USDT: 1.00, DAI: 1.00
 };
 
-// ETHERS V5/V6 UYUMLULUK
+// ETHERS V6 UYUMLULUK
 export const isV6 = typeof ethers.BrowserProvider !== 'undefined';
 
 export const getProviderInstance = () => {
   if (typeof window === 'undefined' || !window.ethereum) return null;
-  return isV6 
-    ? new ethers.BrowserProvider(window.ethereum) 
-    : new ethers.providers.Web3Provider(window.ethereum);
+  return new ethers.BrowserProvider(window.ethereum);
 };
 
-export const ZERO_ADDRESS = isV6 
-  ? ethers.ZeroAddress 
-  : (ethers.constants ? ethers.constants.AddressZero : "0x0000000000000000000000000000000000000000");
+// ZERO_ADDRESS - ethers v6
+export const ZERO_ADDRESS = ethers.ZeroAddress;
 
-// MAX_UINT256 TANIMI (ONCEKI KODDA YOKTU)
-export const MAX_UINT256 = isV6 
-  ? ethers.MaxUint256 
-  : (ethers.constants ? ethers.constants.MaxUint256 : "115792089237316195423570985008687907853269984665640564039457584007913129639935");
+// MAX_UINT256 - ethers v6
+export const MAX_UINT256 = ethers.MaxUint256;
 
+// formatUnits - ethers v6
 export const formatUnits = (value, decimals) => {
-  return isV6 ? ethers.formatUnits(value, decimals) : ethers.utils.formatUnits(value, decimals);
+  return ethers.formatUnits(value, decimals);
 };
 
+// parseUnits - ethers v6
 export const parseUnits = (value, decimals) => {
-  return isV6 ? ethers.parseUnits(value, decimals) : ethers.utils.parseUnits(value, decimals);
+  return ethers.parseUnits(value, decimals);
 };
 
+// getSignerInstance - ethers v6
 export const getSignerInstance = async (providerInstance) => {
-  return isV6 ? await providerInstance.getSigner() : providerInstance.getSigner();
+  return await providerInstance.getSigner();
 };
 
+// isLessThan
 export const isLessThan = (a, b) => BigInt(a.toString()) < BigInt(b.toString());
 
 // AAVE DESTEK
