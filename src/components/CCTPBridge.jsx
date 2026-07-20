@@ -27,7 +27,7 @@ const CCTP_CONTRACTS = {
 // ============================================
 
 const TOKEN_MESSENGER_ABI = [
-  "function depositForBurn(uint256 amount, uint32 destinationDomain, bytes32 mintRecipient, address burnToken) external returns (uint64 nonce)",
+  "function depositForBurn(uint256 amount, uint32 destinationDomain, bytes32 mintRecipient, address burnToken, bytes32 destinationCaller, uint256 maxFee, uint32 minFinalityThreshold) external returns (uint64 nonce)",
   "function depositForBurnWithCaller(uint256 amount, uint32 destinationDomain, bytes32 mintRecipient, address burnToken, bytes32 destinationCaller) external returns (uint64 nonce)",
   "function replaceDepositForBurn(bytes32 originalMessage, bytes calldata originalAttestation, bytes32 newDestinationCaller, bytes32 newMintRecipient) external",
 ];
