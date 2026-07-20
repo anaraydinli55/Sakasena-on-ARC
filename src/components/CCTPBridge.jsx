@@ -1,5 +1,4 @@
-
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { ethers } from 'ethers';
 
 // ============================================
@@ -7,52 +6,43 @@ import { ethers } from 'ethers';
 // ============================================
 
 const CCTP_CONTRACTS = {
-  // Arc Testnet (Domain: 26)
   5042002: {
     domain: 26,
     usdc: "0x3600000000000000000000000000000000000000",
     tokenMessenger: "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA",
     messageTransmitter: "0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275",
-    nativeCurrency: "USDC", // Arc'ta gas USDC ile odenir
+    nativeCurrency: "USDC",
     gasToken: "USDC",
   },
-  // Base Sepolia (Domain: 6)
   84532: {
     domain: 6,
     usdc: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
     tokenMessenger: "0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d",
     messageTransmitter: "0xe7b84D8846c96Bb83155Da5537625c75e42d6E42",
-    nativeCurrency: "ETH", // Base'de gas ETH ile odenir
+    nativeCurrency: "ETH",
     gasToken: "ETH",
   },
 };
 
-// ============================================
-// CCTP v2 ABI'LER
-// ============================================
-
 const TOKEN_MESSENGER_ABI = [
   "function depositForBurn(uint256 amount, uint32 destinationDomain, bytes32 mintRecipient, address burnToken, bytes32 destinationCaller, uint256 maxFee, uint32 minFinalityThreshold) external returns (uint64 nonce)",
-  "function depositForBurnWithCaller(uint256 amount, uint32 destinationDomain, bytes32 mintRecipient, address burnToken, bytes32 destinationCaller) external returns (uint64 nonce)",
 ];
 
 const MESSAGE_TRANSMITTER_ABI = [
   "function receiveMessage(bytes calldata message, bytes calldata attestation) external returns (bool success)",
-  "function usedNonces(bytes32) view returns (uint256)",
 ];
 
 const ERC20_ABI = [
   "function approve(address spender, uint256 amount) returns (bool)",
   "function allowance(address owner, address spender) view returns (uint256)",
   "function balanceOf(address owner) view returns (uint256)",
-  "function decimals() view returns (uint8)",
 ];
 
 // ============================================
-// CCTP v2 BRIDGE HOOK (DUZELTILMIS - Base -> Arc destegi)
+// CCTP v2 BRIDGE HOOK (v3 - network changed hatasi duzeltildi)
 // ============================================
 
-export function useCCTPBridge(provider, account, chainId, switchNetwork) {
+export function useCCTPBridge(account, switchNetwork) {
   const [bridgeState, setBridgeState] = useState({
     status: 'idle',
     messageHash: null,
@@ -68,25 +58,26 @@ export function useCCTPBridge(provider, account, chainId, switchNetwork) {
     } catch { return []; }
   });
 
+  // Guncel chainId'yi ref ile takip et (prop yerine)
+  const currentChainIdRef = useRef(null);
+
   useEffect(() => {
     localStorage.setItem('cctp_bridge_history', JSON.stringify(bridgeHistory));
   }, [bridgeHistory]);
 
-  // ============================================
-  // TAZE SIGNER AL (Her islem oncesi - KRITIK!)
-  // ============================================
+  // Mevcut agi al - her zaman guncel
+  const getCurrentChainId = async () => {
+    if (!window.ethereum) return null;
+    const provider = new ethers.BrowserProvider(window.ethereum);
+    const network = await provider.getNetwork();
+    return Number(network.chainId);
+  };
+
+  // Taze signer al
   const getFreshSigner = async () => {
     if (!window.ethereum) throw new Error('MetaMask bulunamadi');
-
-    // Her zaman taze provider olustur
     const freshProvider = new ethers.BrowserProvider(window.ethereum);
-    const signer = await freshProvider.getSigner();
-
-    // Mevcut agi kontrol et
-    const network = await freshProvider.getNetwork();
-    console.log('Taze signer agi:', network.chainId.toString());
-
-    return signer;
+    return await freshProvider.getSigner();
   };
 
   // ============================================
@@ -99,37 +90,29 @@ export function useCCTPBridge(provider, account, chainId, switchNetwork) {
     const signer = await getFreshSigner();
     const usdcContract = new ethers.Contract(config.usdc, ERC20_ABI, signer);
 
-    const decimals = 6;
-    const amountParsed = ethers.parseUnits(amount, decimals);
-
+    const amountParsed = ethers.parseUnits(amount, 6);
     setBridgeState(s => ({ ...s, status: 'approving' }));
 
-    // Gas limit: Arc'ta USDC gas, Base'de ETH gas
-    const gasLimit = sourceChainId === 5042002 ? 300000 : 200000;
-
-    const tx = await usdcContract.approve(config.tokenMessenger, amountParsed, { gasLimit });
+    const tx = await usdcContract.approve(config.tokenMessenger, amountParsed, {
+      gasLimit: sourceChainId === 5042002 ? 300000 : 200000
+    });
     await tx.wait();
     return amountParsed;
   };
 
   // ============================================
-  // ADIM 2: BURN (depositForBurn)
+  // ADIM 2: BURN
   // ============================================
   const burnUSDC = async (amountParsed, sourceChainId, destChainId, recipient) => {
     const sourceConfig = CCTP_CONTRACTS[sourceChainId];
     const destConfig = CCTP_CONTRACTS[destChainId];
-
     if (!sourceConfig || !destConfig) throw new Error('Desteklenmeyen ag');
 
     const signer = await getFreshSigner();
     const messenger = new ethers.Contract(sourceConfig.tokenMessenger, TOKEN_MESSENGER_ABI, signer);
 
     const mintRecipient = ethers.zeroPadValue(recipient, 32);
-
     setBridgeState(s => ({ ...s, status: 'burning' }));
-
-    // Gas limit: Arc'ta daha yuksek cunku USDC gas
-    const gasLimit = sourceChainId === 5042002 ? 800000 : 500000;
 
     const tx = await messenger.depositForBurn(
       amountParsed,
@@ -139,7 +122,7 @@ export function useCCTPBridge(provider, account, chainId, switchNetwork) {
       ethers.ZeroHash,
       0,
       2000,
-      { gasLimit }
+      { gasLimit: sourceChainId === 5042002 ? 800000 : 500000 }
     );
 
     const receipt = await tx.wait();
@@ -180,46 +163,36 @@ export function useCCTPBridge(provider, account, chainId, switchNetwork) {
           setBridgeState(s => ({ ...s, attestation: data.attestation }));
           return data.attestation;
         }
-
-        // Base -> Arc daha uzun suruyor olabilir
         await new Promise(r => setTimeout(r, 5000));
-
       } catch (err) {
-        console.warn(`Attestation polling attempt ${i + 1} failed:`, err);
+        console.warn(`Polling ${i + 1} failed:`, err.message);
         await new Promise(r => setTimeout(r, 5000));
       }
     }
-
-    throw new Error('Attestation 10 dakika icinde alinamadi');
+    throw new Error('Attestation zaman asimina ugradi');
   };
 
   // ============================================
-  // ADIM 4: MINT (receiveMessage)
+  // ADIM 4: MINT
   // ============================================
   const mintUSDC = async (message, attestation, destChainId) => {
     const destConfig = CCTP_CONTRACTS[destChainId];
     if (!destConfig) throw new Error('Desteklenmeyen hedef agi');
 
-    // Hedef aga gecis yapildi mi kontrol et
-    if (!window.ethereum) throw new Error('MetaMask bulunamadi');
-
-    const freshProvider = new ethers.BrowserProvider(window.ethereum);
-    const network = await freshProvider.getNetwork();
-    const currentChainId = Number(network.chainId);
-
-    if (currentChainId !== destChainId) {
-      throw new Error(`Hedef aga gecilmedi. Mevcut: ${currentChainId}, Beklenen: ${destChainId}`);
+    // Hedef agi dogrula
+    const currentChain = await getCurrentChainId();
+    if (currentChain !== destChainId) {
+      throw new Error(`Ag degisimi tamamlanmadi. Mevcut: ${currentChain}, Hedef: ${destChainId}`);
     }
 
-    const signer = await freshProvider.getSigner();
+    const signer = await getFreshSigner();
     const transmitter = new ethers.Contract(destConfig.messageTransmitter, MESSAGE_TRANSMITTER_ABI, signer);
 
     setBridgeState(s => ({ ...s, status: 'minting' }));
 
-    // Arc'ta USDC gas, Base'de ETH gas
-    const gasLimit = destChainId === 5042002 ? 800000 : 500000;
-
-    const tx = await transmitter.receiveMessage(message, attestation, { gasLimit });
+    const tx = await transmitter.receiveMessage(message, attestation, {
+      gasLimit: destChainId === 5042002 ? 800000 : 500000
+    });
     await tx.wait();
 
     setBridgeState(s => ({ ...s, status: 'completed' }));
@@ -227,16 +200,14 @@ export function useCCTPBridge(provider, account, chainId, switchNetwork) {
   };
 
   // ============================================
-  // TAM BRIDGE AKISI (DUZELTILMIS)
+  // TAM BRIDGE AKISI
   // ============================================
   const executeBridge = async (amount, sourceChainId, destChainId) => {
     if (!account) throw new Error('Cuzdan bagli degil');
     if (!CCTP_CONTRACTS[sourceChainId] || !CCTP_CONTRACTS[destChainId]) {
       throw new Error('Desteklenmeyen ag cifti');
     }
-    if (sourceChainId === destChainId) {
-      throw new Error('Kaynak ve hedef ayni olamaz');
-    }
+    if (sourceChainId === destChainId) throw new Error('Kaynak ve hedef ayni olamaz');
 
     try {
       setBridgeState({
@@ -253,10 +224,7 @@ export function useCCTPBridge(provider, account, chainId, switchNetwork) {
 
       // 2. Burn
       const { txHash, nonce, messageHash } = await burnUSDC(
-        amountParsed,
-        sourceChainId,
-        destChainId,
-        account
+        amountParsed, sourceChainId, destChainId, account
       );
 
       // 3. Poll Attestation
@@ -264,25 +232,21 @@ export function useCCTPBridge(provider, account, chainId, switchNetwork) {
 
       // 4. Ag degistir
       setBridgeState(s => ({ ...s, status: 'switching' }));
-
-      // Switch network ve kullanicinin onayini bekle
       await switchNetwork(destChainId);
 
-      // Ag degisikliginin tamamlanmasi icin bekle (Base -> Arc daha uzun surer)
-      const waitTime = sourceChainId === 84532 ? 8000 : 5000; // Base -> Arc daha uzun
+      // Ag degisikligini bekle (Base -> Arc daha uzun)
+      const waitTime = sourceChainId === 84532 ? 10000 : 6000;
       await new Promise(r => setTimeout(r, waitTime));
 
-      // Ekstra kontrol: Gercekten hedef aga gectik mi?
+      // Ag degisikligini dogrula
       let retries = 0;
-      while (retries < 10) {
-        if (!window.ethereum) break;
-        const freshProvider = new ethers.BrowserProvider(window.ethereum);
-        const network = await freshProvider.getNetwork();
-        if (Number(network.chainId) === destChainId) {
-          console.log('Hedef aga basariyla gecildi:', destChainId);
+      while (retries < 15) {
+        const currentChain = await getCurrentChainId();
+        if (currentChain === destChainId) {
+          console.log('Hedef aga gecildi:', destChainId);
           break;
         }
-        console.log('Ag degisimi bekleniyor...', Number(network.chainId));
+        console.log('Ag degisimi bekleniyor...', currentChain);
         await new Promise(r => setTimeout(r, 2000));
         retries++;
       }
@@ -290,20 +254,12 @@ export function useCCTPBridge(provider, account, chainId, switchNetwork) {
       // 5. Mint
       const IRIS_API = 'https://iris-api-sandbox.circle.com';
       const msgResponse = await fetch(`${IRIS_API}/messages/${messageHash}`);
-
-      if (!msgResponse.ok) {
-        throw new Error(`Message API hatasi: ${msgResponse.status}`);
-      }
-
+      if (!msgResponse.ok) throw new Error(`Message API: ${msgResponse.status}`);
       const msgData = await msgResponse.json();
-
-      if (!msgData.message) {
-        throw new Error('Message verisi alinamadi');
-      }
+      if (!msgData.message) throw new Error('Message verisi bos');
 
       const mintTxHash = await mintUSDC(msgData.message, attestation, destChainId);
 
-      // Gecmise kaydet
       const record = {
         id: Date.now(),
         amount,
@@ -314,14 +270,12 @@ export function useCCTPBridge(provider, account, chainId, switchNetwork) {
         timestamp: Date.now(),
         status: 'completed',
       };
-
       setBridgeHistory(prev => [record, ...prev]);
-
       return record;
 
     } catch (err) {
       console.error('Bridge hatasi:', err);
-      setBridgeState(s => ({ ...s, status: 'error', error: err.message || err.reason || 'Bilinmeyen hata' }));
+      setBridgeState(s => ({ ...s, status: 'error', error: err.message || 'Bilinmeyen hata' }));
       throw err;
     }
   };
@@ -347,12 +301,12 @@ export function useCCTPBridge(provider, account, chainId, switchNetwork) {
 }
 
 // ============================================
-// CCTP BRIDGE UI BILESENI (DUZELTILMIS)
+// CCTP BRIDGE UI BILESENI (v3 - network changed duzeltildi)
 // ============================================
 
 export default function CCTPBridgeTab({ provider, account, chainId, balances, switchNetwork }) {
   const { bridgeState, bridgeHistory, executeBridge, resetBridge, CCTP_CONTRACTS } = 
-    useCCTPBridge(provider, account, chainId, switchNetwork);
+    useCCTPBridge(account, switchNetwork);
 
   const [amount, setAmount] = useState('');
   const [sourceChain, setSourceChain] = useState(5042002);
@@ -368,11 +322,18 @@ export default function CCTPBridgeTab({ provider, account, chainId, balances, sw
     if (!amount || parseFloat(amount) <= 0) return;
 
     try {
-      // Kaynak agda mi kontrol et
-      if (chainId !== sourceChain) {
-        console.log('Kaynak aga geciliyor:', sourceChain);
+      // Mevcut agi dogrudan MetaMask'ten al (prop yerine)
+      const currentProvider = new ethers.BrowserProvider(window.ethereum);
+      const network = await currentProvider.getNetwork();
+      const currentChainId = Number(network.chainId);
+
+      console.log('Mevcut ag:', currentChainId, 'Kaynak ag:', sourceChain);
+
+      // Kaynak agda degilsek gec
+      if (currentChainId !== sourceChain) {
+        console.log('Kaynak aga geciliyor...');
         await switchNetwork(sourceChain);
-        await new Promise(r => setTimeout(r, 3000));
+        await new Promise(r => setTimeout(r, 4000));
       }
 
       await executeBridge(amount, sourceChain, destChain);
@@ -387,7 +348,7 @@ export default function CCTPBridgeTab({ provider, account, chainId, balances, sw
       case 'approving': return 'USDC onaylaniyor...';
       case 'burning': return 'USDC yakiliyor (burn)...';
       case 'polling': return `Attestation bekleniyor... (Nonce: ${bridgeState.nonce || '...'})`;
-      case 'switching': return 'Ag degistiriliyor... Lutfen MetaMask'te onaylayin';
+      case 'switching': return 'Ag degistiriliyor... Lutfen MetaMask\'te onaylayin';
       case 'minting': return 'USDC basilip (mint)...';
       case 'completed': return '✅ Transfer tamamlandi!';
       case 'error': return `❌ Hata: ${bridgeState.error}`;
@@ -422,7 +383,6 @@ export default function CCTPBridgeTab({ provider, account, chainId, balances, sw
       </h2>
       <p className="text-sm text-gray-400 mb-6">
         Arc Testnet ↔ Base Sepolia arasinda <strong>USDC</strong> transferi yapin.
-        Circle CCTP v2 ile guvenli ve hizli cross-chain transfer.
       </p>
 
       {/* Zincir Secici */}
@@ -447,10 +407,7 @@ export default function CCTPBridgeTab({ provider, account, chainId, balances, sw
         </div>
 
         <div className="flex justify-center my-2">
-          <button
-            onClick={swapChains}
-            className="bg-[#211e47] p-2 rounded-full hover:bg-violet-900 transition border border-gray-700"
-          >
+          <button onClick={swapChains} className="bg-[#211e47] p-2 rounded-full hover:bg-violet-900 transition border border-gray-700">
             ⬇️
           </button>
         </div>
@@ -523,10 +480,7 @@ export default function CCTPBridgeTab({ provider, account, chainId, balances, sw
           {bridgeState.error && (
             <div className="mt-2">
               <p className="text-xs text-rose-400 mb-2">{bridgeState.error}</p>
-              <button
-                onClick={resetBridge}
-                className="text-xs text-violet-400 hover:text-violet-300 underline"
-              >
+              <button onClick={resetBridge} className="text-xs text-violet-400 hover:text-violet-300 underline">
                 Tekrar Dene
               </button>
             </div>
@@ -566,9 +520,6 @@ export default function CCTPBridgeTab({ provider, account, chainId, balances, sw
                 </div>
                 <div className="text-gray-500 mt-1">
                   {CHAIN_NAMES[record.sourceChain]} → {CHAIN_NAMES[record.destChain]}
-                </div>
-                <div className="text-gray-600 mt-0.5">
-                  {new Date(record.timestamp).toLocaleString()}
                 </div>
               </div>
             ))}
