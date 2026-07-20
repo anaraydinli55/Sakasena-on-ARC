@@ -98,6 +98,13 @@ export default function App() {
     }
   }, [account, chainId, provider, activeTab, activePoolType, fromToken, toToken]);
 
+  // YENI (Sadece ilk yukleme icin):
+useEffect(() => {
+  if (account) {
+    fetchBalances();
+  }
+}, [account]);
+
   // Yardımcı fonksiyonlar
   const handlePercentClick = (percent, balance, decimals, setter) => {
     if (!balance || isNaN(balance)) return;
