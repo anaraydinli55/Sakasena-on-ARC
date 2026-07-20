@@ -3,7 +3,7 @@
 // ============================================
 import { useState, useCallback } from 'react';
 import { ethers } from 'ethers';
-import { formatUnits, ZERO_ADDRESS } from './constants';
+import { formatUnits, ZERO_ADDRESS } from '../constants';
 import { getActiveNetworkConfig, getPoolAddress } from './networks';
 
 export const useBalances = (provider, account, chainId) => {
