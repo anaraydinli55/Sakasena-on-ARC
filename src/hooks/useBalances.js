@@ -1,7 +1,7 @@
 // ============================================
-// BALANS VE HAVUZ VERILERI HOOK'U (DUZELTILMIS)
+// BALANS VE HAVUZ VERILERI HOOK'U (v2 - Ag degisimi takibi)
 // ============================================
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { ethers } from 'ethers';
 import { formatUnits, ZERO_ADDRESS } from '../constants';
 import { getActiveNetworkConfig, getPoolAddress } from '../networks';
@@ -20,22 +20,45 @@ export const useBalances = (provider, account, chainId) => {
     stableAmount: "0.00", aaaAmount: "0.00", stableSymbol: "USDC" 
   });
 
-  // Taze provider al - her zaman guncel ag
+  // ============================================
+  // TAZE PROVIDER AL - her zaman guncel ag
+  // ============================================
   const getFreshProvider = useCallback(() => {
     if (!window.ethereum) return null;
     return new ethers.BrowserProvider(window.ethereum);
   }, []);
 
+  // ============================================
+  // MEVCUT AGI AL - MetaMask'ten dogrudan
+  // ============================================
+  const getCurrentChainId = useCallback(async () => {
+    if (!window.ethereum) return null;
+    const provider = new ethers.BrowserProvider(window.ethereum);
+    const network = await provider.getNetwork();
+    return Number(network.chainId);
+  }, []);
+
+  // ============================================
+  // BALANSLARI CEK
+  // ============================================
   const fetchBalances = useCallback(async () => {
-    if (!account) return;
+    if (!account) {
+      setBalances({ USDC: "0.00", EURC: "0.00", cirBTC: "0.0000", sakUSD: "0.00", WUSDC: "0.00", AAA: "0.00", USDT: "0.00", DAI: "0.00" });
+      return;
+    }
 
     const freshProvider = getFreshProvider();
     if (!freshProvider) return;
 
+    // Mevcut agi al - prop yerine
+    const currentChainId = await getCurrentChainId();
+    if (!currentChainId) return;
+
+    const config = getActiveNetworkConfig(currentChainId);
+
     try {
       const minABI = ["function balanceOf(address owner) view returns (uint256)"];
       const newBalances = {};
-      const config = getActiveNetworkConfig(chainId);
 
       for (const key of Object.keys(config.tokens)) {
         const token = config.tokens[key];
@@ -46,24 +69,38 @@ export const useBalances = (provider, account, chainId) => {
             const formatted = parseFloat(formatUnits(raw, token.decimals)); 
             newBalances[key] = formatted.toFixed(key === "cirBTC" ? 4 : 2);
           } catch (err) {
-            console.warn(`${key} balansi okunurken hata (muhtemelen ag degisimi):`, err.message);
+            console.warn(`${key} balansi okunurken hata:`, err.message);
             newBalances[key] = "0.00";
           }
         } else {
           newBalances[key] = "0.00";
         }
       }
+
+      // Eksik token'lar icin 0 ata
+      const allTokens = ["USDC", "EURC", "cirBTC", "sakUSD", "WUSDC", "AAA", "USDT", "DAI"];
+      for (const t of allTokens) {
+        if (newBalances[t] === undefined) newBalances[t] = "0.00";
+      }
+
       setBalances(newBalances);
+      console.log('Balanslar guncellendi:', currentChainId, newBalances);
     } catch (err) {
       console.error("Bakiyeler sorgulanirken hata:", err);
     }
-  }, [account, chainId, getFreshProvider]);
+  }, [account, getFreshProvider, getCurrentChainId]);
 
+  // ============================================
+  // HAVUZ REZERVLERINI CEK
+  // ============================================
   const fetchPoolReserves = useCallback(async (activePoolType, fromToken, toToken, activeTab) => {
     if (!account) return;
 
     const freshProvider = getFreshProvider();
     if (!freshProvider) return;
+
+    const currentChainId = await getCurrentChainId();
+    if (!currentChainId) return;
 
     const activePool = activeTab === "pool"
       ? getPoolAddress(activePoolType, "AAA") 
@@ -88,7 +125,7 @@ export const useBalances = (provider, account, chainId) => {
         contract.totalShares(), contract.lpShares(account)
       ]);
 
-      const config = getActiveNetworkConfig(chainId);
+      const config = getActiveNetworkConfig(currentChainId);
       const getDecimals = (addr) => {
         for (const key of Object.keys(config.tokens)) {
           if (config.tokens[key].address.toLowerCase() === addr.toLowerCase()) 
@@ -129,9 +166,43 @@ export const useBalances = (provider, account, chainId) => {
         stableSymbol
       });
     } catch (err) {
-      console.warn("Havuz rezervleri alinamadi (muhtemelen ag degisimi):", err.message);
+      console.warn("Havuz rezervleri alinamadi:", err.message);
     }
-  }, [account, chainId, getFreshProvider]);
+  }, [account, getFreshProvider, getCurrentChainId]);
+
+  // ============================================
+  // AG DEGISIMINI IZLE - MetaMask events
+  // ============================================
+  useEffect(() => {
+    if (!window.ethereum) return;
+
+    const handleChainChanged = async () => {
+      console.log('Ag degisimi algilandi, balanslar yenileniyor...');
+      // Kisa bekleme sonra yenile
+      await new Promise(r => setTimeout(r, 1000));
+      await fetchBalances();
+    };
+
+    window.ethereum.on('chainChanged', handleChainChanged);
+    return () => {
+      if (window.ethereum.removeListener) {
+        window.ethereum.removeListener('chainChanged', handleChainChanged);
+      }
+    };
+  }, [fetchBalances]);
+
+  // ============================================
+  // ILK YUKLEME VE PERIYODIK YENILEME
+  // ============================================
+  useEffect(() => {
+    if (!account) return;
+
+    fetchBalances();
+
+    // Her 5 saniyede bir yenile (ag degisimi icin)
+    const interval = setInterval(fetchBalances, 5000);
+    return () => clearInterval(interval);
+  }, [account, fetchBalances]);
 
   return { balances, poolReserves, userPoolBalances, fetchBalances, fetchPoolReserves };
 };
