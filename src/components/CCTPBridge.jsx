@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { ethers } from 'ethers';
 
@@ -376,7 +377,7 @@ export default function CCTPBridgeTab({ provider, account, chainId, balances, sw
       case 'approving': return 'USDC onaylaniyor...';
       case 'burning': return 'USDC yakiliyor (burn)...';
       case 'polling': return `Attestation bekleniyor... (Nonce: ${bridgeState.nonce || '...'})`;
-      case 'switching': return 'Ag degistiriliyor... Lutfen MetaMask'te onaylayin';
+      case 'switching': return 'Ag degistiriliyor... Lutfen MetaMask\'te onaylayin';
       case 'minting': return 'USDC basilip (mint)...';
       case 'completed': return '✅ Transfer tamamlandi!';
       case 'error': return `❌ Hata: ${bridgeState.error}`;
