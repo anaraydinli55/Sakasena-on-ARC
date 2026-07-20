@@ -1,18 +1,28 @@
 // ============================================
-// SAVINGS/STAKE VERILERI HOOK'U
+// SAVINGS/STAKE VERILERI HOOK'U (DUZELTILMIS)
 // ============================================
 import { useState, useCallback } from 'react';
 import { ethers } from 'ethers';
-import { formatUnits, ZERO_ADDRESS } from '../constants';
-import { getActiveNetworkConfig } from '../networks';
+import { formatUnits } from '../constants';
+import { getActiveNetworkConfig, ZERO_ADDRESS } from '../networks';
 
 export const useSavings = (provider, account, chainId) => {
   const [savingsData, setSavingsData] = useState({ 
     staked: "0.00", pendingRewards: "0.00", requests: [] 
   });
 
+  // Taze provider al - her zaman guncel ag
+  const getFreshProvider = useCallback(() => {
+    if (!window.ethereum) return null;
+    return new ethers.BrowserProvider(window.ethereum);
+  }, []);
+
   const fetchSavingsData = useCallback(async () => {
-    if (!provider || !account) return;
+    if (!account) return;
+
+    const freshProvider = getFreshProvider();
+    if (!freshProvider) return;
+
     const config = getActiveNetworkConfig(chainId);
     if (!config.minterAddress || config.minterAddress === ZERO_ADDRESS) return;
 
@@ -50,7 +60,7 @@ export const useSavings = (provider, account, chainId) => {
         }
       ];
 
-      const contract = new ethers.Contract(config.minterAddress, minterABI, provider);
+      const contract = new ethers.Contract(config.minterAddress, minterABI, freshProvider);
 
       const [staked, pending, reqs] = await Promise.all([
         contract.stakedBalance(account),
@@ -74,9 +84,11 @@ export const useSavings = (provider, account, chainId) => {
         requests: requestsMapped
       });
     } catch (err) {
-      console.warn("Tasarruf bilgileri alinamadi:", err);
+      console.warn("Tasarruf bilgileri alinamadi (muhtemelen ag degisimi):", err.message);
+      // Ag degisimi sirasinda hata alirsak, 0 degerleri goster
+      setSavingsData({ staked: "0.00", pendingRewards: "0.00", requests: [] });
     }
-  }, [provider, account, chainId]);
+  }, [account, chainId, getFreshProvider]);
 
   return { savingsData, fetchSavingsData };
 };
