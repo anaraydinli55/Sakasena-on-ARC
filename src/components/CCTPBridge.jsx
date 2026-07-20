@@ -135,7 +135,7 @@ export function useCCTPBridge(account, switchNetwork) {
     });
 
     const nonce = event ? event.args.nonce.toString() : null;
-    const messageHash = ethers.keccak256(event?.data || '0x');
+    const messageHash = ethers.keccak256(event?.args?.message || '0x');
 
     setBridgeState(s => ({
       ...s,
