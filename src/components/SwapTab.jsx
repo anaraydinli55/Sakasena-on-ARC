@@ -3,8 +3,8 @@
 // ============================================
 import { useEffect } from 'react';
 import { ethers } from 'ethers';
-import { TOKEN_PRICES, formatUnits, parseUnits, ZERO_ADDRESS } from './constants';
-import { getPoolAddress } from './networks';
+import { TOKEN_PRICES, formatUnits, parseUnits, ZERO_ADDRESS } from '../constants';
+import { getPoolAddress } from '../networks';
 
 export const SwapTab = ({ 
   tokens, balances, provider, chainId,
