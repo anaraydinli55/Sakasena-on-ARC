@@ -1,5 +1,5 @@
 // ============================================
-// BALANS VE HAVUZ VERILERI HOOK'U
+// BALANS VE HAVUZ VERILERI HOOK'U (DUZELTILMIS)
 // ============================================
 import { useState, useCallback } from 'react';
 import { ethers } from 'ethers';
@@ -20,8 +20,18 @@ export const useBalances = (provider, account, chainId) => {
     stableAmount: "0.00", aaaAmount: "0.00", stableSymbol: "USDC" 
   });
 
+  // Taze provider al - her zaman guncel ag
+  const getFreshProvider = useCallback(() => {
+    if (!window.ethereum) return null;
+    return new ethers.BrowserProvider(window.ethereum);
+  }, []);
+
   const fetchBalances = useCallback(async () => {
-    if (!provider || !account) return;
+    if (!account) return;
+
+    const freshProvider = getFreshProvider();
+    if (!freshProvider) return;
+
     try {
       const minABI = ["function balanceOf(address owner) view returns (uint256)"];
       const newBalances = {};
@@ -31,12 +41,12 @@ export const useBalances = (provider, account, chainId) => {
         const token = config.tokens[key];
         if (token.address && token.address !== ZERO_ADDRESS) { 
           try {
-            const contract = new ethers.Contract(token.address, minABI, provider);
+            const contract = new ethers.Contract(token.address, minABI, freshProvider);
             const raw = await contract.balanceOf(account);
             const formatted = parseFloat(formatUnits(raw, token.decimals)); 
             newBalances[key] = formatted.toFixed(key === "cirBTC" ? 4 : 2);
           } catch (err) {
-            console.error(`${key} balansi okunurken hata:`, err);
+            console.warn(`${key} balansi okunurken hata (muhtemelen ag degisimi):`, err.message);
             newBalances[key] = "0.00";
           }
         } else {
@@ -47,10 +57,13 @@ export const useBalances = (provider, account, chainId) => {
     } catch (err) {
       console.error("Bakiyeler sorgulanirken hata:", err);
     }
-  }, [provider, account, chainId]);
+  }, [account, chainId, getFreshProvider]);
 
   const fetchPoolReserves = useCallback(async (activePoolType, fromToken, toToken, activeTab) => {
-    if (!provider || !account) return;
+    if (!account) return;
+
+    const freshProvider = getFreshProvider();
+    if (!freshProvider) return;
 
     const activePool = activeTab === "pool"
       ? getPoolAddress(activePoolType, "AAA") 
@@ -67,7 +80,7 @@ export const useBalances = (provider, account, chainId) => {
         "function totalShares() view returns (uint256)",
         "function lpShares(address) view returns (uint256)" 
       ];
-      const contract = new ethers.Contract(activePool, genericABI, provider);
+      const contract = new ethers.Contract(activePool, genericABI, freshProvider);
 
       const [tA, tB, resA, resB, shares, userShares] = await Promise.all([
         contract.tokenA(), contract.tokenB(),
@@ -116,9 +129,9 @@ export const useBalances = (provider, account, chainId) => {
         stableSymbol
       });
     } catch (err) {
-      console.warn("Havuz rezervleri alinamadi:", err);
+      console.warn("Havuz rezervleri alinamadi (muhtemelen ag degisimi):", err.message);
     }
-  }, [provider, account, chainId]);
+  }, [account, chainId, getFreshProvider]);
 
   return { balances, poolReserves, userPoolBalances, fetchBalances, fetchPoolReserves };
 };
