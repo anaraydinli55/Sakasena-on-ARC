@@ -1,7 +1,7 @@
 // ============================================
 // LENDING/AAVE SEKMESI COMPONENT
 // ============================================
-import { AAVE_SUPPORTED_TOKENS } from './constants';
+import { AAVE_SUPPORTED_TOKENS } from '../constants';
 
 export const LendingTab = ({
   tokens, balances,
