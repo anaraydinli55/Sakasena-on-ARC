@@ -114,16 +114,69 @@ export function useCCTPBridge(account, switchNetwork) {
     const mintRecipient = ethers.zeroPadValue(recipient, 32);
     setBridgeState(s => ({ ...s, status: 'burning' }));
 
-    const tx = await messenger.depositForBurn(
-      amountParsed,
-      destConfig.domain,
-      mintRecipient,
-      sourceConfig.usdc,
-      ethers.ZeroHash,
-      0,
-      2000,
-      { gasLimit: sourceChainId === 5042002 ? 800000 : 500000 }
-    );
+// 1. depositForBurn çağrısı
+const tx = await messenger.depositForBurn(
+    amountParsed,
+    destConfig.domain,
+    mintRecipient,
+    sourceConfig.usdc,
+    ethers.ZeroHash,  // permit yerine (eğer ERC20Permit yoksa)
+    0,                // maxFee (bu değer CCTP v2'de farklı olabilir)
+    2000,             // minFinalityThreshold
+    { gasLimit: sourceChainId === 5042002 ? 800000 : 500000 }
+);
+
+// 2. Transaction receipt'ten MessageSent event'ini bul
+const receipt = await tx.wait();
+const messageSentEvent = receipt.logs
+    .map(log => {
+        try {
+            return messenger.interface.parseLog(log);
+        } catch {
+            return null;
+        }
+    })
+    .filter(event => event && event.name === 'MessageSent')[0];
+
+if (!messageSentEvent) {
+    throw new Error('MessageSent event bulunamadi');
+}
+
+// 3. ✅ DOĞRU: event.args.message kullan
+const messageBytes = messageSentEvent.args.message;
+const messageHash = ethers.keccak256(messageBytes);
+
+console.log('Message Hash:', messageHash);
+console.log('Message Bytes:', messageBytes);
+
+// 4. Attestation için bekle ve sorgula
+const IRIS_API = 'https://iris-api-sandbox.circle.com';
+
+// CCTP'de attestation oluşması birkaç saniye/dakika sürebilir
+let attestation = null;
+let attempts = 0;
+const maxAttempts = 30;
+
+while (!attestation && attempts < maxAttempts) {
+    await new Promise(r => setTimeout(r, 2000)); // 2 saniye bekle
+    
+    const response = await fetch(`${IRIS_API}/attestations/${messageHash}`);
+    if (response.ok) {
+        const data = await response.json();
+        if (data.attestation) {
+            attestation = data.attestation;
+            break;
+        }
+    }
+    attempts++;
+}
+
+if (!attestation) {
+    throw new Error('Attestation zaman asimina ugradi');
+}
+
+// 5. Target chain'de receiveMessage çağrısı
+// ...
 
     const receipt = await tx.wait();
 
