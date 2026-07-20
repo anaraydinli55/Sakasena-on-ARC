@@ -111,13 +111,13 @@ export function useCCTPBridge(provider, account, chainId, switchNetwork) {
 
     setBridgeState(s => ({ ...s, status: 'burning' }));
 
-    const tx = await messenger.depositForBurn(
-      amountParsed,
-      destConfig.domain,
-      mintRecipient,
-      sourceConfig.usdc,
-      { gasLimit: 500000 }
-    );
+const tx = await messenger.depositForBurn(
+  amountParsed,
+  destConfig.domain,
+  mintRecipient,
+  sourceConfig.usdc,
+  { gasLimit: 500000 }
+);
 
     const receipt = await tx.wait();
 
