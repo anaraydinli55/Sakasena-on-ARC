@@ -1,7 +1,7 @@
 // ============================================
 // FAUCET SEKMESI COMPONENT
 // ============================================
-import { ARC_ADDRESSES } from './constants';
+import { ARC_ADDRESSES } from '../constants';
 
 export const FaucetTab = ({ handleFaucet, txLoading }) => {
   return (
