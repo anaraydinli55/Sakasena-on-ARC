@@ -442,14 +442,24 @@ export default function CCTPBridgeTab({ provider, account, chainId, balances, sw
     }
   };
 
-  const CHAIN_NAMES = {
-    5042002: 'Arc Testnet',
+const CHAIN_NAMES = {
+    11155111: 'Ethereum Sepolia',
+    43113: 'Avalanche Fuji',
+    11155420: 'Optimism Sepolia',
+    421614: 'Arbitrum Sepolia',
     84532: 'Base Sepolia',
+    4801: 'World Chain Sepolia',
+    5042002: 'Arc Testnet',
   };
 
   const GAS_INFO = {
-    5042002: 'Gas: USDC',
+    11155111: 'Gas: ETH',
+    43113: 'Gas: AVAX',
+    11155420: 'Gas: ETH',
+    421614: 'Gas: ETH',
     84532: 'Gas: ETH',
+    4801: 'Gas: ETH',
+    5042002: 'Gas: USDC',
   };
 
   return (
