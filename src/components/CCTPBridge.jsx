@@ -126,6 +126,11 @@ export function useCCTPBridge(account, switchNetwork) {
     );
 
     const receipt = await tx.wait();
+console.log('TX Hash:', tx.hash);
+console.log('Log sayisi:', receipt.logs.length);
+receipt.logs.forEach((log, i) => {
+  console.log(`Log ${i}:`, log.address, log.topics[0]);
+});
 
     // MessageSent event'ini parse et
     const messageSentEvent = receipt.logs
