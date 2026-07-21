@@ -515,12 +515,18 @@ const CHAIN_NAMES = {
             onChange={(e) => {
               const val = Number(e.target.value);
               setDestChain(val);
-              if (sourceChain === val) setSourceChain(val === 5042002 ? 84532 : 5042002);
+              if (sourceChain === val) {
+                const other = Object.keys(CCTP_CONTRACTS).map(Number).find(id => id !== val);
+                setSourceChain(other);
+              }
             }}
             className="bg-[#211e47] text-white px-3 py-1.5 rounded-xl font-semibold border border-gray-700"
           >
-            <option value={84532}>🌐 Base Sepolia</option>
-            <option value={5042002}>🌐 Arc Testnet</option>
+            {Object.keys(CCTP_CONTRACTS).map((id) => (
+              <option key={id} value={Number(id)}>
+                🌐 {CHAIN_NAMES[id]}
+              </option>
+            ))}
           </select>
         </div>
       </div>
