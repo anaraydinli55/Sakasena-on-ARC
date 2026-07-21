@@ -7,6 +7,61 @@ import { ethers } from 'ethers';
 // ============================================
 
 const CCTP_CONTRACTS = {
+  // Ethereum Sepolia (Chain ID: 11155111)
+  11155111: {
+    domain: 0,
+    usdc: "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+    tokenMessenger: "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA",
+    messageTransmitter: "0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275",
+    nativeCurrency: "ETH",
+    gasToken: "ETH",
+  },
+  // Avalanche Fuji (Chain ID: 43113)
+  43113: {
+    domain: 1,
+    usdc: "0x5425890298aed601595a70AB815c96711a31Bc65",
+    tokenMessenger: "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA",
+    messageTransmitter: "0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275",
+    nativeCurrency: "AVAX",
+    gasToken: "AVAX",
+  },
+  // Optimism Sepolia (Chain ID: 11155420)
+  11155420: {
+    domain: 2,
+    usdc: "0x5fd84259d66Cd46123540766Be93DFE6D43130D7",
+    tokenMessenger: "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA",
+    messageTransmitter: "0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275",
+    nativeCurrency: "ETH",
+    gasToken: "ETH",
+  },
+  // Arbitrum Sepolia (Chain ID: 421614)
+  421614: {
+    domain: 3,
+    usdc: "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d",
+    tokenMessenger: "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA",
+    messageTransmitter: "0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275",
+    nativeCurrency: "ETH",
+    gasToken: "ETH",
+  },
+  // Base Sepolia (Chain ID: 84532)
+  84532: {
+    domain: 6,
+    usdc: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+    tokenMessenger: "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA",
+    messageTransmitter: "0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275",
+    nativeCurrency: "ETH",
+    gasToken: "ETH",
+  },
+  // World Chain Sepolia (Chain ID: 4801)
+  4801: {
+    domain: 14,
+    usdc: "0x66145f38cBAC35Ca6F1Dfb4914dF98F1614aeA88",
+    tokenMessenger: "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA",
+    messageTransmitter: "0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275",
+    nativeCurrency: "ETH",
+    gasToken: "ETH",
+  },
+  // Arc Testnet (Chain ID: 5042002)
   5042002: {
     domain: 26,
     usdc: "0x3600000000000000000000000000000000000000",
@@ -14,15 +69,6 @@ const CCTP_CONTRACTS = {
     messageTransmitter: "0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275",
     nativeCurrency: "USDC",
     gasToken: "USDC",
-  },
-  84532: {
-    domain: 6,
-    usdc: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
-    // Base Sepolia Testnet CCTP v2 adresleri, Arc Testnet ile aynidir (CREATE2)
-    tokenMessenger: "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA", 
-    messageTransmitter: "0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275", 
-    nativeCurrency: "ETH",
-    gasToken: "ETH",
   },
 };
 
