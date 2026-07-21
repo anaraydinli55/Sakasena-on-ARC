@@ -479,17 +479,23 @@ const CHAIN_NAMES = {
             <span className="text-xs text-gray-400">From (Kaynak)</span>
             <p className="text-xs text-violet-400">{GAS_INFO[sourceChain]}</p>
           </div>
-          <select
+        <select
             value={sourceChain}
             onChange={(e) => {
               const val = Number(e.target.value);
               setSourceChain(val);
-              if (destChain === val) setDestChain(val === 5042002 ? 84532 : 5042002);
+              if (destChain === val) {
+                const other = Object.keys(CCTP_CONTRACTS).map(Number).find(id => id !== val);
+                setDestChain(other);
+              }
             }}
             className="bg-[#211e47] text-white px-3 py-1.5 rounded-xl font-semibold border border-gray-700"
           >
-            <option value={5042002}>🌐 Arc Testnet</option>
-            <option value={84532}>🌐 Base Sepolia</option>
+            {Object.keys(CCTP_CONTRACTS).map((id) => (
+              <option key={id} value={Number(id)}>
+                🌐 {CHAIN_NAMES[id]}
+              </option>
+            ))}
           </select>
         </div>
 
