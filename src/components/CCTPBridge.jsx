@@ -3,13 +3,13 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { ethers } from 'ethers';
 
 // ============================================
-// CCTP v2 KONTRAT ADRESLERI
+// CCTP v2 KONTRAT ADRESLERI (TESTNET - DUZELTILDI)
 // ============================================
 
 const CCTP_CONTRACTS = {
   5042002: {
     domain: 26,
-    usdc: "0x36000000000000000000000000000000000000",
+    usdc: "0x3600000000000000000000000000000000000000",
     tokenMessenger: "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA",
     messageTransmitter: "0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275",
     nativeCurrency: "USDC",
@@ -18,16 +18,18 @@ const CCTP_CONTRACTS = {
   84532: {
     domain: 6,
     usdc: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
-    tokenMessenger: "0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d",
-    messageTransmitter: "0xe7b84D8846c96Bb83155Da5537625c75e42d6E42",
+    // Base Sepolia Testnet CCTP v2 adresleri, Arc Testnet ile aynidir (CREATE2)
+    tokenMessenger: "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA", 
+    messageTransmitter: "0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275", 
     nativeCurrency: "ETH",
     gasToken: "ETH",
   },
 };
 
 const TOKEN_MESSENGER_ABI = [
-  "function depositForBurn(uint256 amount, uint32 destinationDomain, bytes32 mintRecipient, address burnToken, bytes32 destinationCaller, uint256 maxFee, uint32 minFinalityThreshold) external returns (uint64 nonce)",
-  "event DepositForBurn(uint64 indexed nonce, uint256 indexed amount, address indexed burnToken, bytes32 mintRecipient, uint32 destinationDomain, bytes32 destinationTokenMessenger, bytes32 destinationCaller)",
+  // CCTP v2: depositForBurn artik geriye deger dondurmemektedir.
+  "function depositForBurn(uint256 amount, uint32 destinationDomain, bytes32 mintRecipient, address burnToken, bytes32 destinationCaller, uint256 maxFee, uint32 minFinalityThreshold) external",
+  "event DepositForBurn(address indexed burnToken, uint256 amount, address indexed depositor, bytes32 mintRecipient, uint32 destinationDomain, bytes32 destinationTokenMessenger, bytes32 destinationCaller, uint256 maxFee, uint32 indexed minFinalityThreshold, bytes hookData)",
   "event MessageSent(bytes message)",
 ];
 
@@ -42,7 +44,7 @@ const ERC20_ABI = [
 ];
 
 // ============================================
-// CCTP v2 BRIDGE HOOK (v4 - hatalar duzeltildi)
+// CCTP v2 BRIDGE HOOK
 // ============================================
 
 export function useCCTPBridge(account, switchNetwork) {
@@ -114,6 +116,7 @@ export function useCCTPBridge(account, switchNetwork) {
     const mintRecipient = ethers.zeroPadValue(recipient, 32);
     setBridgeState(s => ({ ...s, status: 'burning' }));
 
+    // CCTP v2 parameters: maxFee (0) ve minFinalityThreshold (2000 - Standard finality)
     const tx = await messenger.depositForBurn(
       amountParsed,
       destConfig.domain,
@@ -126,11 +129,6 @@ export function useCCTPBridge(account, switchNetwork) {
     );
 
     const receipt = await tx.wait();
-console.log('TX Hash:', tx.hash);
-console.log('Log sayisi:', receipt.logs.length);
-receipt.logs.forEach((log, i) => {
-  console.log(`Log ${i}:`, log.address, log.topics[0]);
-});
 
     // MessageSent event'ini parse et
     const messageSentEvent = receipt.logs
@@ -144,7 +142,7 @@ receipt.logs.forEach((log, i) => {
       .filter(event => event && event.name === 'MessageSent')[0];
 
     if (!messageSentEvent) {
-      throw new Error('MessageSent event bulunamadi');
+      throw new Error('MessageSent event bulunamadi. Lutfen CCTP v2 kontrat adreslerini kontrol edin.');
     }
 
     const messageBytes = messageSentEvent.args.message;
@@ -173,7 +171,7 @@ receipt.logs.forEach((log, i) => {
 
     for (let i = 0; i < maxAttempts; i++) {
       try {
-        // CCTP v2: Transaction hash ile sorgula
+        // CCTP v2: Transaction hash ile sorgulama
         const url = `${IRIS_API}/v2/messages/${sourceDomain}?transactionHash=${txHash}`;
         const response = await fetch(url);
 
@@ -270,7 +268,7 @@ receipt.logs.forEach((log, i) => {
         amountParsed, sourceChainId, destChainId, account
       );
 
-      // 3. Poll Attestation (CCTP v2: sourceDomain + txHash)
+      // 3. Poll Attestation
       const sourceConfig = CCTP_CONTRACTS[sourceChainId];
       const attestationData = await pollAttestation(sourceConfig.domain, txHash);
 
@@ -293,7 +291,7 @@ receipt.logs.forEach((log, i) => {
         retries++;
       }
 
-      // 5. Mint (API'den alinan message ve attestation ile)
+      // 5. Mint (Guncel message ve attestation verileri ile)
       const mintTxHash = await mintUSDC(attestationData.message, attestationData.attestation, destChainId);
 
       const record = {
