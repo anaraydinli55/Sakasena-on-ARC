@@ -9,7 +9,7 @@ import { ethers } from 'ethers';
 const CCTP_CONTRACTS = {
   5042002: {
     domain: 26,
-    usdc: "0x3600000000000000000000000000000000000000",
+    usdc: "0x36000000000000000000000000000000000000",
     tokenMessenger: "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA",
     messageTransmitter: "0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275",
     nativeCurrency: "USDC",
