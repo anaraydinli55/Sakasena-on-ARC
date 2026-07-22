@@ -93,23 +93,6 @@ export const NETWORKS = {
     aavePoolAddress: "0x6Ae43d3271ff68408398a123F67CE4a42f50005C",
     isAaveSupported: true
   },
-  300: {
-    name: "zkSync Sepolia",
-    hexId: "0x12c",
-    rpcUrl: "https://sepolia.era.zksync.dev",
-    explorer: "https://sepolia.explorer.zksync.io",
-    nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
-    tokens: {
-      USDC: { symbol: "USDC", name: "USD Coin", address: "0xAe045DE5638162fa134807Cb558E15A3F5A7F853", decimals: 6, icon: "💵" },
-      EURC: { symbol: "EURC", name: "Euro Coin", address: "0x0000000000000000000000000000000000000000", decimals: 6, icon: "💶" },
-      cirBTC: { symbol: "cirBTC", name: "Circle Wrapped Bitcoin", address: "0x0000000000000000000000000000000000000000", decimals: 8, icon: "₿" },
-      sakUSD: { symbol: "sakUSD", name: "Sakasena USD", address: "0x0000000000000000000000000000000000000000", decimals: 18, icon: "💴" },
-      AAA: { symbol: "AAA", name: "anaraydinli AAA Token", address: "0x0000000000000000000000000000000000000000", decimals: 18, icon: "🪙" }
-    },
-    minterAddress: "0x0000000000000000000000000000000000000000",
-    aavePoolAddress: "0x6Ae43d3271ff68408398a123F67CE4a42f50005C",
-    isAaveSupported: false
-  },
   4801: {
     chainId: 4801,
     hexChainId: "0x12c1",
