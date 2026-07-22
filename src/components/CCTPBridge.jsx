@@ -56,7 +56,7 @@ const CCTP_CONTRACTS = {
   4801: {
     domain: 14,
     usdc: "0x66145f38cBAC35Ca6F1Dfb4914dF98F1614aeA88",
-    tokenMessenger: "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA",
+    tokenMessenger: "0xb43db544E2c27092c107639Ad201b3dEfAbcF192",
     messageTransmitter: "0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275",
     nativeCurrency: "ETH",
     gasToken: "ETH",
