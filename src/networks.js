@@ -110,14 +110,16 @@ export const NETWORKS = {
     aavePoolAddress: "0x6Ae43d3271ff68408398a123F67CE4a42f50005C",
     isAaveSupported: false
   },
-  480: {
+  4801: {
+    chainId: 4801,
+    hexChainId: "0x12c1",
     name: "World Chain Sepolia",
-    hexId: "0x12c1",
-    rpcUrl: "https://sepolia.worldchain.dev",
-    explorer: "https://sepolia.worldscan.org",
+    rpcUrl: "https://worldchain-sepolia.g.alchemy.com/public", // 🌟 Bu adresi yapıştırın
     nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
-    tokens: {
-      USDC: { symbol: "USDC", name: "USD Coin", address: "0x79A02482A880bCe3F13E09da970dC34dB4cD24D1", decimals: 6, icon: "💵" },
+    blockExplorer: "https://worldchain-sepolia.explorer.alchemy.com",
+    tokens: [
+      { symbol: "USDC", address: "0x66145f38cBAC35Ca6F1Dfb4914dF98F1614aeA88", decimals: 6 },
+      { symbol: "ETH", address: "0x0000000000000000000000000000000000000000", decimals: 18 },
       EURC: { symbol: "EURC", name: "Euro Coin", address: "0x0000000000000000000000000000000000000000", decimals: 6, icon: "💶" },
       cirBTC: { symbol: "cirBTC", name: "Circle Wrapped Bitcoin", address: "0x0000000000000000000000000000000000000000", decimals: 8, icon: "₿" },
       sakUSD: { symbol: "sakUSD", name: "Sakasena USD", address: "0x0000000000000000000000000000000000000000", decimals: 18, icon: "💴" },
