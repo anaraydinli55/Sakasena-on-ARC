@@ -112,7 +112,7 @@ export const NETWORKS = {
   },
   480: {
     name: "World Chain Sepolia",
-    hexId: "0x1e0",
+    hexId: "0x12c1",
     rpcUrl: "https://sepolia.worldchain.dev",
     explorer: "https://sepolia.worldscan.org",
     nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
