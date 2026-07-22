@@ -78,7 +78,7 @@ export const NETWORKS = {
   },
   11155420: {
     name: "Optimism Sepolia",
-    hexId: "0xaa3748",
+    hexId: "0xaa37dc",
     rpcUrl: "https://sepolia.optimism.io",
     explorer: "https://sepolia-optimism.etherscan.io",
     nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
