@@ -17,14 +17,16 @@ export const SavingsTab = ({
       <div className="grid grid-cols-2 gap-4 mb-4">
         <div className="bg-[#1c183a] p-4 rounded-2xl border border-gray-800 text-center flex flex-col justify-center min-h-[120px]">
           <span className="text-xs text-gray-400 block mb-1">Staked Amount</span>
-          <p className="text-lg font-bold text-violet-300 truncate">{savingsData.staked} sakUSD</p>
+          {/* text-lg truncate yerine text-sm break-all yaptık (sayılar tam ve sığarak görünür) */}
+          <p className="text-sm font-bold text-violet-300 break-all">{savingsData.staked} sakUSD</p>
         </div>
         
-        {/* 🟢 CLAIM BUTONUNUN ENTEGRE EDILDIGI YENI ODUL KUTUSU */}
+        {/* CLAIM BUTONUNUN ENTEGRE EDILDIGI ODUL KUTUSU */}
         <div className="bg-[#1c183a] p-4 rounded-2xl border border-gray-800 text-center flex flex-col justify-between items-center min-h-[120px]">
           <div>
             <span className="text-xs text-gray-400 block mb-1">Pending Rewards</span>
-            <p className="text-lg font-bold text-emerald-400 truncate">{savingsData.pendingRewards} sakUSD</p>
+            {/* text-lg truncate yerine text-sm break-all yaptık (sayılar tam ve sığarak görünür) */}
+            <p className="text-sm font-bold text-emerald-400 break-all">{savingsData.pendingRewards} sakUSD</p>
           </div>
           <button 
             onClick={() => handleAction("claim_rewards")}
