@@ -161,7 +161,6 @@ export function useCCTPBridge(account, switchNetwork, onBridgeSuccess) {
   // ============================================
   // ADIM 2: BURN
   // ============================================
-  // recipient adresi artik dinamik olarak alici adresini isler
   const burnToken = async (amountParsed, tokenAddress, sourceChainId, destChainId, recipient) => {
     const sourceConfig = CCTP_CONTRACTS[sourceChainId];
     const destConfig = CCTP_CONTRACTS[destChainId];
@@ -170,7 +169,6 @@ export function useCCTPBridge(account, switchNetwork, onBridgeSuccess) {
     const signer = await getFreshSigner();
     const messenger = new ethers.Contract(sourceConfig.tokenMessenger, TOKEN_MESSENGER_ABI, signer);
 
-    // Alıcı adresi bytes32 formatına dönüştürülüyor
     const mintRecipient = ethers.zeroPadValue(recipient, 32);
     setBridgeState(s => ({ ...s, status: 'burning' }));
 
@@ -299,7 +297,6 @@ export function useCCTPBridge(account, switchNetwork, onBridgeSuccess) {
   // ============================================
   // TAM BRIDGE AKISI
   // ============================================
-  // recipientAddress parametresi eklendi
   const executeBridge = async (amount, sourceChainId, destChainId, tokenSymbol, recipientAddress) => {
     if (!account) throw new Error('Cuzdan bagli degil');
     if (!CCTP_CONTRACTS[sourceChainId] || !CCTP_CONTRACTS[destChainId]) {
@@ -320,7 +317,7 @@ export function useCCTPBridge(account, switchNetwork, onBridgeSuccess) {
       // 1. Approve
       const { amountParsed, tokenAddress } = await approveToken(amount, sourceChainId, tokenSymbol);
 
-      // 2. Burn (Dinamik recipient adresi ile cagiriliyor)
+      // 2. Burn
       const { txHash, nonce, messageHash, messageBytes } = await burnToken(
         amountParsed, tokenAddress, sourceChainId, destChainId, recipientAddress
       );
@@ -377,12 +374,23 @@ export function useCCTPBridge(account, switchNetwork, onBridgeSuccess) {
     }
   };
 
+  // 🌟 CLAUDE'UN UYARDIĞI EKSIK RESETBRIDGE FONKSIYONU TEKRAR EKLENDI
+  const resetBridge = () => {
+    setBridgeState({
+      status: 'idle',
+      messageHash: null,
+      attestation: null,
+      nonce: null,
+      error: null,
+      txHash: null,
+    });
+  };
+
   return {
     bridgeState,
     bridgeHistory,
     executeBridge,
     resetBridge,
-    CCTP_CONTRACTS,
   };
 }
 
@@ -391,16 +399,15 @@ export function useCCTPBridge(account, switchNetwork, onBridgeSuccess) {
 // ============================================
 
 export default function CCTPBridgeTab({ provider, account, chainId, balances = {}, switchNetwork, onBridgeSuccess }) {
-  const { bridgeState, bridgeHistory, executeBridge, resetBridge, CCTP_CONTRACTS } = 
+  const { bridgeState, bridgeHistory, executeBridge, resetBridge } = 
     useCCTPBridge(account, switchNetwork, onBridgeSuccess);
 
   const [amount, setAmount] = useState('');
   const [sourceChain, setSourceChain] = useState(5042002);
   const [destChain, setDestChain] = useState(84532);
   const [tokenSymbol, setTokenSymbol] = useState("USDC");
-  const [recipientAddress, setRecipientAddress] = useState(""); // Alıcı adresi state'i
+  const [recipientAddress, setRecipientAddress] = useState("");
 
-  // Cüzdan bağlandığında alıcı adresini otomatik olarak kullanıcının kendi adresiyle doldurur
   useEffect(() => {
     if (account && !recipientAddress) {
       setRecipientAddress(account);
@@ -416,7 +423,6 @@ export default function CCTPBridgeTab({ provider, account, chainId, balances = {
   const handleBridge = async () => {
     if (!amount || parseFloat(amount) <= 0) return;
 
-    // Alıcı adresi doğrulaması
     const targetAddress = recipientAddress || account;
     if (!ethers.isAddress(targetAddress)) {
       alert("Lutfen gecerli bir alici adresi girin.");
@@ -436,7 +442,6 @@ export default function CCTPBridgeTab({ provider, account, chainId, balances = {
         await new Promise(r => setTimeout(r, 4000));
       }
 
-      // executeBridge'e targetAddress parametresini gönderiyoruz
       await executeBridge(amount, sourceChain, destChain, tokenSymbol, targetAddress);
     } catch (err) {
       console.error('Bridge hatasi:', err);
@@ -589,7 +594,7 @@ export default function CCTPBridgeTab({ provider, account, chainId, balances = {
         </div>
       </div>
 
-      {/* 🌟 ALICI ADRESI GIRIS ALANI (YENI) */}
+      {/* ALICI ADRESI GIRIS ALANI */}
       <div className="bg-[#1c183a] p-4 rounded-2xl mb-4 border border-gray-800">
         <div className="flex justify-between items-center mb-2">
           <span className="text-xs text-gray-400">Recipient Address (Alici Adresi)</span>
