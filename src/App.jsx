@@ -361,8 +361,15 @@ export default function App() {
         }
         const collatObj = config.tokens[collateralToken];
         const amountParsed = parseUnits(supplyAmount, collatObj.decimals);
+
+        // 🌟 GÜVENLİ USCD YÖNLENDİRMESİ: Sadece Aave işlemleri için (Bridge/Swap bozulmaz)
+        let assetAddress = collatObj.address;
+        if (chainId === 84532 && collateralToken === "USDC") {
+          assetAddress = "0xba50Cd2A20f6DA35D788639E581bca8d0B5d4D5f"; // Aave Base Sepolia USDC
+        }
+
         const erc20ABI = ["function allowance(address owner, address spender) view returns (uint256)", "function approve(address spender, uint256 amount) returns (bool)"];
-        const tokenContract = new ethers.Contract(collatObj.address, erc20ABI, signer);
+        const tokenContract = new ethers.Contract(assetAddress, erc20ABI, signer);
         const currentAllowance = await tokenContract.allowance(account, config.aavePoolAddress);
         if (isLessThan(currentAllowance, amountParsed)) {
           const appTx = await tokenContract.approve(config.aavePoolAddress, MAX_UINT256, { gasLimit: 800000 });
@@ -371,7 +378,7 @@ export default function App() {
         }
         const aavePoolABI = ["function supply(address asset, uint256 amount, address onBehalfOf, uint16 referralCode) external"];
         const poolContract = new ethers.Contract(config.aavePoolAddress, aavePoolABI, signer);
-        const tx = await poolContract.supply(collatObj.address, amountParsed, account, 0, { gasLimit: 1000000 });
+        const tx = await poolContract.supply(assetAddress, amountParsed, account, 0, { gasLimit: 1000000 });
         await tx.wait();
         alert("Girov Aave'ye yerlestirildi!");
         setSupplyAmount("0");
@@ -390,9 +397,16 @@ export default function App() {
         }
         const loanObj = config.tokens[lendingToken];
         const amountParsed = parseUnits(borrowAmount, loanObj.decimals);
+
+        // 🌟 GÜVENLİ USCD YÖNLENDİRMESİ: Sadece Aave işlemleri için (Bridge/Swap bozulmaz)
+        let assetAddress = loanObj.address;
+        if (chainId === 84532 && lendingToken === "USDC") {
+          assetAddress = "0xba50Cd2A20f6DA35D788639E581bca8d0B5d4D5f"; // Aave Base Sepolia USDC
+        }
+
         const aavePoolABI = ["function borrow(address asset, uint256 amount, uint256 interestRateMode, uint16 referralCode, address onBehalfOf) external"];
         const poolContract = new ethers.Contract(config.aavePoolAddress, aavePoolABI, signer);
-        const tx = await poolContract.borrow(loanObj.address, amountParsed, 2, 0, account, { gasLimit: 1200000 });
+        const tx = await poolContract.borrow(assetAddress, amountParsed, 2, 0, account, { gasLimit: 1200000 });
         await tx.wait();
         alert("Borc alma tamamlandi!");
         setBorrowAmount("0");
@@ -411,8 +425,15 @@ export default function App() {
         }
         const loanObj = config.tokens[lendingToken];
         const amountParsed = parseUnits(repayAmount, loanObj.decimals);
+
+        // 🌟 GÜVENLİ USCD YÖNLENDİRMESİ: Sadece Aave işlemleri için (Bridge/Swap bozulmaz)
+        let assetAddress = loanObj.address;
+        if (chainId === 84532 && lendingToken === "USDC") {
+          assetAddress = "0xba50Cd2A20f6DA35D788639E581bca8d0B5d4D5f"; // Aave Base Sepolia USDC
+        }
+
         const erc20ABI = ["function allowance(address owner, address spender) view returns (uint256)", "function approve(address spender, uint256 amount) returns (bool)"];
-        const tokenContract = new ethers.Contract(loanObj.address, erc20ABI, signer);
+        const tokenContract = new ethers.Contract(assetAddress, erc20ABI, signer);
         const currentAllowance = await tokenContract.allowance(account, config.aavePoolAddress);
         if (isLessThan(currentAllowance, amountParsed)) {
           const appTx = await tokenContract.approve(config.aavePoolAddress, MAX_UINT256, { gasLimit: 800000 });
@@ -421,7 +442,7 @@ export default function App() {
         }
         const aavePoolABI = ["function repay(address asset, uint256 amount, uint256 interestRateMode, address onBehalfOf) external returns (uint256)"];
         const poolContract = new ethers.Contract(config.aavePoolAddress, aavePoolABI, signer);
-        const tx = await poolContract.repay(loanObj.address, amountParsed, 2, account, { gasLimit: 1000000 });
+        const tx = await poolContract.repay(assetAddress, amountParsed, 2, account, { gasLimit: 1000000 });
         await tx.wait();
         alert("Borc odendi!");
         setRepayAmount("0");
