@@ -211,7 +211,7 @@ export function useCCTPBridge(account, switchNetwork) {
   // ============================================
   // ADIM 3: ATTESTATION POLLING (CCTP v2)
   // ============================================
-  const pollAttestation = async (sourceDomain, txHash, maxAttempts = 300) => {
+  const pollAttestation = async (sourceDomain, txHash, maxAttempts = 360) => {
     const IRIS_API = 'https://iris-api-sandbox.circle.com';
 
     for (let i = 0; i < maxAttempts; i++) {
