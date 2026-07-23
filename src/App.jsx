@@ -210,7 +210,7 @@ export default function App() {
           const txApp = await stableContract.approve(activePool, stableBuffer, { gasLimit: 800000 });
           await txApp.wait();
         }
-        const allowanceAAA = await aaaContract.allowance(account, aaaParsed);
+        const allowanceAAA = await aaaContract.allowance(account, activePool);
         if (isLessThan(allowanceAAA, aaaParsed)) {
           const txApp = await aaaContract.approve(activePool, aaaBuffer, { gasLimit: 800000 });
           await txApp.wait();
