@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { ethers } from 'ethers';
 
@@ -52,7 +51,7 @@ const CCTP_CONTRACTS = {
     nativeCurrency: "ETH",
     gasToken: "ETH",
   },
-  // World Chain Sepolia (Chain ID: 4801)
+  // World Chain Sepolia (Chain ID: 4801) - DUZELTILDI
   4801: {
     domain: 14,
     usdc: "0x66145f38cBAC35Ca6F1Dfb4914dF98F1614aeA88",
@@ -61,7 +60,7 @@ const CCTP_CONTRACTS = {
     nativeCurrency: "ETH",
     gasToken: "ETH",
   },
-  // Arc Testnet (Chain ID: 5042002)
+  // Arc Testnet (Chain ID: 5042002) - DUZELTILDI
   5042002: {
     domain: 26,
     usdc: "0x3600000000000000000000000000000000000000",
@@ -92,7 +91,7 @@ const ERC20_ABI = [
 // CCTP v2 BRIDGE HOOK
 // ============================================
 
-export function useCCTPBridge(account, switchNetwork) {
+export function useCCTPBridge(account, switchNetwork, onBridgeSuccess) {
   const [bridgeState, setBridgeState] = useState({
     status: 'idle',
     messageHash: null,
@@ -315,7 +314,8 @@ export function useCCTPBridge(account, switchNetwork) {
 
       // 3. Poll Attestation
       const sourceConfig = CCTP_CONTRACTS[sourceChainId];
-      const attestationData = await pollAttestation(sourceConfig.domain, txHash);
+      // Açıkça 360 denemeyle (30 dakika) sorgulamayı tetikliyoruz
+      const attestationData = await pollAttestation(sourceConfig.domain, txHash, 360);
 
       // 4. Ag degistir
       setBridgeState(s => ({ ...s, status: 'switching' }));
@@ -350,6 +350,12 @@ export function useCCTPBridge(account, switchNetwork) {
         status: 'completed',
       };
       setBridgeHistory(prev => [record, ...prev]);
+
+      // 💎 Bridge başarıyla mint edildiğinde SP ödülünü tetikliyoruz
+      if (onBridgeSuccess) {
+        onBridgeSuccess();
+      }
+
       return record;
 
     } catch (err) {
@@ -383,9 +389,10 @@ export function useCCTPBridge(account, switchNetwork) {
 // CCTP BRIDGE UI BILESENI
 // ============================================
 
-export default function CCTPBridgeTab({ provider, account, chainId, balances, switchNetwork }) {
+export default function CCTPBridgeTab({ provider, account, chainId, balances, switchNetwork, onBridgeSuccess }) {
+  // Hook çağrısına onBridgeSuccess parametresini ekliyoruz
   const { bridgeState, bridgeHistory, executeBridge, resetBridge, CCTP_CONTRACTS } = 
-    useCCTPBridge(account, switchNetwork);
+    useCCTPBridge(account, switchNetwork, onBridgeSuccess);
 
   const [amount, setAmount] = useState('');
   const [sourceChain, setSourceChain] = useState(5042002);
@@ -442,7 +449,7 @@ export default function CCTPBridgeTab({ provider, account, chainId, balances, sw
     }
   };
 
-const CHAIN_NAMES = {
+  const CHAIN_NAMES = {
     11155111: 'Ethereum Sepolia',
     43113: 'Avalanche Fuji',
     11155420: 'Optimism Sepolia',
