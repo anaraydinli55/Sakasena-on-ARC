@@ -161,6 +161,7 @@ export function useCCTPBridge(account, switchNetwork, onBridgeSuccess) {
   // ============================================
   // ADIM 2: BURN
   // ============================================
+  // recipient adresi artik dinamik olarak alici adresini isler
   const burnToken = async (amountParsed, tokenAddress, sourceChainId, destChainId, recipient) => {
     const sourceConfig = CCTP_CONTRACTS[sourceChainId];
     const destConfig = CCTP_CONTRACTS[destChainId];
@@ -169,6 +170,7 @@ export function useCCTPBridge(account, switchNetwork, onBridgeSuccess) {
     const signer = await getFreshSigner();
     const messenger = new ethers.Contract(sourceConfig.tokenMessenger, TOKEN_MESSENGER_ABI, signer);
 
+    // Alıcı adresi bytes32 formatına dönüştürülüyor
     const mintRecipient = ethers.zeroPadValue(recipient, 32);
     setBridgeState(s => ({ ...s, status: 'burning' }));
 
@@ -297,7 +299,8 @@ export function useCCTPBridge(account, switchNetwork, onBridgeSuccess) {
   // ============================================
   // TAM BRIDGE AKISI
   // ============================================
-  const executeBridge = async (amount, sourceChainId, destChainId, tokenSymbol) => {
+  // recipientAddress parametresi eklendi
+  const executeBridge = async (amount, sourceChainId, destChainId, tokenSymbol, recipientAddress) => {
     if (!account) throw new Error('Cuzdan bagli degil');
     if (!CCTP_CONTRACTS[sourceChainId] || !CCTP_CONTRACTS[destChainId]) {
       throw new Error('Desteklenmeyen ag cifti');
@@ -317,9 +320,9 @@ export function useCCTPBridge(account, switchNetwork, onBridgeSuccess) {
       // 1. Approve
       const { amountParsed, tokenAddress } = await approveToken(amount, sourceChainId, tokenSymbol);
 
-      // 2. Burn
+      // 2. Burn (Dinamik recipient adresi ile cagiriliyor)
       const { txHash, nonce, messageHash, messageBytes } = await burnToken(
-        amountParsed, tokenAddress, sourceChainId, destChainId, account
+        amountParsed, tokenAddress, sourceChainId, destChainId, recipientAddress
       );
 
       // 3. Poll Attestation
@@ -361,7 +364,6 @@ export function useCCTPBridge(account, switchNetwork, onBridgeSuccess) {
       };
       setBridgeHistory(prev => [record, ...prev]);
 
-      // 💎 Bridge başarıyla mint edildiğinde SP ödülünü tetikliyoruz
       if (onBridgeSuccess) {
         onBridgeSuccess();
       }
@@ -388,7 +390,6 @@ export function useCCTPBridge(account, switchNetwork, onBridgeSuccess) {
 // CCTP BRIDGE UI BILESENI
 // ============================================
 
-// 🌟 balances prop'una varsayilan deger olarak {} atayarak ilk yukleme cokmelerini onledik
 export default function CCTPBridgeTab({ provider, account, chainId, balances = {}, switchNetwork, onBridgeSuccess }) {
   const { bridgeState, bridgeHistory, executeBridge, resetBridge, CCTP_CONTRACTS } = 
     useCCTPBridge(account, switchNetwork, onBridgeSuccess);
@@ -397,6 +398,14 @@ export default function CCTPBridgeTab({ provider, account, chainId, balances = {
   const [sourceChain, setSourceChain] = useState(5042002);
   const [destChain, setDestChain] = useState(84532);
   const [tokenSymbol, setTokenSymbol] = useState("USDC");
+  const [recipientAddress, setRecipientAddress] = useState(""); // Alıcı adresi state'i
+
+  // Cüzdan bağlandığında alıcı adresini otomatik olarak kullanıcının kendi adresiyle doldurur
+  useEffect(() => {
+    if (account && !recipientAddress) {
+      setRecipientAddress(account);
+    }
+  }, [account]);
 
   const swapChains = () => {
     const temp = sourceChain;
@@ -406,6 +415,13 @@ export default function CCTPBridgeTab({ provider, account, chainId, balances = {
 
   const handleBridge = async () => {
     if (!amount || parseFloat(amount) <= 0) return;
+
+    // Alıcı adresi doğrulaması
+    const targetAddress = recipientAddress || account;
+    if (!ethers.isAddress(targetAddress)) {
+      alert("Lutfen gecerli bir alici adresi girin.");
+      return;
+    }
 
     try {
       const currentProvider = new ethers.BrowserProvider(window.ethereum);
@@ -420,7 +436,8 @@ export default function CCTPBridgeTab({ provider, account, chainId, balances = {
         await new Promise(r => setTimeout(r, 4000));
       }
 
-      await executeBridge(amount, sourceChain, destChain, tokenSymbol);
+      // executeBridge'e targetAddress parametresini gönderiyoruz
+      await executeBridge(amount, sourceChain, destChain, tokenSymbol, targetAddress);
     } catch (err) {
       console.error('Bridge hatasi:', err);
     }
@@ -484,7 +501,6 @@ export default function CCTPBridgeTab({ provider, account, chainId, balances = {
         <span className="text-xs text-gray-400 block mb-2">Select Asset (Varlik Secimi)</span>
         <div className="flex space-x-2">
           {["USDC", "EURC"].map((symbol) => {
-            // 🌟 Optional chaining (?.) eklenerek tanımsız ağlar için çökme olasılığı sıfıra indirildi
             const isSupportedOnSource = CCTP_CONTRACTS[sourceChain]?.[symbol.toLowerCase()];
             const isSupportedOnDest = CCTP_CONTRACTS[destChain]?.[symbol.toLowerCase()];
             
@@ -573,12 +589,33 @@ export default function CCTPBridgeTab({ provider, account, chainId, balances = {
         </div>
       </div>
 
+      {/* 🌟 ALICI ADRESI GIRIS ALANI (YENI) */}
+      <div className="bg-[#1c183a] p-4 rounded-2xl mb-4 border border-gray-800">
+        <div className="flex justify-between items-center mb-2">
+          <span className="text-xs text-gray-400">Recipient Address (Alici Adresi)</span>
+          {account && (
+            <button 
+              onClick={() => setRecipientAddress(account)}
+              className="text-xs text-violet-400 hover:text-violet-300 font-bold transition"
+            >
+              Self (Kendim)
+            </button>
+          )}
+        </div>
+        <input
+          type="text"
+          placeholder="0x..."
+          value={recipientAddress}
+          onChange={(e) => setRecipientAddress(e.target.value)}
+          className="bg-[#211e47] text-white px-4 py-3 rounded-xl w-full focus:outline-none focus:border-violet-600 border border-gray-700 text-xs font-mono"
+        />
+      </div>
+
       {/* Miktar Girisi */}
       <div className="bg-[#1c183a] p-4 rounded-2xl mb-4 border border-gray-800">
         <div className="flex justify-between text-xs text-gray-400 mb-2">
           <span>Bridge Amount</span>
           <span>
-            {/* 🌟 balances?. zincirleme korumasi eklenerek ilk yukleme cokmesi engellendi */}
             Balance: {tokenSymbol === "EURC" ? (balances?.EURC || '0.00') : (balances?.USDC || '0.00')} {tokenSymbol}
           </span>
         </div>
@@ -597,7 +634,6 @@ export default function CCTPBridgeTab({ provider, account, chainId, balances = {
             <button
               key={p}
               onClick={() => {
-                // 🌟 balances?. zincirleme korumasi eklenerek ilk yukleme cokmesi engellendi
                 const maxBal = tokenSymbol === "EURC" ? (balances?.EURC || 0) : (balances?.USDC || 0);
                 setAmount((parseFloat(maxBal) * p / 100).toFixed(2));
               }}
