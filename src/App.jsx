@@ -488,13 +488,13 @@ export default function App() {
 
         const faucetContract = new ethers.Contract(faucetAddress, faucetABI, signer);
         
-        // 1000 USDC basıyoruz (6 decimals)
-        const amountToMint = parseUnits("1000", 6);
+        // 1 USDC basıyoruz (6 decimals)
+        const amountToMint = parseUnits("1", 6);
 
         const tx = await faucetContract.mint(underlyingUSDC, account, amountToMint, { gasLimit: 500000 });
         await tx.wait();
 
-        alert("1000 Aave USDC basariyla cuzdaniniza aktarildi!");
+        alert("1 Aave USDC basariyla cuzdaniniza aktarildi!");
         increaseSP(); // 💎 +10 SP Eklendi
         await fetchBalances();
       } catch (err) {
