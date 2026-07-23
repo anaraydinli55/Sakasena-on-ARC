@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { ethers } from 'ethers';
 
 // ============================================
-// CCTP v2 KONTRAT ADRESLERI (TESTNET - DUZELTILDI)
+// CCTP v2 KONTRAT ADRESLERI (USDC & EURC DESTEKLI)
 // ============================================
 
 const CCTP_CONTRACTS = {
@@ -10,6 +10,7 @@ const CCTP_CONTRACTS = {
   11155111: {
     domain: 0,
     usdc: "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+    eurc: "0x08210F9170F89Ab7658F0B5E3fF39b0E03C594D4", // EURC Adresi Eklendi
     tokenMessenger: "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA",
     messageTransmitter: "0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275",
     nativeCurrency: "ETH",
@@ -19,6 +20,7 @@ const CCTP_CONTRACTS = {
   43113: {
     domain: 1,
     usdc: "0x5425890298aed601595a70AB815c96711a31Bc65",
+    eurc: "0x5E44db7996c682E92a960b65AC713a54AD815c6B", // EURC Adresi Eklendi
     tokenMessenger: "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA",
     messageTransmitter: "0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275",
     nativeCurrency: "AVAX",
@@ -28,6 +30,7 @@ const CCTP_CONTRACTS = {
   11155420: {
     domain: 2,
     usdc: "0x5fd84259d66Cd46123540766Be93DFE6D43130D7",
+    eurc: "0x0000000000000000000000000000000000000000", // Optimism Sepolia'da su an EURC CCTP yok
     tokenMessenger: "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA",
     messageTransmitter: "0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275",
     nativeCurrency: "ETH",
@@ -37,6 +40,7 @@ const CCTP_CONTRACTS = {
   421614: {
     domain: 3,
     usdc: "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d",
+    eurc: "0x3271ff68408398a123F67CE4a42f50005C12423d", // EURC Adresi Eklendi
     tokenMessenger: "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA",
     messageTransmitter: "0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275",
     nativeCurrency: "ETH",
@@ -46,24 +50,27 @@ const CCTP_CONTRACTS = {
   84532: {
     domain: 6,
     usdc: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+    eurc: "0x808456652fdb597867f38412077A9182bf77359F", // EURC Adresi Eklendi
     tokenMessenger: "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA",
     messageTransmitter: "0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275",
     nativeCurrency: "ETH",
     gasToken: "ETH",
   },
-  // World Chain Sepolia (Chain ID: 4801) - DUZELTILDI
+  // World Chain Sepolia (Chain ID: 4801)
   4801: {
     domain: 14,
     usdc: "0x66145f38cBAC35Ca6F1Dfb4914dF98F1614aeA88",
+    eurc: "0xe479EcA5740Ac65d6E1823bea2f1C08Bc14e954F", // EURC Adresi Eklendi
     tokenMessenger: "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA",
     messageTransmitter: "0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275",
     nativeCurrency: "ETH",
     gasToken: "ETH",
   },
-  // Arc Testnet (Chain ID: 5042002) - DUZELTILDI
+  // Arc Testnet (Chain ID: 5042002)
   5042002: {
     domain: 26,
     usdc: "0x3600000000000000000000000000000000000000",
+    eurc: "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a", // EURC Adresi Eklendi
     tokenMessenger: "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA",
     messageTransmitter: "0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275",
     nativeCurrency: "USDC",
@@ -127,29 +134,35 @@ export function useCCTPBridge(account, switchNetwork, onBridgeSuccess) {
   };
 
   // ============================================
-  // ADIM 1: USDC APPROVE
+  // ADIM 1: TOKEN APPROVE
   // ============================================
-  const approveUSDC = async (amount, sourceChainId) => {
+  const approveToken = async (amount, sourceChainId, tokenSymbol) => {
     const config = CCTP_CONTRACTS[sourceChainId];
     if (!config) throw new Error('Desteklenmeyen kaynak agi');
 
-    const signer = await getFreshSigner();
-    const usdcContract = new ethers.Contract(config.usdc, ERC20_ABI, signer);
+    // Aktif varlık seçimine göre adresi saptıyoruz (USDC veya EURC)
+    const tokenAddress = tokenSymbol === "EURC" ? config.eurc : config.usdc;
+    if (!tokenAddress || tokenAddress === "0x0000000000000000000000000000000000000000") {
+      throw new Error(`${tokenSymbol} bu sebekede desteklenmiyor.`);
+    }
 
-    const amountParsed = ethers.parseUnits(amount, 6);
+    const signer = await getFreshSigner();
+    const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, signer);
+
+    const amountParsed = ethers.parseUnits(amount, 6); // Hem USDC hem EURC 6 ondaliklidir
     setBridgeState(s => ({ ...s, status: 'approving' }));
 
-    const tx = await usdcContract.approve(config.tokenMessenger, amountParsed, {
+    const tx = await tokenContract.approve(config.tokenMessenger, amountParsed, {
       gasLimit: sourceChainId === 5042002 ? 300000 : 200000
     });
     await tx.wait();
-    return amountParsed;
+    return { amountParsed, tokenAddress };
   };
 
   // ============================================
   // ADIM 2: BURN
   // ============================================
-  const burnUSDC = async (amountParsed, sourceChainId, destChainId, recipient) => {
+  const burnToken = async (amountParsed, tokenAddress, sourceChainId, destChainId, recipient) => {
     const sourceConfig = CCTP_CONTRACTS[sourceChainId];
     const destConfig = CCTP_CONTRACTS[destChainId];
     if (!sourceConfig || !destConfig) throw new Error('Desteklenmeyen ag');
@@ -165,7 +178,7 @@ export function useCCTPBridge(account, switchNetwork, onBridgeSuccess) {
       amountParsed,
       destConfig.domain,
       mintRecipient,
-      sourceConfig.usdc,
+      tokenAddress, // Dinamik token adresi ile yakma islemi tetiklenir
       ethers.ZeroHash,
       0,
       2000,
@@ -261,7 +274,7 @@ export function useCCTPBridge(account, switchNetwork, onBridgeSuccess) {
   // ============================================
   // ADIM 4: MINT
   // ============================================
-  const mintUSDC = async (message, attestation, destChainId) => {
+  const mintToken = async (message, attestation, destChainId) => {
     const destConfig = CCTP_CONTRACTS[destChainId];
     if (!destConfig) throw new Error('Desteklenmeyen hedef agi');
 
@@ -287,7 +300,7 @@ export function useCCTPBridge(account, switchNetwork, onBridgeSuccess) {
   // ============================================
   // TAM BRIDGE AKISI
   // ============================================
-  const executeBridge = async (amount, sourceChainId, destChainId) => {
+  const executeBridge = async (amount, sourceChainId, destChainId, tokenSymbol) => {
     if (!account) throw new Error('Cuzdan bagli degil');
     if (!CCTP_CONTRACTS[sourceChainId] || !CCTP_CONTRACTS[destChainId]) {
       throw new Error('Desteklenmeyen ag cifti');
@@ -305,16 +318,15 @@ export function useCCTPBridge(account, switchNetwork, onBridgeSuccess) {
       });
 
       // 1. Approve
-      const amountParsed = await approveUSDC(amount, sourceChainId);
+      const { amountParsed, tokenAddress } = await approveToken(amount, sourceChainId, tokenSymbol);
 
       // 2. Burn
-      const { txHash, nonce, messageHash, messageBytes } = await burnUSDC(
-        amountParsed, sourceChainId, destChainId, account
+      const { txHash, nonce, messageHash, messageBytes } = await burnToken(
+        amountParsed, tokenAddress, sourceChainId, destChainId, account
       );
 
       // 3. Poll Attestation
       const sourceConfig = CCTP_CONTRACTS[sourceChainId];
-      // Açıkça 360 denemeyle (30 dakika) sorgulamayı tetikliyoruz
       const attestationData = await pollAttestation(sourceConfig.domain, txHash, 360);
 
       // 4. Ag degistir
@@ -337,11 +349,12 @@ export function useCCTPBridge(account, switchNetwork, onBridgeSuccess) {
       }
 
       // 5. Mint (Guncel message ve attestation verileri ile)
-      const mintTxHash = await mintUSDC(attestationData.message, attestationData.attestation, destChainId);
+      const mintTxHash = await mintToken(attestationData.message, attestationData.attestation, destChainId);
 
       const record = {
         id: Date.now(),
         amount,
+        tokenSymbol, // Gecmis kayitlari icin token sembolunu kaydediyoruz
         sourceChain: sourceChainId,
         destChain: destChainId,
         sourceTxHash: txHash,
@@ -365,17 +378,6 @@ export function useCCTPBridge(account, switchNetwork, onBridgeSuccess) {
     }
   };
 
-  const resetBridge = () => {
-    setBridgeState({
-      status: 'idle',
-      messageHash: null,
-      attestation: null,
-      nonce: null,
-      error: null,
-      txHash: null,
-    });
-  };
-
   return {
     bridgeState,
     bridgeHistory,
@@ -397,6 +399,7 @@ export default function CCTPBridgeTab({ provider, account, chainId, balances, sw
   const [amount, setAmount] = useState('');
   const [sourceChain, setSourceChain] = useState(5042002);
   const [destChain, setDestChain] = useState(84532);
+  const [tokenSymbol, setTokenSymbol] = useState("USDC"); // Aktif varlik secimi (Varsayilan: USDC)
 
   const swapChains = () => {
     const temp = sourceChain;
@@ -420,7 +423,8 @@ export default function CCTPBridgeTab({ provider, account, chainId, balances, sw
         await new Promise(r => setTimeout(r, 4000));
       }
 
-      await executeBridge(amount, sourceChain, destChain);
+      // executeBridge'e aktif tokenSymbol parametresini gonderiyoruz
+      await executeBridge(amount, sourceChain, destChain, tokenSymbol);
     } catch (err) {
       console.error('Bridge hatasi:', err);
     }
@@ -429,11 +433,11 @@ export default function CCTPBridgeTab({ provider, account, chainId, balances, sw
   const getStatusText = () => {
     switch (bridgeState.status) {
       case 'idle': return 'Hazir';
-      case 'approving': return 'USDC onaylaniyor...';
-      case 'burning': return 'USDC yakiliyor (burn)...';
+      case 'approving': return `${tokenSymbol} onaylaniyor...`;
+      case 'burning': return `${tokenSymbol} yakiliyor (burn)...`;
       case 'polling': return `Attestation bekleniyor... (Nonce: ${bridgeState.nonce || '...'})`;
       case 'switching': return 'Ag degistiriliyor... Lutfen MetaMask\'te onaylayin';
-      case 'minting': return 'USDC basilip (mint)...';
+      case 'minting': return `${tokenSymbol} basilip (mint)...`;
       case 'completed': return '✅ Transfer tamamlandi!';
       case 'error': return `❌ Hata: ${bridgeState.error}`;
       default: return '';
@@ -473,11 +477,40 @@ export default function CCTPBridgeTab({ provider, account, chainId, balances, sw
     <div>
       <h2 className="text-xl font-bold mb-2 flex items-center justify-between">
         <span>Circle CCTP v2 Bridge</span>
-        <span className="text-xs text-emerald-400 bg-emerald-950 px-2 py-1 rounded-lg">USDC Only</span>
+        <span className="text-xs text-emerald-400 bg-emerald-950 px-2 py-1 rounded-lg">Multi-Asset</span>
       </h2>
       <p className="text-sm text-gray-400 mb-6">
-        Arc Testnet ↔ Base Sepolia arasinda <strong>USDC</strong> transferi yapin.
+        Arc Testnet ↔ Base Sepolia arasinda <strong>USDC / EURC</strong> transferi yapin.
       </p>
+
+      {/* Varlik Secici (USDC / EURC) */}
+      <div className="bg-[#1c183a] p-4 rounded-2xl mb-4 border border-gray-800">
+        <span className="text-xs text-gray-400 block mb-2">Select Asset (Varlik Secimi)</span>
+        <div className="flex space-x-2">
+          {["USDC", "EURC"].map((symbol) => {
+            const isSupportedOnSource = CCTP_CONTRACTS[sourceChain]?.[symbol.toLowerCase()] !== "0x0000000000000000000000000000000000000000";
+            const isSupportedOnDest = CCTP_CONTRACTS[destChain]?.[symbol.toLowerCase()] !== "0x0000000000000000000000000000000000000000";
+            const isSupported = isSupportedOnSource && isSupportedOnDest;
+
+            return (
+              <button
+                key={symbol}
+                disabled={!isSupported}
+                onClick={() => setTokenSymbol(symbol)}
+                className={`flex-1 py-2.5 rounded-xl font-bold text-sm transition flex items-center justify-center space-x-1.5 ${
+                  tokenSymbol === symbol
+                    ? "bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-lg"
+                    : "bg-[#211e47] text-gray-400 hover:text-white"
+                } disabled:opacity-30 disabled:cursor-not-allowed`}
+              >
+                <span>{symbol === "USDC" ? "💵" : "💶"}</span>
+                <span>{symbol}</span>
+                {!isSupported && <span className="text-[9px] font-normal text-rose-400 ml-1">(N/A)</span>}
+              </button>
+            );
+          })}
+        </div>
+      </div>
 
       {/* Zincir Secici */}
       <div className="bg-[#1a1738] p-4 rounded-2xl mb-4 border border-gray-800">
@@ -542,7 +575,9 @@ export default function CCTPBridgeTab({ provider, account, chainId, balances, sw
       <div className="bg-[#1c183a] p-4 rounded-2xl mb-4 border border-gray-800">
         <div className="flex justify-between text-xs text-gray-400 mb-2">
           <span>Bridge Amount</span>
-          <span>Balance: {balances.USDC || '0.00'} USDC</span>
+          <span>
+            Balance: {tokenSymbol === "EURC" ? (balances.EURC || '0.00') : (balances.USDC || '0.00')} {tokenSymbol}
+          </span>
         </div>
         <div className="flex items-center space-x-2">
           <input
@@ -552,13 +587,16 @@ export default function CCTPBridgeTab({ provider, account, chainId, balances, sw
             onChange={(e) => setAmount(e.target.value)}
             className="bg-transparent text-2xl font-bold focus:outline-none w-full text-white"
           />
-          <span className="text-sm font-semibold text-gray-400">💵 USDC</span>
+          <span className="text-sm font-semibold text-gray-400">{tokenSymbol === "USDC" ? "💵 USDC" : "💶 EURC"}</span>
         </div>
         <div className="flex space-x-2 mt-3 pt-2 border-t border-[#2a2456]/40">
           {[25, 50, 75, 100].map(p => (
             <button
               key={p}
-              onClick={() => setAmount((parseFloat(balances.USDC || 0) * p / 100).toFixed(2))}
+              onClick={() => {
+                const maxBal = tokenSymbol === "EURC" ? (balances.EURC || 0) : (balances.USDC || 0);
+                setAmount((parseFloat(maxBal) * p / 100).toFixed(2));
+              }}
               className="bg-[#211e47] hover:bg-violet-900 hover:text-white text-[10px] text-gray-400 font-bold px-3 py-1 rounded-lg transition"
             >
               {p === 100 ? 'MAX' : `${p}%`}
@@ -602,7 +640,7 @@ export default function CCTPBridgeTab({ provider, account, chainId, balances, sw
           className="w-full py-4 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 font-bold text-white transition shadow-lg disabled:opacity-50"
         >
           {bridgeState.status === 'idle' || bridgeState.status === 'error'
-            ? `Bridge USDC → ${CHAIN_NAMES[destChain]}`
+            ? `Bridge ${tokenSymbol} → ${CHAIN_NAMES[destChain]}`
             : 'Islem Devam Ediyor...'}
         </button>
       ) : (
@@ -621,7 +659,7 @@ export default function CCTPBridgeTab({ provider, account, chainId, balances, sw
             {bridgeHistory.map((record) => (
               <div key={record.id} className="text-xs bg-[#16142d] p-3 rounded-xl border border-gray-800">
                 <div className="flex justify-between">
-                  <span className="text-white font-bold">{record.amount} USDC</span>
+                  <span className="text-white font-bold">{record.amount} {record.tokenSymbol || 'USDC'}</span>
                   <span className="text-emerald-400">{record.status}</span>
                 </div>
                 <div className="text-gray-500 mt-1">
