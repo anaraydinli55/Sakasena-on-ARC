@@ -45,6 +45,13 @@ export const FaucetTab = ({ handleFaucet, txLoading }) => {
           Get AAA tokens (requires owner permissions).
         </p>
 
+        <button
+  onClick={() => handleFaucet("AAVE_USDC")}
+  className="w-full py-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 font-bold text-white transition shadow-lg mt-3"
+>
+  Mint 1000 Aave USDC (Sepolia / Base)
+</button>
+
         <button 
           onClick={() => handleFaucet("AAA")}
           disabled={txLoading}
