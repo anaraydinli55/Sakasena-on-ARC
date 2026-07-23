@@ -240,7 +240,7 @@ export default function App() {
         const amountWithBuffer = (BigInt(amountInParsed.toString()) * 101n) / 100n;
         const currentAllowance = await collateralContract.allowance(account, config.minterAddress);
         if (isLessThan(currentAllowance, amountInParsed)) {
-          const appTx = await collateralContract.approve(config.minterAddress, appTx, { gasLimit: 800000 });
+          const appTx = await collateralContract.approve(config.minterAddress, amountWithBuffer, { gasLimit: 800000 });
           await appTx.wait();
         }
         const minterContract = new ethers.Contract(config.minterAddress, ["function mint(address collateralToken, uint256 amountIn) external"], signer);
@@ -463,8 +463,49 @@ export default function App() {
     setTxLoading(false);
   };
 
-  // Faucet fonksiyonu
+  // Faucet fonksiyonu (Aave USDC doğrudan basma özelliği eklendi!)
   const handleFaucet = async (tokenSymbol) => {
+    // 🌟 AAVE USDC Doğrudan Basma Mantığı (Ethereum Sepolia veya Base Sepolia üzerindeyken)
+    if (tokenSymbol === "AAVE_USDC") {
+      if (!account || !provider) {
+        alert("Lutfen once cuzdaninizi baglayin."); return;
+      }
+      if (chainId !== 11155111 && chainId !== 84532) {
+        alert("Bu islem yalnizca Ethereum Sepolia veya Base Sepolia aglarinda aktiftir."); return;
+      }
+
+      setTxLoading(true);
+      try {
+        const signer = await getSigner();
+        const faucetAddress = "0xC959483DBa39aa9E78757139af0e9a2EDEb3f42D";
+        const faucetABI = [
+          "function mint(address token, address to, uint256 amount) external"
+        ];
+        
+        const underlyingUSDC = chainId === 84532 
+          ? "0xba50Cd2A20f6DA35D788639E581bca8d0B5d4D5f" // Base Sepolia Aave USDC
+          : "0x94a9D9AC8a22534E3FaCa9F4e7F2E2cf85d5E4C8"; // Ethereum Sepolia Aave USDC
+
+        const faucetContract = new ethers.Contract(faucetAddress, faucetABI, signer);
+        
+        // 1000 USDC basıyoruz (6 decimals)
+        const amountToMint = parseUnits("1000", 6);
+
+        const tx = await faucetContract.mint(underlyingUSDC, account, amountToMint, { gasLimit: 500000 });
+        await tx.wait();
+
+        alert("1000 Aave USDC basariyla cuzdaniniza aktarildi!");
+        increaseSP(); // 💎 +10 SP Eklendi
+        await fetchBalances();
+      } catch (err) {
+        console.error("Aave Faucet Hatasi:", err);
+        alert(`Aave Faucet basarisiz: ${err.reason || err.message}`);
+      }
+      setTxLoading(false);
+      return;
+    }
+
+    // Normal Faucet Akışları:
     if (tokenSymbol === "USDC" || tokenSymbol === "EURC" || tokenSymbol === "cirBTC") {
       window.open("https://faucet.circle.com/", "_blank"); return;
     }
