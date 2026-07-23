@@ -40,7 +40,7 @@ const CCTP_CONTRACTS = {
   421614: {
     domain: 3,
     usdc: "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d",
-    eurc: "0x0000000000000000000000000000000000000000", // 🌟 Sıfır adres yaptık (Arbitrum'da EURC köprülemeyi engeller)
+    eurc: "0x0000000000000000000000000000000000000000", // Kilitlendi
     tokenMessenger: "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA",
     messageTransmitter: "0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275",
     nativeCurrency: "ETH",
@@ -304,6 +304,12 @@ export function useCCTPBridge(account, switchNetwork, onBridgeSuccess) {
     }
     if (sourceChainId === destChainId) throw new Error('Kaynak ve hedef ayni olamaz');
 
+    // 🌟 YENI GÜVENLİK DUVARI (Cüzdan ağ değiştirme kontrolü):
+    const activeChain = await getCurrentChainId();
+    if (activeChain !== sourceChainId) {
+      throw new Error(`Cuzdaniniz kaynak agda degil! Mevcut: ${CHAIN_NAMES[activeChain] || activeChain}, Hedef: ${CHAIN_NAMES[sourceChainId]}`);
+    }
+
     try {
       setBridgeState({
         status: 'approving',
@@ -374,7 +380,6 @@ export function useCCTPBridge(account, switchNetwork, onBridgeSuccess) {
     }
   };
 
-  // 🌟 CLAUDE'UN UYARDIĞI EKSIK RESETBRIDGE FONKSIYONU TEKRAR EKLENDI
   const resetBridge = () => {
     setBridgeState({
       status: 'idle',
