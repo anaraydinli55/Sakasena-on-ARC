@@ -1,6 +1,8 @@
 // ============================================
-// HEADER COMPONENT (GUNCELLENMIS - Bridge Sekmesi Eklendi)
+// HEADER COMPONENT (DUZELTILMIS)
+// Menuler duzenlendi ve Kayan +10 SP Efekti Eklendi
 // ============================================
+import { useState, useEffect, useRef } from 'react';
 import { isAaveSupported } from '../constants';
 import { NETWORKS } from '../networks';
 
@@ -8,11 +10,22 @@ export const Header = ({
   account, chainId, spPoints, balances, 
   connectWallet, switchNetwork, activeTab, setActiveTab
 }) => {
+  const [showPlusTen, setShowPlusTen] = useState(false);
+  const prevSpRef = useRef(spPoints);
 
+  // 💎 SP Puani arttiginda +10 SP animasyonunu otomatik tetikleyen efekt
+  useEffect(() => {
+    if (spPoints > prevSpRef.current) {
+      setShowPlusTen(true);
+      const timer = setTimeout(() => setShowPlusTen(false), 1300); // 1.3 saniye sonra kaldır
+      return () => clearTimeout(timer);
+    }
+    prevSpRef.current = spPoints;
+  }, [spPoints]);
+
+  // "lending" her agda her zaman menude gorunsun diye baseTabs icine yerlestirdik
   const getAvailableTabs = () => {
-    const baseTabs = ["swap", "pool", "bridge", "mint", "savings", "send", "faucet"];
-    if (isAaveSupported(chainId)) return [...baseTabs, "lending"];
-    return baseTabs;
+    return ["swap", "pool", "bridge", "mint", "savings", "send", "lending", "faucet"];
   };
 
   const getTabLabel = (tab) => {
@@ -41,17 +54,6 @@ export const Header = ({
         </span>
       </div>
 
-      <button
-  onClick={() => setActiveTab("lending")}
-  className={`px-4 py-2 rounded-xl text-sm font-semibold transition ${
-    activeTab === 'lending' 
-      ? 'bg-violet-600 text-white' 
-      : 'text-gray-400 hover:text-white'
-  }`}
->
-  Borrow & Lend
-</button>
-
       {/* Nav Tabs */}
       <div className="grid grid-cols-4 md:flex bg-[#100e1f] p-1 rounded-xl border border-gray-800 shrink-0 w-full md:w-auto max-w-sm md:max-w-none">
         {getAvailableTabs().map((tab) => (
@@ -72,7 +74,16 @@ export const Header = ({
       {/* Right Side */}
       <div className="flex items-center space-x-3 shrink-0">
         {account && (
-          <div className="hidden md:flex items-center space-x-2 bg-gray-900 px-3 py-1.5 rounded-lg text-sm border border-gray-800">
+          // relative class'i eklenerek animasyonun konumlandirilmasi saglandi
+          <div className="relative hidden md:flex items-center space-x-2 bg-gray-900 px-3 py-1.5 rounded-lg text-sm border border-gray-800">
+            
+            {/* 🟢 Kayan ve Yapisan +10 SP Balonu */}
+            {showPlusTen && (
+              <span className="animate-float-sp">
+                +10 SP
+              </span>
+            )}
+
             <span className="text-violet-400 font-bold">💎 {spPoints} SP</span>
             <span className="text-gray-500">|</span>
             <span className="text-gray-300">Gas (USDC): {balances.USDC || "0.00"}</span>
