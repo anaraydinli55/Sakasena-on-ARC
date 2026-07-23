@@ -1,8 +1,8 @@
 // ============================================
-// ANA APP COMPONENT
+// ANA APP COMPONENT (DUZELTILMIS)
 // Bütün parçaları birleştirir
 // ============================================
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { ethers } from 'ethers';
 
 // Sabitler ve konfigürasyon
@@ -46,8 +46,16 @@ export default function App() {
   const [activeTab, setActiveTab] = useState("swap"); 
   const [activePoolType, setActivePoolType] = useState("USDC"); 
   const [tokens, setTokens] = useState(NETWORKS[5042002].tokens);
-  const [spPoints, setSpPoints] = useState(1250);
   const [txLoading, setTxLoading] = useState(false);
+
+  // 💎 SP PUANI (Dinamik - 0'dan baslar ve Tarayici Hafizasinda saklanir)
+  const [spPoints, setSpPoints] = useState(() => {
+    try {
+      return Number(localStorage.getItem('sakasena_sp_points') || '0');
+    } catch {
+      return 0;
+    }
+  });
 
   // Swap state'leri
   const [fromToken, setFromToken] = useState("USDC");
@@ -99,11 +107,11 @@ export default function App() {
   }, [account, chainId, provider, activeTab, activePoolType, fromToken, toToken]);
 
   // YENI (Sadece ilk yukleme icin):
-useEffect(() => {
-  if (account) {
-    fetchBalances();
-  }
-}, [account]);
+  useEffect(() => {
+    if (account) {
+      fetchBalances();
+    }
+  }, [account]);
 
   // Yardımcı fonksiyonlar
   const handlePercentClick = (percent, balance, decimals, setter) => {
@@ -125,6 +133,15 @@ useEffect(() => {
 
   const handleBlur = (val, setter) => () => {
     if (val === "" || isNaN(val)) setter("0");
+  };
+
+  // 💎 HER ISLEM SONRASI +10 SP EKLEYEN VE KAYDEDEN FONKSIYON
+  const increaseSP = () => {
+    setSpPoints(prev => {
+      const next = prev + 10;
+      localStorage.setItem('sakasena_sp_points', next.toString());
+      return next;
+    });
   };
 
   // Ana işlem fonksiyonu
@@ -167,7 +184,7 @@ useEffect(() => {
         await swapTx.wait();
 
         alert("Swap basariyla tamamlandi!");
-        setSpPoints(prev => prev + 50);
+        increaseSP(); // 💎 +10 SP Eklendi
         await fetchBalances(); await fetchPoolReserves(activePoolType, fromToken, toToken, activeTab);
       }
 
@@ -193,7 +210,7 @@ useEffect(() => {
           const txApp = await stableContract.approve(activePool, stableBuffer, { gasLimit: 800000 });
           await txApp.wait();
         }
-        const allowanceAAA = await aaaContract.allowance(account, activePool);
+        const allowanceAAA = await aaaContract.allowance(account, aaaParsed);
         if (isLessThan(allowanceAAA, aaaParsed)) {
           const txApp = await aaaContract.approve(activePool, aaaBuffer, { gasLimit: 800000 });
           await txApp.wait();
@@ -207,7 +224,7 @@ useEffect(() => {
         await lpTx.wait();
 
         alert("Likidite eklendi!");
-        setSpPoints(prev => prev + 150);
+        increaseSP(); // 💎 +10 SP Eklendi
         await fetchBalances(); await fetchPoolReserves(activePoolType, fromToken, toToken, activeTab);
       }
 
@@ -230,7 +247,7 @@ useEffect(() => {
         const mintTx = await minterContract.mint(collateralObj.address, amountInParsed, { gasLimit: 1000000 });
         await mintTx.wait();
         alert("sakUSD basildi!");
-        setSpPoints(prev => prev + 100);
+        increaseSP(); // 💎 +10 SP Eklendi
         await fetchBalances();
       }
 
@@ -253,6 +270,7 @@ useEffect(() => {
         const redeemTx = await minterContract.redeem(collateralObj.address, amountToBurnParsed, { gasLimit: 1000000 });
         await redeemTx.wait();
         alert("Teminat geri alindi!");
+        increaseSP(); // 💎 +10 SP Eklendi
         await fetchBalances();
       }
 
@@ -269,6 +287,7 @@ useEffect(() => {
         await tx.wait();
         alert(`${sendAmount} ${sendToken} gonderildi!`);
         setSendAmount("0"); setSendRecipient("");
+        increaseSP(); // 💎 +10 SP Eklendi
         await fetchBalances();
       }
 
@@ -291,6 +310,7 @@ useEffect(() => {
         await stakeTx.wait();
         alert("sakUSD stake edildi!");
         setStakeAmountInput("0");
+        increaseSP(); // 💎 +10 SP Eklendi
         await fetchBalances(); await fetchSavingsData();
       }
 
@@ -305,6 +325,7 @@ useEffect(() => {
         await unstakeTx.wait();
         alert("Geri cekim talebi olusturuldu! 14 gun sonra cekebilirsiniz.");
         setUnstakeAmountInput("0");
+        increaseSP(); // 💎 +10 SP Eklendi
         await fetchSavingsData();
       }
 
@@ -314,6 +335,7 @@ useEffect(() => {
         const claimTx = await minterContract.claimRewards({ gasLimit: 1000000 });
         await claimTx.wait();
         alert("Oduller talep edildi!");
+        increaseSP(); // 💎 +10 SP Eklendi
         await fetchBalances(); await fetchSavingsData();
       }
 
@@ -324,6 +346,7 @@ useEffect(() => {
         const claimTx = await minterContract.claimUnstaked(requestIndex, { gasLimit: 1000000 });
         await claimTx.wait();
         alert("Geri cekim tamamlandi!");
+        increaseSP(); // 💎 +10 SP Eklendi
         await fetchSavingsData();
       }
 
@@ -352,6 +375,7 @@ useEffect(() => {
         await tx.wait();
         alert("Girov Aave'ye yerlestirildi!");
         setSupplyAmount("0");
+        increaseSP(); // 💎 +10 SP Eklendi
         await fetchBalances();
       }
 
@@ -372,6 +396,7 @@ useEffect(() => {
         await tx.wait();
         alert("Borc alma tamamlandi!");
         setBorrowAmount("0");
+        increaseSP(); // 💎 +10 SP Eklendi
         await fetchBalances();
       }
 
@@ -400,6 +425,7 @@ useEffect(() => {
         await tx.wait();
         alert("Borc odendi!");
         setRepayAmount("0");
+        increaseSP(); // 💎 +10 SP Eklendi
         await fetchBalances();
       }
 
@@ -427,6 +453,7 @@ useEffect(() => {
         const tx = await aaaContract.mint(account, parseUnits("10", 18), { gasLimit: 1000000 });
         await tx.wait();
         alert("10 AAA token aktarildi!");
+        increaseSP(); // 💎 Faucet işlemine de +10 SP Eklendi
         await fetchBalances();
       }
     } catch (err) {
@@ -471,6 +498,7 @@ useEffect(() => {
             chainId={chainId}
             balances={balances}
             switchNetwork={switchNetwork}
+            onBridgeSuccess={increaseSP} // 💎 Bridge başarıyla tamamlandığında +10 SP verir
           />
         );
       case "mint":
@@ -540,4 +568,3 @@ useEffect(() => {
     </div>
   );
 }
-
