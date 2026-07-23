@@ -10,7 +10,7 @@ const CCTP_CONTRACTS = {
   11155111: {
     domain: 0,
     usdc: "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
-    eurc: "0x08210F9170F89Ab7658F0B5E3fF39b0E03C594D4", // EURC Adresi Eklendi
+    eurc: "0x08210F9170F89Ab7658F0B5E3fF39b0E03C594D4",
     tokenMessenger: "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA",
     messageTransmitter: "0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275",
     nativeCurrency: "ETH",
@@ -20,7 +20,7 @@ const CCTP_CONTRACTS = {
   43113: {
     domain: 1,
     usdc: "0x5425890298aed601595a70AB815c96711a31Bc65",
-    eurc: "0x5E44db7996c682E92a960b65AC713a54AD815c6B", // EURC Adresi Eklendi
+    eurc: "0x5E44db7996c682E92a960b65AC713a54AD815c6B",
     tokenMessenger: "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA",
     messageTransmitter: "0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275",
     nativeCurrency: "AVAX",
@@ -30,7 +30,7 @@ const CCTP_CONTRACTS = {
   11155420: {
     domain: 2,
     usdc: "0x5fd84259d66Cd46123540766Be93DFE6D43130D7",
-    eurc: "0x0000000000000000000000000000000000000000", // Optimism Sepolia'da su an EURC CCTP yok
+    eurc: "0x0000000000000000000000000000000000000000",
     tokenMessenger: "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA",
     messageTransmitter: "0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275",
     nativeCurrency: "ETH",
@@ -40,7 +40,7 @@ const CCTP_CONTRACTS = {
   421614: {
     domain: 3,
     usdc: "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d",
-    eurc: "0x3271ff68408398a123F67CE4a42f50005C12423d", // EURC Adresi Eklendi
+    eurc: "0x3271ff68408398a123F67CE4a42f50005C12423d",
     tokenMessenger: "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA",
     messageTransmitter: "0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275",
     nativeCurrency: "ETH",
@@ -50,7 +50,7 @@ const CCTP_CONTRACTS = {
   84532: {
     domain: 6,
     usdc: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
-    eurc: "0x808456652fdb597867f38412077A9182bf77359F", // EURC Adresi Eklendi
+    eurc: "0x808456652fdb597867f38412077A9182bf77359F",
     tokenMessenger: "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA",
     messageTransmitter: "0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275",
     nativeCurrency: "ETH",
@@ -60,7 +60,7 @@ const CCTP_CONTRACTS = {
   4801: {
     domain: 14,
     usdc: "0x66145f38cBAC35Ca6F1Dfb4914dF98F1614aeA88",
-    eurc: "0xe479EcA5740Ac65d6E1823bea2f1C08Bc14e954F", // EURC Adresi Eklendi
+    eurc: "0xe479EcA5740Ac65d6E1823bea2f1C08Bc14e954F",
     tokenMessenger: "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA",
     messageTransmitter: "0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275",
     nativeCurrency: "ETH",
@@ -70,7 +70,7 @@ const CCTP_CONTRACTS = {
   5042002: {
     domain: 26,
     usdc: "0x3600000000000000000000000000000000000000",
-    eurc: "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a", // EURC Adresi Eklendi
+    eurc: "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a",
     tokenMessenger: "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA",
     messageTransmitter: "0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275",
     nativeCurrency: "USDC",
@@ -140,7 +140,6 @@ export function useCCTPBridge(account, switchNetwork, onBridgeSuccess) {
     const config = CCTP_CONTRACTS[sourceChainId];
     if (!config) throw new Error('Desteklenmeyen kaynak agi');
 
-    // Aktif varlık seçimine göre adresi saptıyoruz (USDC veya EURC)
     const tokenAddress = tokenSymbol === "EURC" ? config.eurc : config.usdc;
     if (!tokenAddress || tokenAddress === "0x0000000000000000000000000000000000000000") {
       throw new Error(`${tokenSymbol} bu sebekede desteklenmiyor.`);
@@ -149,7 +148,7 @@ export function useCCTPBridge(account, switchNetwork, onBridgeSuccess) {
     const signer = await getFreshSigner();
     const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, signer);
 
-    const amountParsed = ethers.parseUnits(amount, 6); // Hem USDC hem EURC 6 ondaliklidir
+    const amountParsed = ethers.parseUnits(amount, 6);
     setBridgeState(s => ({ ...s, status: 'approving' }));
 
     const tx = await tokenContract.approve(config.tokenMessenger, amountParsed, {
@@ -173,12 +172,11 @@ export function useCCTPBridge(account, switchNetwork, onBridgeSuccess) {
     const mintRecipient = ethers.zeroPadValue(recipient, 32);
     setBridgeState(s => ({ ...s, status: 'burning' }));
 
-    // CCTP v2 parameters: maxFee (0) ve minFinalityThreshold (2000 - Standard finality)
     const tx = await messenger.depositForBurn(
       amountParsed,
       destConfig.domain,
       mintRecipient,
-      tokenAddress, // Dinamik token adresi ile yakma islemi tetiklenir
+      tokenAddress,
       ethers.ZeroHash,
       0,
       2000,
@@ -228,7 +226,6 @@ export function useCCTPBridge(account, switchNetwork, onBridgeSuccess) {
 
     for (let i = 0; i < maxAttempts; i++) {
       try {
-        // CCTP v2: Transaction hash ile sorgulama
         const url = `${IRIS_API}/v2/messages/${sourceDomain}?transactionHash=${txHash}`;
         const response = await fetch(url);
 
@@ -354,7 +351,7 @@ export function useCCTPBridge(account, switchNetwork, onBridgeSuccess) {
       const record = {
         id: Date.now(),
         amount,
-        tokenSymbol, // Gecmis kayitlari icin token sembolunu kaydediyoruz
+        tokenSymbol,
         sourceChain: sourceChainId,
         destChain: destChainId,
         sourceTxHash: txHash,
@@ -391,15 +388,15 @@ export function useCCTPBridge(account, switchNetwork, onBridgeSuccess) {
 // CCTP BRIDGE UI BILESENI
 // ============================================
 
-export default function CCTPBridgeTab({ provider, account, chainId, balances, switchNetwork, onBridgeSuccess }) {
-  // Hook çağrısına onBridgeSuccess parametresini ekliyoruz
+// 🌟 balances prop'una varsayilan deger olarak {} atayarak ilk yukleme cokmelerini onledik
+export default function CCTPBridgeTab({ provider, account, chainId, balances = {}, switchNetwork, onBridgeSuccess }) {
   const { bridgeState, bridgeHistory, executeBridge, resetBridge, CCTP_CONTRACTS } = 
     useCCTPBridge(account, switchNetwork, onBridgeSuccess);
 
   const [amount, setAmount] = useState('');
   const [sourceChain, setSourceChain] = useState(5042002);
   const [destChain, setDestChain] = useState(84532);
-  const [tokenSymbol, setTokenSymbol] = useState("USDC"); // Aktif varlik secimi (Varsayilan: USDC)
+  const [tokenSymbol, setTokenSymbol] = useState("USDC");
 
   const swapChains = () => {
     const temp = sourceChain;
@@ -423,7 +420,6 @@ export default function CCTPBridgeTab({ provider, account, chainId, balances, sw
         await new Promise(r => setTimeout(r, 4000));
       }
 
-      // executeBridge'e aktif tokenSymbol parametresini gonderiyoruz
       await executeBridge(amount, sourceChain, destChain, tokenSymbol);
     } catch (err) {
       console.error('Bridge hatasi:', err);
@@ -488,9 +484,15 @@ export default function CCTPBridgeTab({ provider, account, chainId, balances, sw
         <span className="text-xs text-gray-400 block mb-2">Select Asset (Varlik Secimi)</span>
         <div className="flex space-x-2">
           {["USDC", "EURC"].map((symbol) => {
-            const isSupportedOnSource = CCTP_CONTRACTS[sourceChain]?.[symbol.toLowerCase()] !== "0x0000000000000000000000000000000000000000";
-            const isSupportedOnDest = CCTP_CONTRACTS[destChain]?.[symbol.toLowerCase()] !== "0x0000000000000000000000000000000000000000";
-            const isSupported = isSupportedOnSource && isSupportedOnDest;
+            // 🌟 Optional chaining (?.) eklenerek tanımsız ağlar için çökme olasılığı sıfıra indirildi
+            const isSupportedOnSource = CCTP_CONTRACTS[sourceChain]?.[symbol.toLowerCase()];
+            const isSupportedOnDest = CCTP_CONTRACTS[destChain]?.[symbol.toLowerCase()];
+            
+            const isSupported = 
+              isSupportedOnSource && 
+              isSupportedOnSource !== "0x0000000000000000000000000000000000000000" &&
+              isSupportedOnDest && 
+              isSupportedOnDest !== "0x0000000000000000000000000000000000000000";
 
             return (
               <button
@@ -576,7 +578,8 @@ export default function CCTPBridgeTab({ provider, account, chainId, balances, sw
         <div className="flex justify-between text-xs text-gray-400 mb-2">
           <span>Bridge Amount</span>
           <span>
-            Balance: {tokenSymbol === "EURC" ? (balances.EURC || '0.00') : (balances.USDC || '0.00')} {tokenSymbol}
+            {/* 🌟 balances?. zincirleme korumasi eklenerek ilk yukleme cokmesi engellendi */}
+            Balance: {tokenSymbol === "EURC" ? (balances?.EURC || '0.00') : (balances?.USDC || '0.00')} {tokenSymbol}
           </span>
         </div>
         <div className="flex items-center space-x-2">
@@ -594,7 +597,8 @@ export default function CCTPBridgeTab({ provider, account, chainId, balances, sw
             <button
               key={p}
               onClick={() => {
-                const maxBal = tokenSymbol === "EURC" ? (balances.EURC || 0) : (balances.USDC || 0);
+                // 🌟 balances?. zincirleme korumasi eklenerek ilk yukleme cokmesi engellendi
+                const maxBal = tokenSymbol === "EURC" ? (balances?.EURC || 0) : (balances?.USDC || 0);
                 setAmount((parseFloat(maxBal) * p / 100).toFixed(2));
               }}
               className="bg-[#211e47] hover:bg-violet-900 hover:text-white text-[10px] text-gray-400 font-bold px-3 py-1 rounded-lg transition"
