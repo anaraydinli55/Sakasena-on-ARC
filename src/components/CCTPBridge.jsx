@@ -514,13 +514,17 @@ export default function CCTPBridgeTab({ provider, account, chainId, balances = {
             const isSupportedOnSource = CCTP_CONTRACTS[sourceChain]?.[symbol.toLowerCase()];
             const isSupportedOnDest = CCTP_CONTRACTS[destChain]?.[symbol.toLowerCase()];
             
-            // 🌟 CLAUDE'UN EKLEDİĞİ YENİ PROTOKOL KORUMASI (Arc Testnet üzerinde EURC köprülemeyi engeller):
+            // 🌟 Sadece EURC'yi resmi olarak birbirine bağlayan CCTP testnet rotalarını açık bırakıyoruz:
             const isSupported = 
               isSupportedOnSource && 
               isSupportedOnSource !== "0x0000000000000000000000000000000000000000" &&
               isSupportedOnDest && 
               isSupportedOnDest !== "0x0000000000000000000000000000000000000000" &&
-              !(symbol === "EURC" && (sourceChain === 5042002 || destChain === 5042002));
+              // EURC için sadece Ethereum Sepolia, Avalanche Fuji, Arbitrum Sepolia ve Base Sepolia rotalarını aktif tutuyoruz (Arc ve World Chain kilitlenir):
+              !(symbol === "EURC" && (
+                sourceChain === 5042002 || destChain === 5042002 || // Arc Testnet
+                sourceChain === 4801 || destChain === 4801          // World Chain Sepolia
+              ));
 
             return (
               <button
