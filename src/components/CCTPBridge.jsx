@@ -40,7 +40,7 @@ const CCTP_CONTRACTS = {
   421614: {
     domain: 3,
     usdc: "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d",
-    eurc: "0x3271ff68408398a123F67CE4a42f50005C12423d",
+    eurc: "0x0000000000000000000000000000000000000000", // 🌟 Sıfır adres yaptık (Arbitrum'da EURC köprülemeyi engeller)
     tokenMessenger: "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA",
     messageTransmitter: "0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275",
     nativeCurrency: "ETH",
