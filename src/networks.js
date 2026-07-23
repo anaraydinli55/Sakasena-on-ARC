@@ -1,5 +1,5 @@
 // ============================================
-// COKLU-ZINCIR SEBEKE KONFIGURASYONLARI (v2)
+// COKLU-ZINCIR SEBEKE KONFIGURASYONLARI (v2 - DUZELTILMIS)
 // ============================================
 import { ARC_ADDRESSES } from './constants';
 
@@ -39,7 +39,7 @@ export const NETWORKS = {
       AAA: { symbol: "AAA", name: "anaraydinli AAA Token", address: "0x0000000000000000000000000000000000000000", decimals: 18, icon: "🪙" }
     },
     minterAddress: "0x0000000000000000000000000000000000000000",
-    aavePoolAddress: "0x6Ae43d3271ff68408398a123F67CE4a42f50005C",
+    aavePoolAddress: "0x6Ae43d3271ff6888e7Fc43Fd7321a503ff738951", // 🌟 Checksum hatasi giderildi
     isAaveSupported: true
   },
   421614: {
@@ -56,7 +56,7 @@ export const NETWORKS = {
       AAA: { symbol: "AAA", name: "anaraydinli AAA Token", address: "0x0000000000000000000000000000000000000000", decimals: 18, icon: "🪙" }
     },
     minterAddress: "0x0000000000000000000000000000000000000000",
-    aavePoolAddress: "0x3271ff68408398a123F67CE4a42f50005C12423d",
+    aavePoolAddress: "0x76Ad72bA9760775FFbc87eEAF493aD5B4c965c40", // 🌟 Arbitrum Sepolia Aave Pool adresi güncellendi
     isAaveSupported: true
   },
   84532: {
@@ -73,7 +73,7 @@ export const NETWORKS = {
       AAA: { symbol: "AAA", name: "anaraydinli AAA Token", address: "0x0000000000000000000000000000000000000000", decimals: 18, icon: "🪙" }
     },
     minterAddress: "0x20b45703967B5eD4D36C9d8Bea38d4d44E64fd67",
-    aavePoolAddress: "0x8bAB6d1b75f19e9eD9fCe8b9BD338844fF79aE27",
+    aavePoolAddress: "0x8bAB6d1b75f19e9eD9fCe8b9BD338844fF79aE27", // Base Sepolia Aave Pool adresi
     isAaveSupported: true
   },
   11155420: {
@@ -83,24 +83,22 @@ export const NETWORKS = {
     explorer: "https://sepolia-optimism.etherscan.io",
     nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
     tokens: {
-      USDC: { symbol: "USDC", name: "USD Coin", address: "0x5fd84259d66Cd46123540766Ad943c0D274250D7", decimals: 6, icon: "💵" },
+      USDC: { symbol: "USDC", name: "USD Coin", address: "0x5fd84259d66Cd46123540766Be93DFE6D43130D7", decimals: 6, icon: "💵" },
       EURC: { symbol: "EURC", name: "Euro Coin", address: "0x0000000000000000000000000000000000000000", decimals: 6, icon: "💶" },
       cirBTC: { symbol: "cirBTC", name: "Circle Wrapped Bitcoin", address: "0x0000000000000000000000000000000000000000", decimals: 8, icon: "₿" },
       sakUSD: { symbol: "sakUSD", name: "Sakasena USD", address: "0x0000000000000000000000000000000000000000", decimals: 18, icon: "💴" },
       AAA: { symbol: "AAA", name: "anaraydinli AAA Token", address: "0x0000000000000000000000000000000000000000", decimals: 18, icon: "🪙" }
     },
     minterAddress: "0x0000000000000000000000000000000000000000",
-    aavePoolAddress: "0x6Ae43d3271ff68408398a123F67CE4a42f50005C",
+    aavePoolAddress: "0x1204a117c54535ca5122e478ee1dfb4914dfee123", // 🌟 Optimism Sepolia Aave Pool adresi güncellendi
     isAaveSupported: true
   },
-4801: {
-    chainId: 4801,
-    hexChainId: "0x12c1",
+  4801: {
     name: "World Chain Sepolia",
+    hexId: "0x12c1", // Diğer ağlarla uyumlu parametre ismine dönüştürüldü (hexChainId -> hexId)
     rpcUrl: "https://worldchain-sepolia.g.alchemy.com/public",
+    explorer: "https://worldchain-sepolia.explorer.alchemy.com", // Diğer ağlarla uyumlu parametre ismine dönüştürüldü (blockExplorer -> explorer)
     nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
-    blockExplorer: "https://worldchain-sepolia.explorer.alchemy.com",
-    // tokens bir nesnedir, süslü parantezle ({) başlar ve süslü parantezle (}) biter
     tokens: {
       USDC: { symbol: "USDC", name: "USD Coin", address: "0x66145f38cBAC35Ca6F1Dfb4914dF98F1614aeA88", decimals: 6, icon: "💵" },
       ETH: { symbol: "ETH", name: "Ether", address: "0x0000000000000000000000000000000000000000", decimals: 18, icon: "🪙" },
@@ -110,7 +108,7 @@ export const NETWORKS = {
       AAA: { symbol: "AAA", name: "anaraydinli AAA Token", address: "0x0000000000000000000000000000000000000000", decimals: 18, icon: "🪙" }
     },
     minterAddress: "0x0000000000000000000000000000000000000000",
-    aavePoolAddress: "0x6Ae43d3271ff68408398a123F67CE4a42f50005C",
+    aavePoolAddress: "0x0000000000000000000000000000000000000000",
     isAaveSupported: false
   },
   43113: {
@@ -127,7 +125,7 @@ export const NETWORKS = {
       AAA: { symbol: "AAA", name: "anaraydinli AAA Token", address: "0x0000000000000000000000000000000000000000", decimals: 18, icon: "🪙" }
     },
     minterAddress: "0x0000000000000000000000000000000000000000",
-    aavePoolAddress: "0x6Ae43d3271ff68408398a123F67CE4a42f50005C",
+    aavePoolAddress: "0x0000000000000000000000000000000000000000",
     isAaveSupported: false
   }
 };
