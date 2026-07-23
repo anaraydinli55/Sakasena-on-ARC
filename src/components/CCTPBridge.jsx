@@ -304,7 +304,7 @@ export function useCCTPBridge(account, switchNetwork, onBridgeSuccess) {
     }
     if (sourceChainId === destChainId) throw new Error('Kaynak ve hedef ayni olamaz');
 
-    // 🌟 YENI GÜVENLİK DUVARI (Cüzdan ağ değiştirme kontrolü):
+    // 🌟 GÜVENLİK DUVARI (Cüzdan ağ değiştirme kontrolü):
     const activeChain = await getCurrentChainId();
     if (activeChain !== sourceChainId) {
       throw new Error(`Cuzdaniniz kaynak agda degil! Mevcut: ${CHAIN_NAMES[activeChain] || activeChain}, Hedef: ${CHAIN_NAMES[sourceChainId]}`);
@@ -514,11 +514,13 @@ export default function CCTPBridgeTab({ provider, account, chainId, balances = {
             const isSupportedOnSource = CCTP_CONTRACTS[sourceChain]?.[symbol.toLowerCase()];
             const isSupportedOnDest = CCTP_CONTRACTS[destChain]?.[symbol.toLowerCase()];
             
+            // 🌟 CLAUDE'UN EKLEDİĞİ YENİ PROTOKOL KORUMASI (Arc Testnet üzerinde EURC köprülemeyi engeller):
             const isSupported = 
               isSupportedOnSource && 
               isSupportedOnSource !== "0x0000000000000000000000000000000000000000" &&
               isSupportedOnDest && 
-              isSupportedOnDest !== "0x0000000000000000000000000000000000000000";
+              isSupportedOnDest !== "0x0000000000000000000000000000000000000000" &&
+              !(symbol === "EURC" && (sourceChain === 5042002 || destChain === 5042002));
 
             return (
               <button
