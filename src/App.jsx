@@ -240,7 +240,7 @@ export default function App() {
         const amountWithBuffer = (BigInt(amountInParsed.toString()) * 101n) / 100n;
         const currentAllowance = await collateralContract.allowance(account, config.minterAddress);
         if (isLessThan(currentAllowance, amountInParsed)) {
-          const appTx = await collateralContract.approve(config.minterAddress, amountWithBuffer, { gasLimit: 800000 });
+          const appTx = await collateralContract.approve(config.minterAddress, appTx, { gasLimit: 800000 });
           await appTx.wait();
         }
         const minterContract = new ethers.Contract(config.minterAddress, ["function mint(address collateralToken, uint256 amountIn) external"], signer);
@@ -366,6 +366,8 @@ export default function App() {
         let assetAddress = collatObj.address;
         if (chainId === 84532 && collateralToken === "USDC") {
           assetAddress = "0xba50Cd2A20f6DA35D788639E581bca8d0B5d4D5f"; // Aave Base Sepolia USDC
+        } else if (chainId === 11155111 && collateralToken === "USDC") {
+          assetAddress = "0x94a9D9AC8a22534E3FaCa9F4e7F2E2cf85d5E4C8"; // Aave Ethereum Sepolia USDC
         }
 
         const erc20ABI = ["function allowance(address owner, address spender) view returns (uint256)", "function approve(address spender, uint256 amount) returns (bool)"];
@@ -402,6 +404,8 @@ export default function App() {
         let assetAddress = loanObj.address;
         if (chainId === 84532 && lendingToken === "USDC") {
           assetAddress = "0xba50Cd2A20f6DA35D788639E581bca8d0B5d4D5f"; // Aave Base Sepolia USDC
+        } else if (chainId === 11155111 && lendingToken === "USDC") {
+          assetAddress = "0x94a9D9AC8a22534E3FaCa9F4e7F2E2cf85d5E4C8"; // Aave Ethereum Sepolia USDC
         }
 
         const aavePoolABI = ["function borrow(address asset, uint256 amount, uint256 interestRateMode, uint16 referralCode, address onBehalfOf) external"];
@@ -430,6 +434,8 @@ export default function App() {
         let assetAddress = loanObj.address;
         if (chainId === 84532 && lendingToken === "USDC") {
           assetAddress = "0xba50Cd2A20f6DA35D788639E581bca8d0B5d4D5f"; // Aave Base Sepolia USDC
+        } else if (chainId === 11155111 && lendingToken === "USDC") {
+          assetAddress = "0x94a9D9AC8a22534E3FaCa9F4e7F2E2cf85d5E4C8"; // Aave Ethereum Sepolia USDC
         }
 
         const erc20ABI = ["function allowance(address owner, address spender) view returns (uint256)", "function approve(address spender, uint256 amount) returns (bool)"];
