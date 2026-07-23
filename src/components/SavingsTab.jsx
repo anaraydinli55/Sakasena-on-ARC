@@ -1,5 +1,6 @@
 // ============================================
-// SAVINGS/STAKE SEKMESI COMPONENT
+// SAVINGS/STAKE SEKMESI COMPONENT (DUZELTILMIS)
+// Claim butonu en tepeye, odul gostergesinin icine entegre edildi.
 // ============================================
 export const SavingsTab = ({
   balances, savingsData,
@@ -12,15 +13,26 @@ export const SavingsTab = ({
     <div>
       <h2 className="text-xl font-bold mb-4">Savings & Staking</h2>
 
-      {/* Stats */}
+      {/* Stats (Puan ve Odul Gostergeleri) */}
       <div className="grid grid-cols-2 gap-4 mb-4">
-        <div className="bg-[#1c183a] p-4 rounded-2xl border border-gray-800 text-center">
-          <span className="text-xs text-gray-400 block">Staked Amount</span>
-          <p className="text-xl font-bold text-violet-300">{savingsData.staked} sakUSD</p>
+        <div className="bg-[#1c183a] p-4 rounded-2xl border border-gray-800 text-center flex flex-col justify-center min-h-[120px]">
+          <span className="text-xs text-gray-400 block mb-1">Staked Amount</span>
+          <p className="text-lg font-bold text-violet-300 truncate">{savingsData.staked} sakUSD</p>
         </div>
-        <div className="bg-[#1c183a] p-4 rounded-2xl border border-gray-800 text-center">
-          <span className="text-xs text-gray-400 block">Pending Rewards</span>
-          <p className="text-xl font-bold text-emerald-400">{savingsData.pendingRewards} sakUSD</p>
+        
+        {/* 🟢 CLAIM BUTONUNUN ENTEGRE EDILDIGI YENI ODUL KUTUSU */}
+        <div className="bg-[#1c183a] p-4 rounded-2xl border border-gray-800 text-center flex flex-col justify-between items-center min-h-[120px]">
+          <div>
+            <span className="text-xs text-gray-400 block mb-1">Pending Rewards</span>
+            <p className="text-lg font-bold text-emerald-400 truncate">{savingsData.pendingRewards} sakUSD</p>
+          </div>
+          <button 
+            onClick={() => handleAction("claim_rewards")}
+            disabled={txLoading || parseFloat(savingsData.pendingRewards) <= 0}
+            className="w-full mt-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold py-1.5 rounded-xl text-xs shadow-md transition disabled:opacity-50"
+          >
+            {txLoading ? "..." : "Claim"}
+          </button>
         </div>
       </div>
 
@@ -75,22 +87,6 @@ export const SavingsTab = ({
           className="w-full bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-bold py-3 rounded-2xl shadow-lg transition disabled:opacity-50"
         >
           {txLoading ? "Islem Yukleniyor..." : "Request Unstake (14 days)"}
-        </button>
-      </div>
-
-      {/* Claim Rewards */}
-      <div className="bg-[#1c183a] p-4 rounded-2xl mb-4 border border-gray-800">
-        <h3 className="text-sm font-semibold text-gray-300 mb-3">Claim Rewards</h3>
-        <div className="flex justify-between items-center mb-3">
-          <span className="text-gray-400">Available:</span>
-          <span className="text-emerald-400 font-bold">{savingsData.pendingRewards} sakUSD</span>
-        </div>
-        <button 
-          onClick={() => handleAction("claim_rewards")}
-          disabled={txLoading || parseFloat(savingsData.pendingRewards) <= 0}
-          className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold py-3 rounded-2xl shadow-lg transition disabled:opacity-50"
-        >
-          {txLoading ? "Islem Yukleniyor..." : "Claim Rewards"}
         </button>
       </div>
 
