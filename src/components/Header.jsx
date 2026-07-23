@@ -41,6 +41,17 @@ export const Header = ({
         </span>
       </div>
 
+      <button
+  onClick={() => setActiveTab("lending")}
+  className={`px-4 py-2 rounded-xl text-sm font-semibold transition ${
+    activeTab === 'lending' 
+      ? 'bg-violet-600 text-white' 
+      : 'text-gray-400 hover:text-white'
+  }`}
+>
+  Borrow & Lend
+</button>
+
       {/* Nav Tabs */}
       <div className="grid grid-cols-4 md:flex bg-[#100e1f] p-1 rounded-xl border border-gray-800 shrink-0 w-full md:w-auto max-w-sm md:max-w-none">
         {getAvailableTabs().map((tab) => (
