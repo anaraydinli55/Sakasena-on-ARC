@@ -622,9 +622,9 @@ export default function App() {
         <AAABanner account={account} chainId={chainId} balances={balances} tokens={tokens} />
         <StatsCards userPoolBalances={userPoolBalances} tokens={tokens} />
 
-        <div className="max-w-md mx-auto bg-[#13112a] rounded-3xl p-6 border border-gray-800 neon-glow shadow-2xl">
-          {renderTab()}
-        </div>
+        <div className="max-w-lg mx-auto bg-[#13112a] rounded-3xl p-6 border border-gray-800 neon-glow shadow-2xl">
+  {renderTab()}
+</div>
       </main>
 
       <footer className="bg-[#0d0b1a] border-t border-gray-800 py-6 text-center">
