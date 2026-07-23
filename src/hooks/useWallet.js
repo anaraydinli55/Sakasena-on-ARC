@@ -55,14 +55,18 @@ export const useWallet = () => {
     }
   }, []);
 
-  const switchNetwork = useCallback(async (targetChainId) => {
+const switchNetwork = useCallback(async (targetChainId) => {
     const config = NETWORKS[targetChainId];
     if (!config) return;
+
+    // Her iki parametre isimlendirmesini de destekleyecek şekilde güvenli eşleme yapıyoruz
+    const targetHexId = config.hexId || config.hexChainId;
+    const targetExplorer = config.explorer || config.blockExplorer;
 
     try {
       await window.ethereum.request({
         method: 'wallet_switchEthereumChain',
-        params: [{ chainId: config.hexId }],
+        params: [{ chainId: targetHexId }], // undefined olmaktan kurtuldu!
       });
     } catch (switchError) {
       console.warn("Sebekeye gecis yapilamadi...", switchError);
@@ -70,11 +74,11 @@ export const useWallet = () => {
         await window.ethereum.request({
           method: 'wallet_addEthereumChain',
           params: [{
-            chainId: config.hexId,
+            chainId: targetHexId,
             chainName: config.name,
             nativeCurrency: config.nativeCurrency,
             rpcUrls: [config.rpcUrl],
-            blockExplorerUrls: [config.explorer]
+            blockExplorerUrls: targetExplorer ? [targetExplorer] : []
           }]
         });
       } catch (addError) {
