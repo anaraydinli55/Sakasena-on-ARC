@@ -412,6 +412,8 @@ export default function CCTPBridgeTab({ provider, account, chainId, balances = {
   const [destChain, setDestChain] = useState(84532);
   const [tokenSymbol, setTokenSymbol] = useState("USDC");
   const [recipientAddress, setRecipientAddress] = useState("");
+  // 🌟 Çift tıklama engelleyici yeni yerel durumumuz:
+  const [isPending, setIsPending] = useState(false);
 
   useEffect(() => {
     if (account && !recipientAddress) {
