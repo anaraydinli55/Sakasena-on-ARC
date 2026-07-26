@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { ethers } from 'ethers';
 
@@ -40,7 +41,7 @@ const CCTP_CONTRACTS = {
   421614: {
     domain: 3,
     usdc: "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d",
-    eurc: "0x0000000000000000000000000000000000000000", // Kilitlendi
+    eurc: "0x0000000000000000000000000000000000000000",
     tokenMessenger: "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA",
     messageTransmitter: "0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275",
     nativeCurrency: "ETH",
@@ -219,7 +220,7 @@ export function useCCTPBridge(account, switchNetwork, onBridgeSuccess) {
   };
 
   // ============================================
-  // ADIM 3: ATTESTATION POLLING (CCTP v2)
+  // ADIM 3: ATTESTATION POLLING (GEREKTIGINDE LOCAL REFERANS ICIN TUTULDU)
   // ============================================
   const pollAttestation = async (sourceDomain, txHash, maxAttempts = 360) => {
     const IRIS_API = 'https://iris-api-sandbox.circle.com';
@@ -269,7 +270,7 @@ export function useCCTPBridge(account, switchNetwork, onBridgeSuccess) {
   };
 
   // ============================================
-  // ADIM 4: MINT
+  // ADIM 4: MINT (GEREKTIGINDE LOCAL REFERANS ICIN TUTULDU)
   // ============================================
   const mintToken = async (message, attestation, destChainId) => {
     const destConfig = CCTP_CONTRACTS[destChainId];
@@ -295,7 +296,7 @@ export function useCCTPBridge(account, switchNetwork, onBridgeSuccess) {
   };
 
   // ============================================
-  // TAM BRIDGE AKISI
+  // YENİLENMİŞ TAM BRIDGE AKISI (RENDER BOT ENTEGRASYONLU)
   // ============================================
   const executeBridge = async (amount, sourceChainId, destChainId, tokenSymbol, recipientAddress) => {
     if (!account) throw new Error('Cuzdan bagli degil');
@@ -304,7 +305,7 @@ export function useCCTPBridge(account, switchNetwork, onBridgeSuccess) {
     }
     if (sourceChainId === destChainId) throw new Error('Kaynak ve hedef ayni olamaz');
 
-    // 🌟 GÜVENLİK DUVARI (Cüzdan ağ değiştirme kontrolü):
+    // Cüzdan ağ değiştirme kontrolü
     const activeChain = await getCurrentChainId();
     if (activeChain !== sourceChainId) {
       throw new Error(`Cuzdaniniz kaynak agda degil! Mevcut: ${CHAIN_NAMES[activeChain] || activeChain}, Hedef: ${CHAIN_NAMES[sourceChainId]}`);
@@ -328,31 +329,27 @@ export function useCCTPBridge(account, switchNetwork, onBridgeSuccess) {
         amountParsed, tokenAddress, sourceChainId, destChainId, recipientAddress
       );
 
-      // 3. Poll Attestation
+      // 🌟 3. Render Botunu Tetikleme (Kullanıcıyı 40 dakika bekletmeme)
+      setBridgeState(s => ({ ...s, status: 'polling' }));
+
       const sourceConfig = CCTP_CONTRACTS[sourceChainId];
-      const attestationData = await pollAttestation(sourceConfig.domain, txHash, 360);
+      const BOT_API_URL = 'https://arcsakasena-relayer-bot.onrender.com/api/relay';
 
-      // 4. Ag degistir
-      setBridgeState(s => ({ ...s, status: 'switching' }));
-      await switchNetwork(destChainId);
+      console.log('[FRONTEND] İşlem bota iletiliyor...', txHash);
+      
+      await fetch(BOT_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          txHash: txHash,
+          sourceDomain: sourceConfig.domain
+        })
+      });
 
-      const waitTime = sourceChainId === 84532 ? 10000 : 6000;
-      await new Promise(r => setTimeout(r, waitTime));
-
-      let retries = 0;
-      while (retries < 15) {
-        const currentChain = await getCurrentChainId();
-        if (currentChain === destChainId) {
-          console.log('Hedef aga gecildi:', destChainId);
-          break;
-        }
-        console.log('Ag degisimi bekleniyor...', currentChain);
-        await new Promise(r => setTimeout(r, 2000));
-        retries++;
-      }
-
-      // 5. Mint (Guncel message ve attestation verileri ile)
-      const mintTxHash = await mintToken(attestationData.message, attestationData.attestation, destChainId);
+      // Bot işlemi üstlendiği için hemen completed moduna geçiyoruz
+      setBridgeState(s => ({ ...s, status: 'completed' }));
 
       const record = {
         id: Date.now(),
@@ -361,7 +358,7 @@ export function useCCTPBridge(account, switchNetwork, onBridgeSuccess) {
         sourceChain: sourceChainId,
         destChain: destChainId,
         sourceTxHash: txHash,
-        destTxHash: mintTxHash,
+        destTxHash: 'Arka planda bot işliyor...', // Arka planda tamamlanıyor
         timestamp: Date.now(),
         status: 'completed',
       };
@@ -427,7 +424,10 @@ export default function CCTPBridgeTab({ provider, account, chainId, balances = {
     setDestChain(temp);
   };
 
+  // 🌟 ÇİFT TIKLAMA ENGELLENMİŞ HANDLE BRIDGE
   const handleBridge = async () => {
+    if (isPending) return;
+    if (bridgeState.status !== 'idle' && bridgeState.status !== 'error') return;
     if (!amount || parseFloat(amount) <= 0) return;
 
     const targetAddress = recipientAddress || account;
@@ -435,6 +435,8 @@ export default function CCTPBridgeTab({ provider, account, chainId, balances = {
       alert("Lutfen gecerli bir alici adresi girin.");
       return;
     }
+
+    setIsPending(true); // Butonu kilitliyoruz
 
     try {
       const currentProvider = new ethers.BrowserProvider(window.ethereum);
@@ -452,6 +454,8 @@ export default function CCTPBridgeTab({ provider, account, chainId, balances = {
       await executeBridge(amount, sourceChain, destChain, tokenSymbol, targetAddress);
     } catch (err) {
       console.error('Bridge hatasi:', err);
+    } finally {
+      setIsPending(false); // Kilidi kaldırıyoruz
     }
   };
 
@@ -460,10 +464,10 @@ export default function CCTPBridgeTab({ provider, account, chainId, balances = {
       case 'idle': return 'Hazir';
       case 'approving': return `${tokenSymbol} onaylaniyor...`;
       case 'burning': return `${tokenSymbol} yakiliyor (burn)...`;
-      case 'polling': return `Attestation bekleniyor... (Nonce: ${bridgeState.nonce || '...'})`;
+      case 'polling': return `Onay aliniyor ve bota iletiliyor...`;
       case 'switching': return 'Ag degistiriliyor... Lutfen MetaMask\'te onaylayin';
       case 'minting': return `${tokenSymbol} basilip (mint)...`;
-      case 'completed': return '✅ Transfer tamamlandi!';
+      case 'completed': return '✅ Transfer bota iletildi! Arka planda tamamlaniyor.';
       case 'error': return `❌ Hata: ${bridgeState.error}`;
       default: return '';
     }
@@ -690,16 +694,16 @@ export default function CCTPBridgeTab({ provider, account, chainId, balances = {
         </div>
       )}
 
-      {/* Bridge Butonu */}
+      {/* Bridge Butonu (GÜNCEL ENGELLEME LOGIKASI DAHIL) */}
       {account ? (
         <button
           onClick={handleBridge}
-          disabled={bridgeState.status !== 'idle' && bridgeState.status !== 'error' || !amount || parseFloat(amount) <= 0}
-          className="w-full py-4 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 font-bold text-white transition shadow-lg disabled:opacity-50"
+          disabled={isPending || (bridgeState.status !== 'idle' && bridgeState.status !== 'error') || !amount || parseFloat(amount) <= 0}
+          className="w-full py-4 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 font-bold text-white transition shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {bridgeState.status === 'idle' || bridgeState.status === 'error'
-            ? `Bridge ${tokenSymbol} → ${CHAIN_NAMES[destChain]}`
-            : 'Islem Devam Ediyor...'}
+          {isPending || (bridgeState.status !== 'idle' && bridgeState.status !== 'error')
+            ? 'Islem Devam Ediyor...'
+            : `Bridge ${tokenSymbol} → ${CHAIN_NAMES[destChain]}`}
         </button>
       ) : (
         <button className="w-full py-4 rounded-2xl bg-gray-700 text-gray-400 font-bold disabled:opacity-50">
