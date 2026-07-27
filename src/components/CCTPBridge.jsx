@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { ethers } from 'ethers';
 
@@ -115,8 +116,6 @@ export function useCCTPBridge(account, switchNetwork, onBridgeSuccess) {
     } catch { return []; }
   });
 
-  const currentChainIdRef = useRef(null);
-
   useEffect(() => {
     localStorage.setItem('cctp_bridge_history', JSON.stringify(bridgeHistory));
   }, [bridgeHistory]);
@@ -231,7 +230,7 @@ export function useCCTPBridge(account, switchNetwork, onBridgeSuccess) {
   };
 
   // ============================================
-  // ADIM 3: ATTESTATION POLLING (LOCAL REFERANS)
+  // ADIM 3: ATTESTATION POLLING (STANDART POLLING)
   // ============================================
   const pollAttestation = async (sourceDomain, txHash, maxAttempts = 360) => {
     const IRIS_API = 'https://iris-api-sandbox.circle.com';
@@ -281,7 +280,7 @@ export function useCCTPBridge(account, switchNetwork, onBridgeSuccess) {
   };
 
   // ============================================
-  // ADIM 4: MINT (LOCAL REFERANS)
+  // ADIM 4: MINT (HEDEF AGDA PARA BASMA)
   // ============================================
   const mintToken = async (message, attestation, destChainId) => {
     const destConfig = CCTP_CONTRACTS[destChainId];
@@ -307,7 +306,7 @@ export function useCCTPBridge(account, switchNetwork, onBridgeSuccess) {
   };
 
   // ============================================
-  // YENİLENMİŞ TAM BRIDGE AKISI (RENDER BOT ENTEGRASYONLU)
+  // YOL AYRIMI ENTEGRELİ TAM BRIDGE AKISI
   // ============================================
   const executeBridge = async (amount, sourceChainId, destChainId, tokenSymbol, recipientAddress) => {
     if (!account) throw new Error('Cuzdan bagli degil');
@@ -332,54 +331,107 @@ export function useCCTPBridge(account, switchNetwork, onBridgeSuccess) {
         txHash: null,
       });
 
-      // 1. Approve
+      // 1. ADIM: Token onaylama (Approve)
       const { amountParsed, tokenAddress } = await approveToken(amount, sourceChainId, tokenSymbol);
 
-      // 2. Burn
+      // 2. ADIM: Token yakma (Burn)
       const { txHash, nonce, messageHash, messageBytes } = await burnToken(
         amountParsed, tokenAddress, sourceChainId, destChainId, recipientAddress
       );
 
-      // 🌟 3. Render Botunu Tetikleme (Asenkron Polleme)
-      setBridgeState(s => ({ ...s, status: 'polling' }));
+      // 🌟 YOL AYRIMI (ROUTE SPLITTING)
+      if (destChainId === 5042002) {
+        // A. HEDEF ARC TESTNET İSE -> BOTA BİLDİR VE ANINDA TAMAMLA (Kullanıcı Gas Ödemez ve Beklemez)
+        setBridgeState(s => ({ ...s, status: 'polling' }));
 
-      const sourceConfig = CCTP_CONTRACTS[sourceChainId];
-      const BOT_API_URL = 'https://arcsakasena-relayer-bot.onrender.com/api/relay';
+        const sourceConfig = CCTP_CONTRACTS[sourceChainId];
+        const BOT_API_URL = 'https://arcsakasena-relayer-bot.onrender.com/api/relay';
 
-      console.log('[FRONTEND] Islem bota iletiliyor...', txHash);
-      
-      await fetch(BOT_API_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          txHash: txHash,
-          sourceDomain: sourceConfig.domain
-        })
-      });
+        console.log('[FRONTEND] Hedef Arc Testnet. Islem bota iletiliyor...', txHash);
+        
+        await fetch(BOT_API_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            txHash: txHash,
+            sourceDomain: sourceConfig.domain
+          })
+        });
 
-      // Bot işlemi üstlendiği için completed moduna geçiyoruz
-      setBridgeState(s => ({ ...s, status: 'completed' }));
+        // Bot işlemi üstlendiği için doğrudan tamamlandı moduna geçir
+        setBridgeState(s => ({ ...s, status: 'completed' }));
 
-      const record = {
-        id: Date.now(),
-        amount,
-        tokenSymbol,
-        sourceChain: sourceChainId,
-        destChain: destChainId,
-        sourceTxHash: txHash,
-        destTxHash: 'Arka planda bot isliyor...',
-        timestamp: Date.now(),
-        status: 'completed',
-      };
-      setBridgeHistory(prev => [record, ...prev]);
+        const record = {
+          id: Date.now(),
+          amount,
+          tokenSymbol,
+          sourceChain: sourceChainId,
+          destChain: destChainId,
+          sourceTxHash: txHash,
+          destTxHash: 'Arka planda bot isliyor...',
+          timestamp: Date.now(),
+          status: 'completed',
+        };
+        setBridgeHistory(prev => [record, ...prev]);
 
-      if (onBridgeSuccess) {
-        onBridgeSuccess();
+        if (onBridgeSuccess) {
+          onBridgeSuccess();
+        }
+
+        return record;
+
+      } else {
+        // B. HEDEF BAŞKA BİR ZİNCİR İSE (Örn: Base Sepolia) -> BOTA ATMA, FRONTEND ÜZERİNDEN TAMAMLA
+        // Arc Testnet'in blok kesinliği instant (0.5sn) olduğundan bu onay saniyeler içinde gelecektir!
+        setBridgeState(s => ({ ...s, status: 'polling' }));
+
+        const sourceConfig = CCTP_CONTRACTS[sourceChainId];
+        const attestationData = await pollAttestation(sourceConfig.domain, txHash, 360);
+
+        // Kullanıcıdan hedef ağa geçmesini iste
+        setBridgeState(s => ({ ...s, status: 'switching' }));
+        await switchNetwork(destChainId);
+
+        // Ağ geçiş senkronizasyon beklemesi
+        const waitTime = sourceChainId === 84532 ? 10000 : 6000;
+        await new Promise(r => setTimeout(r, waitTime));
+
+        let retries = 0;
+        while (retries < 15) {
+          const currentChain = await getCurrentChainId();
+          if (currentChain === destChainId) {
+            console.log('Hedef aga gecildi:', destChainId);
+            break;
+          }
+          console.log('Ag degisimi bekleniyor...', currentChain);
+          await new Promise(r => setTimeout(r, 2000));
+          retries++;
+        }
+
+        // Hedef ağda mint işlemini gerçekleştir
+        const mintTxHash = await mintToken(attestationData.message, attestationData.attestation, destChainId);
+
+        const record = {
+          id: Date.now(),
+          amount,
+          tokenSymbol,
+          sourceChain: sourceChainId,
+          destChain: destChainId,
+          sourceTxHash: txHash,
+          destTxHash: mintTxHash,
+          timestamp: Date.now(),
+          status: 'completed',
+        };
+        setBridgeHistory(prev => [record, ...prev]);
+
+        if (onBridgeSuccess) {
+          onBridgeSuccess();
+        }
+
+        return record;
       }
-
-      return record;
 
     } catch (err) {
       console.error('Bridge hatasi:', err);
@@ -475,10 +527,10 @@ export default function CCTPBridgeTab({ provider, account, chainId, balances = {
       case 'idle': return 'Hazir';
       case 'approving': return `${tokenSymbol} onaylaniyor...`;
       case 'burning': return `${tokenSymbol} yakiliyor (burn)...`;
-      case 'polling': return `Onay aliniyor ve bota iletiliyor...`;
+      case 'polling': return destChain === 5042002 ? `Onay aliniyor ve bota iletiliyor...` : `Onay imza bekleniyor (Attestation)...`;
       case 'switching': return 'Ag degistiriliyor... Lutfen MetaMask\'te onaylayin';
       case 'minting': return `${tokenSymbol} basilip (mint)...`;
-      case 'completed': return '✅ Transfer bota iletildi! Arka planda tamamlaniyor.';
+      case 'completed': return destChain === 5042002 ? '✅ Transfer bota iletildi! Arka planda tamamlaniyor.' : '✅ Transfer basariyla tamamlandi!';
       case 'error': return `❌ Hata: ${bridgeState.error}`;
       default: return '';
     }
