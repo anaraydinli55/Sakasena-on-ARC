@@ -173,16 +173,27 @@ export function useCCTPBridge(account, switchNetwork, onBridgeSuccess) {
     const mintRecipient = ethers.zeroPadValue(recipient, 32);
     setBridgeState(s => ({ ...s, status: 'burning' }));
 
-    const tx = await messenger.depositForBurn(
-      amountParsed,
-      destConfig.domain,
-      mintRecipient,
-      tokenAddress,
-      ethers.ZeroHash,
-      0,
-      1000,
-      { gasLimit: sourceChainId === 5042002 ? 800000 : 500000 }
-    );
+    // burnToken fonksiyonundan önce, depositForBurn çağırmadan hemen önce ekle:
+const feeRes = await fetch(
+  `https://iris-api-sandbox.circle.com/v2/burn/USDC/fees/${sourceConfig.domain}/${destConfig.domain}`
+);
+const feeData = await feeRes.json();
+// minimumFee bps cinsinden geliyor (örn. 1 bps = 0.01%)
+const fastFee = feeData.find(f => f.finalityThreshold === 1000);
+const minimumFeeBps = BigInt(fastFee?.minimumFee ?? 0);
+const maxFee = (amountParsed * minimumFeeBps) / 10000n;
+// güvenlik payı için istersen maxFee * 1.1n gibi biraz üstüne çık
+
+const tx = await messenger.depositForBurn(
+  amountParsed,
+  destConfig.domain,
+  mintRecipient,
+  tokenAddress,
+  ethers.ZeroHash,
+  maxFee,      // 0 yerine hesaplanan gerçek ücret
+  1000,
+  ...
+);
 
     const receipt = await tx.wait();
 
