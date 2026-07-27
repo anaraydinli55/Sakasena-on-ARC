@@ -707,17 +707,32 @@ export default function CCTPBridgeTab({ provider, account, chainId, balances = {
         </div>
       )}
 
-      {/* Bridge Butonu (GÜNCEL ENGELLEME LOGIKASI DAHIL) */}
+      {/* Bridge Butonu */}
       {account ? (
-        <button
-          onClick={handleBridge}
-          disabled={isPending || (bridgeState.status !== 'idle' && bridgeState.status !== 'error') || !amount || parseFloat(amount) <= 0}
-          className="w-full py-4 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 font-bold text-white transition shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {isPending || (bridgeState.status !== 'idle' && bridgeState.status !== 'error')
-            ? 'Islem Devam Ediyor...'
-            : `Bridge ${tokenSymbol} → ${CHAIN_NAMES[destChain]}`}
-        </button>
+        <div className="w-full">
+          <button
+            onClick={handleBridge}
+            disabled={isPending || (bridgeState.status !== 'idle' && bridgeState.status !== 'error') || !amount || parseFloat(amount) <= 0}
+            className="w-full py-4 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 font-bold text-white transition shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isPending || (bridgeState.status !== 'idle' && bridgeState.status !== 'error')
+              ? 'Islem Devam Ediyor...'
+              : `Bridge ${tokenSymbol} → ${CHAIN_NAMES[destChain]}`}
+          </button>
+
+          {/* 🔄 YENİDEN KÖPRÜLE (BRIDGE AGAIN) BUTONU */}
+          {bridgeState.status === 'completed' && !isPending && (
+            <button
+              onClick={() => {
+                resetBridge(); // Durumu 'idle' (hazır) moduna döndürür
+                setAmount(''); // Miktar alanını temizler
+              }}
+              className="w-full mt-3 py-3.5 rounded-2xl border border-dashed border-violet-500 text-violet-400 hover:text-white hover:bg-violet-950/20 font-bold transition text-sm flex items-center justify-center gap-2"
+            >
+              🔄 Yeniden Köprüle (Bridge Again)
+            </button>
+          )}
+        </div>
       ) : (
         <button className="w-full py-4 rounded-2xl bg-gray-700 text-gray-400 font-bold disabled:opacity-50">
           Cuzdan Baglayin
