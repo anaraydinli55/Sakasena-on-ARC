@@ -164,72 +164,73 @@ export function useCCTPBridge(account, switchNetwork, onBridgeSuccess) {
   // ADIM 2: BURN
   // ============================================
   const burnToken = async (amountParsed, tokenAddress, sourceChainId, destChainId, recipient) => {
-    const sourceConfig = CCTP_CONTRACTS[sourceChainId];
-    const destConfig = CCTP_CONTRACTS[destChainId];
-    if (!sourceConfig || !destConfig) throw new Error('Desteklenmeyen ag');
+  const sourceConfig = CCTP_CONTRACTS[sourceChainId];
+  const destConfig = CCTP_CONTRACTS[destChainId];
+  if (!sourceConfig || !destConfig) throw new Error('Desteklenmeyen ag');
 
-    const signer = await getFreshSigner();
-    const messenger = new ethers.Contract(sourceConfig.tokenMessenger, TOKEN_MESSENGER_ABI, signer);
+  const signer = await getFreshSigner();
+  const messenger = new ethers.Contract(sourceConfig.tokenMessenger, TOKEN_MESSENGER_ABI, signer);
 
-    const mintRecipient = ethers.zeroPadValue(recipient, 32);
-    setBridgeState(s => ({ ...s, status: 'burning' }));
+  const mintRecipient = ethers.zeroPadValue(recipient, 32);
+  setBridgeState(s => ({ ...s, status: 'burning' }));
 
-    // burnToken fonksiyonundan önce, depositForBurn çağırmadan hemen önce ekle:
-const feeRes = await fetch(
-  `https://iris-api-sandbox.circle.com/v2/burn/USDC/fees/${sourceConfig.domain}/${destConfig.domain}`
-);
-const feeData = await feeRes.json();
-// minimumFee bps cinsinden geliyor (örn. 1 bps = 0.01%)
-const fastFee = feeData.find(f => f.finalityThreshold === 1000);
-const minimumFeeBps = BigInt(fastFee?.minimumFee ?? 0);
-const maxFee = (amountParsed * minimumFeeBps) / 10000n;
-// güvenlik payı için istersen maxFee * 1.1n gibi biraz üstüne çık
+  // 🌟 1. Adım: CCTP V2 Hızlı Transfer için minimum ücret miktarını dinamik olarak sorgula
+  let minFee = 0n;
+  try {
+    minFee = await messenger.getMinFeeAmount(amountParsed);
+  } catch (e) {
+    console.warn("getMinFeeAmount başarısız oldu, varsayılan 0 kullanılıyor:", e.message);
+  }
 
-const tx = await messenger.depositForBurn(
-  amountParsed,
-  destConfig.domain,
-  mintRecipient,
-  tokenAddress,
-  ethers.ZeroHash,
-  maxFee,      // 0 yerine hesaplanan gerçek ücret
-  1000,
-  ...
-);
+  // 🌟 2. Adım: Circle'a ödemeyi taahhüt ettiğimiz maksimum limiti belirle (Örn: minFee + 0.1 USDC buffer)
+  const maxFee = minFee + ethers.parseUnits("0.1", 6);
 
-    const receipt = await tx.wait();
+  // 🌟 3. Adım: depositForBurn çağrısını 1000 (Fast) ve maxFee parametreleriyle tetikle
+  const tx = await messenger.depositForBurn(
+    amountParsed,
+    destConfig.domain,
+    mintRecipient,
+    tokenAddress,
+    ethers.ZeroHash,
+    maxFee, // 🌟 Güncellenen Alan
+    1000,   // 🌟 Güncellenen Alan (1000 = CCTP V2 Fast Transfer!)
+    { gasLimit: sourceChainId === 5042002 ? 800000 : 500000 }
+  );
 
-    // MessageSent event'ini parse et
-    const messageSentEvent = receipt.logs
-      .map(log => {
-        try {
-          return messenger.interface.parseLog(log);
-        } catch {
-          return null;
-        }
-      })
-      .filter(event => event && event.name === 'MessageSent')[0];
+  const receipt = await tx.wait();
 
-    if (!messageSentEvent) {
-      throw new Error('MessageSent event bulunamadi. Lutfen CCTP v2 kontrat adreslerini kontrol edin.');
-    }
+  // MessageSent event'ini parse et
+  const messageSentEvent = receipt.logs
+    .map(log => {
+      try {
+        return messenger.interface.parseLog(log);
+      } catch {
+        return null;
+      }
+    })
+    .filter(event => event && event.name === 'MessageSent')[0];
 
-    const messageBytes = messageSentEvent.args.message;
-    const messageHash = ethers.keccak256(messageBytes);
-    const nonce = messageSentEvent.args.nonce?.toString() || null;
+  if (!messageSentEvent) {
+    throw new Error('MessageSent event bulunamadi. Lutfen CCTP v2 kontrat adreslerini kontrol edin.');
+  }
 
-    console.log('Message Hash:', messageHash);
-    console.log('Message Bytes:', messageBytes);
+  const messageBytes = messageSentEvent.args.message;
+  const messageHash = ethers.keccak256(messageBytes);
+  const nonce = messageSentEvent.args.nonce?.toString() || null;
 
-    setBridgeState(s => ({
-      ...s,
-      status: 'polling',
-      txHash: tx.hash,
-      nonce,
-      messageHash,
-    }));
+  console.log('Message Hash:', messageHash);
+  console.log('Message Bytes:', messageBytes);
 
-    return { txHash: tx.hash, nonce, messageHash, messageBytes };
-  };
+  setBridgeState(s => ({
+    ...s,
+    status: 'polling',
+    txHash: tx.hash,
+    nonce,
+    messageHash,
+  }));
+
+  return { txHash: tx.hash, nonce, messageHash, messageBytes };
+};
 
   // ============================================
   // ADIM 3: ATTESTATION POLLING (GEREKTIGINDE LOCAL REFERANS ICIN TUTULDU)
