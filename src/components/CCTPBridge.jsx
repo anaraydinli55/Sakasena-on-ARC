@@ -180,7 +180,7 @@ export function useCCTPBridge(account, switchNetwork, onBridgeSuccess) {
       tokenAddress,
       ethers.ZeroHash,
       0,
-      2000,
+      1000,
       { gasLimit: sourceChainId === 5042002 ? 800000 : 500000 }
     );
 
