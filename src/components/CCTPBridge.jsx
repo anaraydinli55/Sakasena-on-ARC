@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { ethers } from 'ethers';
 
@@ -81,7 +80,7 @@ const CCTP_CONTRACTS = {
 
 const TOKEN_MESSENGER_ABI = [
   "function depositForBurn(uint256 amount, uint32 destinationDomain, bytes32 mintRecipient, address burnToken, bytes32 destinationCaller, uint256 maxFee, uint32 minFinalityThreshold) external",
-  "function getMinFeeAmount(uint256 amount) view returns (uint256)", // 🌟 Yeni Eklenen Satır
+  "function getMinFeeAmount(uint256 amount) view returns (uint256)",
   "event DepositForBurn(address indexed burnToken, uint256 amount, address indexed depositor, bytes32 mintRecipient, uint32 destinationDomain, bytes32 destinationTokenMessenger, bytes32 destinationCaller, uint256 maxFee, uint32 indexed minFinalityThreshold, bytes hookData)",
   "event MessageSent(bytes message)",
 ];
@@ -164,76 +163,75 @@ export function useCCTPBridge(account, switchNetwork, onBridgeSuccess) {
   // ADIM 2: BURN
   // ============================================
   const burnToken = async (amountParsed, tokenAddress, sourceChainId, destChainId, recipient) => {
-  const sourceConfig = CCTP_CONTRACTS[sourceChainId];
-  const destConfig = CCTP_CONTRACTS[destChainId];
-  if (!sourceConfig || !destConfig) throw new Error('Desteklenmeyen ag');
+    const sourceConfig = CCTP_CONTRACTS[sourceChainId];
+    const destConfig = CCTP_CONTRACTS[destChainId];
+    if (!sourceConfig || !destConfig) throw new Error('Desteklenmeyen ag');
 
-  const signer = await getFreshSigner();
-  const messenger = new ethers.Contract(sourceConfig.tokenMessenger, TOKEN_MESSENGER_ABI, signer);
+    const signer = await getFreshSigner();
+    const messenger = new ethers.Contract(sourceConfig.tokenMessenger, TOKEN_MESSENGER_ABI, signer);
 
-  const mintRecipient = ethers.zeroPadValue(recipient, 32);
-  setBridgeState(s => ({ ...s, status: 'burning' }));
+    const mintRecipient = ethers.zeroPadValue(recipient, 32);
+    setBridgeState(s => ({ ...s, status: 'burning' }));
 
-  // 🌟 1. Adım: CCTP V2 Hızlı Transfer için minimum ücret miktarını dinamik olarak sorgula
-  let minFee = 0n;
-  try {
-    minFee = await messenger.getMinFeeAmount(amountParsed);
-  } catch (e) {
-    console.warn("getMinFeeAmount başarısız oldu, varsayılan 0 kullanılıyor:", e.message);
-  }
+    // CCTP V2 Hızlı Transfer için minimum ücret miktarını dinamik sorgula
+    let minFee = 0n;
+    try {
+      minFee = await messenger.getMinFeeAmount(amountParsed);
+    } catch (e) {
+      console.warn("getMinFeeAmount basarisiz oldu, varsayilan 0 kullaniliyor:", e.message);
+    }
 
-  // 🌟 2. Adım: Circle'a ödemeyi taahhüt ettiğimiz maksimum limiti belirle (Örn: minFee + 0.1 USDC buffer)
-  const maxFee = minFee + ethers.parseUnits("0.1", 6);
+    // 0.1 USDC'lik emniyet payı ekle
+    const maxFee = minFee + ethers.parseUnits("0.1", 6);
 
-  // 🌟 3. Adım: depositForBurn çağrısını 1000 (Fast) ve maxFee parametreleriyle tetikle
-  const tx = await messenger.depositForBurn(
-    amountParsed,
-    destConfig.domain,
-    mintRecipient,
-    tokenAddress,
-    ethers.ZeroHash,
-    maxFee, // 🌟 Güncellenen Alan
-    1000,   // 🌟 Güncellenen Alan (1000 = CCTP V2 Fast Transfer!)
-    { gasLimit: sourceChainId === 5042002 ? 800000 : 500000 }
-  );
+    const tx = await messenger.depositForBurn(
+      amountParsed,
+      destConfig.domain,
+      mintRecipient,
+      tokenAddress,
+      ethers.ZeroHash,
+      maxFee,
+      1000, // 1000 = CCTP V2 Fast Transfer (Pre-finality)
+      { gasLimit: sourceChainId === 5042002 ? 800000 : 500000 }
+    );
 
-  const receipt = await tx.wait();
+    const receipt = await tx.wait();
 
-  // MessageSent event'ini parse et
-  const messageSentEvent = receipt.logs
-    .map(log => {
-      try {
-        return messenger.interface.parseLog(log);
-      } catch {
-        return null;
-      }
-    })
-    .filter(event => event && event.name === 'MessageSent')[0];
+    // MessageSent event'ini parse et
+    const messageSentEvent = receipt.logs
+      .map(log => {
+        try {
+          return messenger.interface.parseLog(log);
+        } catch {
+          return null;
+        }
+      })
+      .filter(event => event && event.name === 'MessageSent')[0];
 
-  if (!messageSentEvent) {
-    throw new Error('MessageSent event bulunamadi. Lutfen CCTP v2 kontrat adreslerini kontrol edin.');
-  }
+    if (!messageSentEvent) {
+      throw new Error('MessageSent event bulunamadi. Lutfen CCTP v2 kontrat adreslerini kontrol edin.');
+    }
 
-  const messageBytes = messageSentEvent.args.message;
-  const messageHash = ethers.keccak256(messageBytes);
-  const nonce = messageSentEvent.args.nonce?.toString() || null;
+    const messageBytes = messageSentEvent.args.message;
+    const messageHash = ethers.keccak256(messageBytes);
+    const nonce = messageSentEvent.args.nonce?.toString() || null;
 
-  console.log('Message Hash:', messageHash);
-  console.log('Message Bytes:', messageBytes);
+    console.log('Message Hash:', messageHash);
+    console.log('Message Bytes:', messageBytes);
 
-  setBridgeState(s => ({
-    ...s,
-    status: 'polling',
-    txHash: tx.hash,
-    nonce,
-    messageHash,
-  }));
+    setBridgeState(s => ({
+      ...s,
+      status: 'polling',
+      txHash: tx.hash,
+      nonce,
+      messageHash,
+    }));
 
-  return { txHash: tx.hash, nonce, messageHash, messageBytes };
-};
+    return { txHash: tx.hash, nonce, messageHash, messageBytes };
+  };
 
   // ============================================
-  // ADIM 3: ATTESTATION POLLING (GEREKTIGINDE LOCAL REFERANS ICIN TUTULDU)
+  // ADIM 3: ATTESTATION POLLING (LOCAL REFERANS)
   // ============================================
   const pollAttestation = async (sourceDomain, txHash, maxAttempts = 360) => {
     const IRIS_API = 'https://iris-api-sandbox.circle.com';
@@ -283,7 +281,7 @@ export function useCCTPBridge(account, switchNetwork, onBridgeSuccess) {
   };
 
   // ============================================
-  // ADIM 4: MINT (GEREKTIGINDE LOCAL REFERANS ICIN TUTULDU)
+  // ADIM 4: MINT (LOCAL REFERANS)
   // ============================================
   const mintToken = async (message, attestation, destChainId) => {
     const destConfig = CCTP_CONTRACTS[destChainId];
@@ -342,13 +340,13 @@ export function useCCTPBridge(account, switchNetwork, onBridgeSuccess) {
         amountParsed, tokenAddress, sourceChainId, destChainId, recipientAddress
       );
 
-      // 🌟 3. Render Botunu Tetikleme (Kullanıcıyı 40 dakika bekletmeme)
+      // 🌟 3. Render Botunu Tetikleme (Asenkron Polleme)
       setBridgeState(s => ({ ...s, status: 'polling' }));
 
       const sourceConfig = CCTP_CONTRACTS[sourceChainId];
       const BOT_API_URL = 'https://arcsakasena-relayer-bot.onrender.com/api/relay';
 
-      console.log('[FRONTEND] İşlem bota iletiliyor...', txHash);
+      console.log('[FRONTEND] Islem bota iletiliyor...', txHash);
       
       await fetch(BOT_API_URL, {
         method: 'POST',
@@ -361,7 +359,7 @@ export function useCCTPBridge(account, switchNetwork, onBridgeSuccess) {
         })
       });
 
-      // Bot işlemi üstlendiği için hemen completed moduna geçiyoruz
+      // Bot işlemi üstlendiği için completed moduna geçiyoruz
       setBridgeState(s => ({ ...s, status: 'completed' }));
 
       const record = {
@@ -371,7 +369,7 @@ export function useCCTPBridge(account, switchNetwork, onBridgeSuccess) {
         sourceChain: sourceChainId,
         destChain: destChainId,
         sourceTxHash: txHash,
-        destTxHash: 'Arka planda bot işliyor...', // Arka planda tamamlanıyor
+        destTxHash: 'Arka planda bot isliyor...',
         timestamp: Date.now(),
         status: 'completed',
       };
@@ -422,7 +420,7 @@ export default function CCTPBridgeTab({ provider, account, chainId, balances = {
   const [destChain, setDestChain] = useState(84532);
   const [tokenSymbol, setTokenSymbol] = useState("USDC");
   const [recipientAddress, setRecipientAddress] = useState("");
-  // 🌟 Çift tıklama engelleyici yeni yerel durumumuz:
+  // Çift tıklama engelleyici yerel durum:
   const [isPending, setIsPending] = useState(false);
 
   useEffect(() => {
@@ -437,7 +435,7 @@ export default function CCTPBridgeTab({ provider, account, chainId, balances = {
     setDestChain(temp);
   };
 
-  // 🌟 ÇİFT TIKLAMA ENGELLENMİŞ HANDLE BRIDGE
+  // Çift tıklama engellenmiş handleBridge
   const handleBridge = async () => {
     if (isPending) return;
     if (bridgeState.status !== 'idle' && bridgeState.status !== 'error') return;
@@ -449,7 +447,7 @@ export default function CCTPBridgeTab({ provider, account, chainId, balances = {
       return;
     }
 
-    setIsPending(true); // Butonu kilitliyoruz
+    setIsPending(true);
 
     try {
       const currentProvider = new ethers.BrowserProvider(window.ethereum);
@@ -468,7 +466,7 @@ export default function CCTPBridgeTab({ provider, account, chainId, balances = {
     } catch (err) {
       console.error('Bridge hatasi:', err);
     } finally {
-      setIsPending(false); // Kilidi kaldırıyoruz
+      setIsPending(false);
     }
   };
 
@@ -533,16 +531,14 @@ export default function CCTPBridgeTab({ provider, account, chainId, balances = {
             const isSupportedOnSource = CCTP_CONTRACTS[sourceChain]?.[symbol.toLowerCase()];
             const isSupportedOnDest = CCTP_CONTRACTS[destChain]?.[symbol.toLowerCase()];
             
-            // 🌟 Sadece EURC'yi resmi olarak birbirine bağlayan CCTP testnet rotalarını açık bırakıyoruz:
             const isSupported = 
               isSupportedOnSource && 
               isSupportedOnSource !== "0x0000000000000000000000000000000000000000" &&
               isSupportedOnDest && 
               isSupportedOnDest !== "0x0000000000000000000000000000000000000000" &&
-              // EURC için sadece Ethereum Sepolia, Avalanche Fuji, Arbitrum Sepolia ve Base Sepolia rotalarını aktif tutuyoruz (Arc ve World Chain kilitlenir):
               !(symbol === "EURC" && (
-                sourceChain === 5042002 || destChain === 5042002 || // Arc Testnet
-                sourceChain === 4801 || destChain === 4801          // World Chain Sepolia
+                sourceChain === 5042002 || destChain === 5042002 || 
+                sourceChain === 4801 || destChain === 4801          
               ));
 
             return (
@@ -724,12 +720,12 @@ export default function CCTPBridgeTab({ provider, account, chainId, balances = {
           {bridgeState.status === 'completed' && !isPending && (
             <button
               onClick={() => {
-                resetBridge(); // Durumu 'idle' (hazır) moduna döndürür
-                setAmount(''); // Miktar alanını temizler
+                resetBridge();
+                setAmount('');
               }}
               className="w-full mt-3 py-3.5 rounded-2xl border border-dashed border-violet-500 text-violet-400 hover:text-white hover:bg-violet-950/20 font-bold transition text-sm flex items-center justify-center gap-2"
             >
-              🔄 Yeniden Köprüle (Bridge Again)
+              🔄 Yeniden Koprule (Bridge Again)
             </button>
           )}
         </div>
