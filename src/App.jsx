@@ -123,21 +123,23 @@ function AppContent() {
 
   useEffect(() => {
     const syncWalletWithThirdweb = async () => {
-      // Eğer kullanıcının cüzdanı zaten bağlıysa ve window.ethereum aktifse
-      if (account && window.ethereum) {
+      // Kendi cüzdan bağlantınızdan gelen provider'ın alt sağlayıcısını (provider.provider) veya window.ethereum'u alıyoruz
+      const activeProvider = provider?.provider || window.ethereum;
+
+      if (account && activeProvider) {
         try {
           const thirdwebWallet = EIP1193.fromProvider({
-            provider: window.ethereum,
+            provider: activeProvider,
           });
           await thirdwebWallet.connect({ client: thirdwebClient });
-          await setActiveWallet(thirdwebWallet); // Thirdweb'e bu cüzdanın aktif olduğunu bildiriyoruz
+          await setActiveWallet(thirdwebWallet);
         } catch (err) {
           console.error("Thirdweb cüzdan senkronizasyon hatası:", err);
         }
       }
     };
     syncWalletWithThirdweb();
-  }, [account, setActiveWallet]);
+  }, [account, provider, setActiveWallet]);
 
   // State'ler
   const [activeTab, setActiveTab] = useState("swap"); 
