@@ -748,7 +748,7 @@ function AppContent() {
 // ============================================
 // 💎 ANA SARMALAYICI (ThirdwebProvider Entegrasyonlu)
 // ============================================
-export default function App() {
+function AppContent() {
   return (
     <ThirdwebProvider>
       <AppContent />
