@@ -1,9 +1,13 @@
 // ============================================
-// ANA APP COMPONENT (DUZELTILMIS)
+// ANA APP COMPONENT (DUZELTILMIS & THIRDWEB x402 ENTEGRELI)
 // Bütün parçaları birleştirir
 // ============================================
 import { useState, useEffect, useCallback } from 'react';
 import { ethers } from 'ethers';
+
+// Thirdweb x402 Paketleri
+import { createThirdwebClient } from "thirdweb";
+import { ThirdwebProvider, useFetchWithPayment } from "thirdweb/react";
 
 // Sabitler ve konfigürasyon
 import { 
@@ -32,7 +36,78 @@ import { LendingTab } from './components/LendingTab';
 import { FaucetTab } from './components/FaucetTab';
 import CCTPBridgeTab from './components/CCTPBridge';
 
-export default function App() {
+// 💎 Thirdweb Client Başlatma (Sağladığınız Client ID ile)
+const thirdwebClient = createThirdwebClient({
+  clientId: "13249f8303c32706c0a0ff4601ef8888"
+});
+
+// ============================================
+// 💎 PREMIUM ANALİZ WIDGET (Thirdweb x402)
+// ============================================
+function PremiumWidget({ client, increaseSP }) {
+  const { fetchWithPayment, isPending } = useFetchWithPayment(client);
+  const [premiumContent, setPremiumContent] = useState(null);
+
+  const handleUnlock = async () => {
+    try {
+      // Vercel'deki /api/premium-content endpoint'ine ödemeli istek gönderiyoruz
+      const response = await fetchWithPayment("/api/premium-content");
+      const result = await response.json();
+
+      if (result.success) {
+        setPremiumContent(result.data);
+        increaseSP(); // Başarılı ödemede kullanıcının SP puanını +10 artırır
+        alert("Ödeme başarıyla doğrulandı! Premium analiz açıldı.");
+      } else {
+        alert("Ödeme doğrulanamadı.");
+      }
+    } catch (error) {
+      console.error("Ödeme işlemi hatası:", error);
+      alert("Ödeme işlemi sırasında bir hata oluştu veya iptal edildi.");
+    }
+  };
+
+  return (
+    <div className="text-center">
+      <h3 className="text-base font-bold text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-indigo-300 flex items-center justify-center gap-2">
+        💎 Sakasena Premium Sinyalleri (x402 Ödeme Duvarı)
+      </h3>
+      <p className="text-xs text-gray-400 mt-1 mb-4">
+        Sadece $0.01 (USDC) ödeyerek sakUSD/AAA piyasa analizlerine ve VIP DeFi sinyallerine anında ulaşın.
+      </p>
+
+      {!premiumContent ? (
+        <button
+          onClick={handleUnlock}
+          disabled={isPending}
+          className={`w-full py-2.5 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 rounded-xl font-bold text-xs text-white transition-all shadow-lg active:scale-95 ${
+            isPending ? "opacity-50 cursor-not-allowed" : ""
+          }`}
+        >
+          {isPending ? "Cüzdan Onayı Bekleniyor..." : "VIP Analizlerin Kilidini Aç ($0.01)"}
+        </button>
+      ) : (
+        <div className="w-full p-4 bg-[#0d0b1a] rounded-xl border border-violet-500/40 text-left transition-all duration-500">
+          <p className="text-xs text-violet-400 font-bold mb-1 flex items-center gap-1">
+            🔓 AÇILAN VIP ANALİZ VERİSİ:
+          </p>
+          <p className="text-sm text-gray-100 font-semibold mb-2">
+            {premiumContent}
+          </p>
+          <div className="text-xs text-gray-400 border-t border-gray-800/80 pt-2 space-y-1">
+            <p>• <strong>sakUSD:</strong> Staking havuzlarında %1.2 APR artışı bekleniyor.</p>
+            <p>• <strong>AAA Token:</strong> Destek seviyesi $1.15 bandında güçlü kalmaya devam ediyor.</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================
+// ANA UYGULAMA İÇERİĞİ (AppContent)
+// ============================================
+function AppContent() {
   // Wallet hook
   const { provider, account, chainId, connectWallet, switchNetwork, getSigner } = useWallet();
 
@@ -622,9 +697,14 @@ export default function App() {
         <AAABanner account={account} chainId={chainId} balances={balances} tokens={tokens} />
         <StatsCards userPoolBalances={userPoolBalances} tokens={tokens} />
 
+        {/* 💎 PREMIUM VIP ANALİZ ALANI (Thirdweb x402 Entegrasyonu) */}
+        <div className="max-w-lg mx-auto mb-6 bg-gradient-to-b from-[#1b1937] to-[#13112a] rounded-3xl p-6 border border-violet-500/30 shadow-xl">
+          <PremiumWidget client={thirdwebClient} increaseSP={increaseSP} />
+        </div>
+
         <div className="max-w-lg mx-auto bg-[#13112a] rounded-3xl p-6 border border-gray-800 neon-glow shadow-2xl">
-  {renderTab()}
-</div>
+          {renderTab()}
+        </div>
       </main>
 
       <footer className="bg-[#0d0b1a] border-t border-gray-800 py-6 text-center">
@@ -634,5 +714,16 @@ export default function App() {
         </p>
       </footer>
     </div>
+  );
+}
+
+// ============================================
+// 💎 ANA SARMALAYICI (ThirdwebProvider Entegrasyonlu)
+// ============================================
+export default function App() {
+  return (
+    <ThirdwebProvider>
+      <AppContent />
+    </ThirdwebProvider>
   );
 }
