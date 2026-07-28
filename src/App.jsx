@@ -112,6 +112,33 @@ function AppContent() {
   // Wallet hook
   const { provider, account, chainId, connectWallet, switchNetwork, getSigner } = useWallet();
 
+  // 💎 Sizin cüzdanınızı Thirdweb'e senkronize eden hook
+  const setActiveWallet = useSetActiveWallet();
+
+  useEffect(() => {
+    const syncWalletWithThirdweb = async () => {
+      // Eğer kullanıcının cüzdanı zaten bağlıysa ve window.ethereum aktifse
+      if (account && window.ethereum) {
+        try {
+          const thirdwebWallet = EIP1193.fromProvider({
+            provider: window.ethereum,
+          });
+          await thirdwebWallet.connect({ client: thirdwebClient });
+          await setActiveWallet(thirdwebWallet); // Thirdweb'e bu cüzdanın aktif olduğunu bildiriyoruz
+        } catch (err) {
+          console.error("Thirdweb cüzdan senkronizasyon hatası:", err);
+        }
+      }
+    };
+    syncWalletWithThirdweb();
+  }, [account, setActiveWallet]);
+
+  // Balans hook ve diğer kodlarınız aşağıda aynen devam ediyor...
+
+function AppContent() {
+  // Wallet hook
+  const { provider, account, chainId, connectWallet, switchNetwork, getSigner } = useWallet();
+
   // Balans hook
   const { balances, poolReserves, userPoolBalances, fetchBalances, fetchPoolReserves } = useBalances(provider, account, chainId);
 
