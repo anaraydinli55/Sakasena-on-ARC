@@ -2,11 +2,6 @@ import { createThirdwebClient } from "thirdweb";
 import { facilitator, settlePayment } from "thirdweb/x402";
 import { arbitrumSepolia } from "thirdweb/chains";
 
-// Vercel'in modern ve hızlı Edge fonksiyon yapısını kullanması için:
-export const config = {
-  runtime: 'edge', 
-};
-
 const client = createThirdwebClient({ 
   secretKey: process.env.THIRDWEB_SECRET_KEY 
 });
@@ -16,15 +11,17 @@ const thirdwebX402Facilitator = facilitator({
   serverWalletAddress: process.env.NEXT_PUBLIC_SERVER_WALLET_ADDRESS,
 });
 
-export default async function handler(request) {
+export default async function handler(req, res) {
   // Sadece GET isteklerine izin veriyoruz
-  if (request.method !== "GET") {
-    return new Response("Method Not Allowed", { status: 405 });
+  if (req.method !== "GET") {
+    res.setHeader("Allow", ["GET"]);
+    return res.status(405).end("Method Not Allowed");
   }
 
-  const paymentData = request.headers.get("x-payment");
+  // Node.js üzerinde başlıklar (headers) küçük harflerle req.headers objesinden okunur
+  const paymentData = req.headers["x-payment"];
 
-  // Ödemeyi doğrula ve on-chain (zincir üzerinde) onayla
+  // Ödemeyi doğrula
   const result = await settlePayment({
     resourceUrl: "https://sakasena-on-arc.vercel.app/api/premium-content",
     method: "GET",
@@ -35,19 +32,25 @@ export default async function handler(request) {
   });
 
   if (result.status === 200) {
-    // Ödeme başarılı, premium veriyi JSON olarak istemciye dönüyoruz
-    return new Response(
-      JSON.stringify({ success: true, data: "Premium içeriğe başarıyla eriştiniz!" }), 
-      {
-        status: 200,
-        headers: { "Content-Type": "application/json" }
-      }
-    );
-  } else {
-    // Ödeme yoksa veya eksikse, istemciye HTTP 402 durum kodu ve ödeme yönergelerini dönüyoruz
-    return new Response(JSON.stringify(result.responseBody), {
-      status: result.status,
-      headers: result.responseHeaders,
+    // Ödeme başarılı, premium içeriği JSON olarak dönüyoruz
+    return res.status(200).json({ 
+      success: true, 
+      data: "Premium içeriğe başarıyla eriştiniz!" 
     });
+  } else {
+    // Ödeme eksikse gerekli x402 ödeme başlıklarını (headers) Node.js yanıtına ekliyoruz
+    if (result.responseHeaders) {
+      if (typeof result.responseHeaders.forEach === "function") {
+        result.responseHeaders.forEach((value, key) => {
+          res.setHeader(key, value);
+        });
+      } else {
+        for (const [key, value] of Object.entries(result.responseHeaders)) {
+          res.setHeader(key, value);
+        }
+      }
+    }
+    // HTTP 402 durum kodunu ve ödeme yönergelerini JSON olarak dönüyoruz
+    return res.status(result.status).json(result.responseBody);
   }
 }
