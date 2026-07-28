@@ -29,6 +29,8 @@ export default async function handler(req, res) {
     network: arbitrumSepolia,
     price: "$0.01",
     facilitator: thirdwebX402Facilitator,
+    // 💎 ÖDEMELERİN DOĞRUDAN SİZİN CÜZDANINIZA GELMESİ İÇİN:
+    payTo: "0xf8d59231bD1c74b8878cCF244C4dFFf412C872F5",
   });
 
   if (result.status === 200) {
