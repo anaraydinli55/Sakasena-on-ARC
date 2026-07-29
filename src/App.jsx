@@ -148,7 +148,7 @@ function AppContent() {
   const [tokens, setTokens] = useState(NETWORKS[5042002].tokens);
   const [txLoading, setTxLoading] = useState(false);
 
-  // 💎 SP PUANI (Dinamik - 0'dan baslar ve Tarayici Hafizasinda saklanir)
+  // 💎 SP PUANI (İlk yüklemede yerel hafızadan başlar, cüzdan bağlanınca veritabanından güncellenir)
   const [spPoints, setSpPoints] = useState(() => {
     try {
       return Number(localStorage.getItem('sakasena_sp_points') || '0');
