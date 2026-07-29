@@ -8,7 +8,7 @@ import { ethers } from 'ethers';
 // Thirdweb x402 Paketleri
 import { createThirdwebClient } from "thirdweb";
 import { ThirdwebProvider, useFetchWithPayment, useSetActiveWallet } from "thirdweb/react"; 
-import { createWallet } from "thirdweb/wallets"; 
+import { EIP1193 } from "thirdweb/wallets"; 
 
 // Sabitler ve konfigürasyon
 import { 
@@ -52,8 +52,9 @@ function PremiumWidget({ client, increaseSP }) {
   const handleUnlock = async () => {
     try {
       // Vercel'deki /api/premium-content endpoint'ine ödemeli istek gönderiyoruz
-      const response = await fetchWithPayment("/api/premium-content");
-      const result = await response.json();
+      // NOT: fetchWithPayment güncel thirdweb SDK'sında yanıtı otomatik JSON'a
+      // parse ediyor; ham bir Response objesi dönmüyor, o yüzden ayrıca .json() çağırmıyoruz
+      const result = await fetchWithPayment("/api/premium-content");
 
       if (result.success) {
         setPremiumContent(result.data);
@@ -751,3 +752,4 @@ export default function App() {
     </ThirdwebProvider>
   );
 }
+
