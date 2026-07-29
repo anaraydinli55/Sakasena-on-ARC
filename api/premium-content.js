@@ -26,11 +26,16 @@ export default async function handler(req, res) {
     resourceUrl: "https://sakasena-on-arc.vercel.app/api/premium-content",
     method: "GET",
     paymentData: paymentData,
-    network: "eip155:5042002", // Arc Testnet
-    price: "$0.01",
+    network: arcTestnet,
+    // 💎 $0.01 string'i yerine, kendi özel USDC token adresinizi ve miktarını tanımlıyoruz:
+    price: {
+      amount: "10000", // 0.01 USDC (USDC 6 decimals olduğu için 10000 birim = 0.01 USDC yapar)
+      asset: {
+        address: "0x3600000000000000000000000000000000000000" // Buraya projenizdeki Arc USDC adresini yapıştırın
+      }
+    },
     facilitator: thirdwebX402Facilitator,
-    // 💎 ÖDEMELERİN DOĞRUDAN SİZİN CÜZDANINIZA GELMESİ İÇİN:
-    payTo: "0xf8d59231bD1c74b8878cCF244C4dFFf412C872F5",
+    payTo: "0xf8d59231bD1c74b8878cCF244C4dFFf412C872F5", 
   });
 
   if (result.status === 200) {
