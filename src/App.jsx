@@ -8,7 +8,7 @@ import { ethers } from 'ethers';
 // Thirdweb x402 Paketleri
 import { createThirdwebClient } from "thirdweb";
 import { ThirdwebProvider, useFetchWithPayment, useSetActiveWallet } from "thirdweb/react"; 
-import { EIP1193 } from "thirdweb/wallets"; 
+import { createWallet } from "thirdweb/wallets"; 
 
 // Sabitler ve konfigürasyon
 import { 
