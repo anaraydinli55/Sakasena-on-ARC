@@ -86,7 +86,7 @@ export const Header = ({
 
             <span className="text-violet-400 font-bold">💎 {spPoints} SP</span>
             <span className="text-gray-500">|</span>
-            <span className="text-gray-300">Gas (USDC): {balances.USDC || "0.00"}</span>
+            <span className="text-gray-300">USDC: {balances.USDC || "0.00"}</span>
           </div>
         )}
 
