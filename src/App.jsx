@@ -157,6 +157,38 @@ function AppContent() {
     }
   });
 
+  // 💎 Cüzdan bağlandığında veritabanından puanı çekme ve göç (migration) işlemi
+  useEffect(() => {
+    const fetchAndSyncSP = async () => {
+      if (!account) return;
+      try {
+        // 1. Veritabanındaki güncel puanı oku
+        const res = await fetch(`/api/sp-points?address=${account}`);
+        const result = await res.json();
+        let dbPoints = result.points || 0;
+
+        // 2. Tarayıcıda kalmış eski puanı kontrol et
+        const localPoints = Number(localStorage.getItem('sakasena_sp_points') || '0');
+
+        // 3. Eğer veritabanı boş ama tarayıcıda eski puan varsa, bunu veritabanına taşıyalım
+        if (dbPoints === 0 && localPoints > 0) {
+          const syncRes = await fetch('/api/sp-points', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ address: account, pointsToSet: localPoints })
+          });
+          const syncResult = await syncRes.json();
+          dbPoints = syncResult.points;
+        }
+
+        setSpPoints(dbPoints);
+      } catch (err) {
+        console.error("SP puanı senkronizasyon hatası:", err);
+      }
+    };
+    fetchAndSyncSP();
+  }, [account]);
+
   // Swap state'leri
   const [fromToken, setFromToken] = useState("USDC");
   const [toToken, setToToken] = useState("AAA"); 
