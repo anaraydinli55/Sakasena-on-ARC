@@ -69,22 +69,39 @@ export const useBalances = (provider, account, chainId) => {
             const formatted = parseFloat(formatUnits(raw, token.decimals)); 
             newBalances[key] = formatted.toFixed(key === "cirBTC" ? 4 : 2);
           } catch (err) {
-            console.warn(`${key} balansi okunurken hata:`, err.message);
-            newBalances[key] = "0.00";
+            // Bir onceki basarili degeri korumak icin bir kez daha deniyoruz
+            // (genelde RPC'nin gecici rate-limit/hiccup'i - gercek bir hata degil)
+            try {
+              await new Promise(r => setTimeout(r, 300));
+              const contract = new ethers.Contract(token.address, minABI, freshProvider);
+              const raw = await contract.balanceOf(account);
+              const formatted = parseFloat(formatUnits(raw, token.decimals));
+              newBalances[key] = formatted.toFixed(key === "cirBTC" ? 4 : 2);
+            } catch (retryErr) {
+              console.warn(`${key} balansi okunurken hata (retry sonrasi):`, retryErr.message);
+              // newBalances[key] kasitli olarak atanmiyor -> asagida onceki deger korunuyor
+            }
           }
         } else {
           newBalances[key] = "0.00";
         }
       }
 
-      // Eksik token'lar icin 0 ata
+      // Eksik token'lar icin (hic hic basarili olmamis olanlar) 0 ata
       const allTokens = ["USDC", "EURC", "cirBTC", "sakUSD", "WUSDC", "AAA", "USDT", "DAI"];
-      for (const t of allTokens) {
-        if (newBalances[t] === undefined) newBalances[t] = "0.00";
-      }
-
-      setBalances(newBalances);
-      console.log('Balanslar guncellendi:', currentChainId, newBalances);
+      setBalances(prev => {
+        const merged = { ...prev };
+        for (const t of allTokens) {
+          if (newBalances[t] !== undefined) {
+            merged[t] = newBalances[t];
+          } else if (merged[t] === undefined) {
+            merged[t] = "0.00";
+          }
+          // aksi halde: merged[t] onceki (bir onceki basarili) degerinde kaliyor
+        }
+        console.log('Balanslar guncellendi:', currentChainId, merged);
+        return merged;
+      });
     } catch (err) {
       console.error("Bakiyeler sorgulanirken hata:", err);
     }
