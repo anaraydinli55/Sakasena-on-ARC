@@ -50,7 +50,6 @@ export const useBalances = (provider, account, chainId) => {
     const freshProvider = getFreshProvider();
     if (!freshProvider) return;
 
-    // Mevcut agi al - prop yerine
     const currentChainId = await getCurrentChainId();
     if (!currentChainId) return;
 
@@ -69,8 +68,6 @@ export const useBalances = (provider, account, chainId) => {
             const formatted = parseFloat(formatUnits(raw, token.decimals)); 
             newBalances[key] = formatted.toFixed(key === "cirBTC" ? 4 : 2);
           } catch (err) {
-            // Bir onceki basarili degeri korumak icin bir kez daha deniyoruz
-            // (genelde RPC'nin gecici rate-limit/hiccup'i - gercek bir hata degil)
             try {
               await new Promise(r => setTimeout(r, 300));
               const contract = new ethers.Contract(token.address, minABI, freshProvider);
@@ -79,7 +76,6 @@ export const useBalances = (provider, account, chainId) => {
               newBalances[key] = formatted.toFixed(key === "cirBTC" ? 4 : 2);
             } catch (retryErr) {
               console.warn(`${key} balansi okunurken hata (retry sonrasi):`, retryErr.message);
-              // newBalances[key] kasitli olarak atanmiyor -> asagida onceki deger korunuyor
             }
           }
         } else {
@@ -87,7 +83,6 @@ export const useBalances = (provider, account, chainId) => {
         }
       }
 
-      // Eksik token'lar icin (hic hic basarili olmamis olanlar) 0 ata
       const allTokens = ["USDC", "EURC", "cirBTC", "sakUSD", "WUSDC", "AAA", "USDT", "DAI"];
       setBalances(prev => {
         const merged = { ...prev };
@@ -97,7 +92,6 @@ export const useBalances = (provider, account, chainId) => {
           } else if (merged[t] === undefined) {
             merged[t] = "0.00";
           }
-          // aksi halde: merged[t] onceki (bir onceki basarili) degerinde kaliyor
         }
         console.log('Balanslar guncellendi:', currentChainId, merged);
         return merged;
@@ -119,9 +113,16 @@ export const useBalances = (provider, account, chainId) => {
     const currentChainId = await getCurrentChainId();
     if (!currentChainId) return;
 
-    const activePool = activeTab === "pool"
+    // Aktif havuz adresini seçelim
+    let activePool = activeTab === "pool"
       ? getPoolAddress(activePoolType, "AAA") 
       : getPoolAddress(fromToken, toToken);
+
+    // 💎 İstatistik kartlarının her zaman güncel kalabilmesi için varsayılan koruma:
+    // Eğer havuz adresi bulunamadıysa, standart USDC-AAA havuzunu sorguluyoruz.
+    if (!activePool || activePool === ZERO_ADDRESS) {
+      activePool = getPoolAddress("USDC", "AAA");
+    }
 
     if (activePool === ZERO_ADDRESS) return;
 
@@ -148,7 +149,6 @@ export const useBalances = (provider, account, chainId) => {
       try {
         [tA, tB, resA, resB, shares, userShares] = await fetchOnce();
       } catch (firstErr) {
-        // RPC gecici hiccup/rate-limit olabilir - bir kez daha deniyoruz
         await new Promise(r => setTimeout(r, 400));
         [tA, tB, resA, resB, shares, userShares] = await fetchOnce();
       }
@@ -206,9 +206,9 @@ export const useBalances = (provider, account, chainId) => {
 
     const handleChainChanged = async () => {
       console.log('Ag degisimi algilandi, balanslar yenileniyor...');
-      // Kisa bekleme sonra yenile
       await new Promise(r => setTimeout(r, 1000));
       await fetchBalances();
+      await fetchPoolReserves(); // Ağ değiştiğinde havuzları da yeniliyoruz
     };
 
     window.ethereum.on('chainChanged', handleChainChanged);
@@ -217,7 +217,7 @@ export const useBalances = (provider, account, chainId) => {
         window.ethereum.removeListener('chainChanged', handleChainChanged);
       }
     };
-  }, [fetchBalances]);
+  }, [fetchBalances, fetchPoolReserves]);
 
   // ============================================
   // ILK YUKLEME VE PERIYODIK YENILEME
@@ -225,12 +225,18 @@ export const useBalances = (provider, account, chainId) => {
   useEffect(() => {
     if (!account) return;
 
-    fetchBalances();
+    // 💎 HEM BALANSLARI HEM DE HAVUZLARI YENİLEYEN AKILLI SİSTEM
+    const refreshAllData = () => {
+      fetchBalances();
+      fetchPoolReserves(); // Parametre yoksa otomatik olarak varsayılan USDC-AAA havuzunu günceller
+    };
 
-    // Her 5 saniyede bir yenile (ag degisimi icin)
-    const interval = setInterval(fetchBalances, 5000);
+    refreshAllData();
+
+    // Her 5 saniyede bir hem balansları hem de havuzları güncelliyoruz
+    const interval = setInterval(refreshAllData, 5000);
     return () => clearInterval(interval);
-  }, [account, fetchBalances]);
+  }, [account, fetchBalances, fetchPoolReserves]);
 
   return { balances, poolReserves, userPoolBalances, fetchBalances, fetchPoolReserves };
 };
