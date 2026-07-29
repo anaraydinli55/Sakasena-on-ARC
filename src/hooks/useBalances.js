@@ -181,7 +181,7 @@ export const useBalances = (provider, account, chainId) => {
 
       const config = getActiveNetworkConfig(currentChainId);
       const getDecimals = (addr) => {
-        if (!addr) return 18; // 💎 Boş veya tanımsız adres geldiğinde çökmesini kesin olarak engeller!
+        if (!addr) return 18; // 💎 Boş veya tanımlanmamış adres geldiğinde çökmesini kesin olarak engeller!
         for (const key of Object.keys(config.tokens)) {
           const tokenAddr = config.tokens[key].address;
           if (tokenAddr && tokenAddr.toLowerCase() === addr.toLowerCase()) 
