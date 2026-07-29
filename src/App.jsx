@@ -122,21 +122,52 @@ function AppContent() {
   // 💎 Sizin cüzdanınızı Thirdweb'e senkronize eden hook
   const setActiveWallet = useSetActiveWallet();
 
+  // 💎 Çoklu cüzdan çakışmalarını (Backpack/Zerion vb.) programatik olarak çözen senkronizasyon kodu
   useEffect(() => {
     const syncWalletWithThirdweb = async () => {
-      // Kendi cüzdan bağlantınızdan gelen provider'ın alt sağlayıcısını (provider.provider) veya window.ethereum'u alıyoruz
-      const activeProvider = provider?.provider || window.ethereum;
+      if (!account) return;
 
-      if (account && activeProvider) {
-        try {
+      try {
+        // 💎 Çakışma Önleyici Akıllı Sağlayıcı Seçici
+        const getSafeProvider = () => {
+          // 1. Kendi useWallet'ınızdan gelen ethers provider'ının alt sağlayıcısını kontrol et
+          if (provider?.provider && typeof provider.provider.request === "function") {
+            return provider.provider;
+          }
+          if (provider && typeof provider.request === "function") {
+            return provider;
+          }
+
+          if (typeof window === "undefined" || !window.ethereum) return null;
+
+          // 2. Tarayıcıda birden fazla cüzdan varsa (window.ethereum.providers dizisi varsa)
+          if (window.ethereum.providers && Array.isArray(window.ethereum.providers)) {
+            // MetaMask veya Rabby sağlayıcısını filtrele (en standart protokolleri kullananlar)
+            const safeProvider = window.ethereum.providers.find(p => p.isMetaMask || p.isRabby);
+            if (safeProvider && typeof safeProvider.request === "function") {
+              return safeProvider;
+            }
+          }
+
+          // 3. Klasik window.ethereum'u dene (eğer request fonksiyonu varsa)
+          if (typeof window.ethereum.request === "function") {
+            return window.ethereum;
+          }
+
+          return null;
+        };
+
+        const safeProvider = getSafeProvider();
+
+        if (safeProvider) {
           const thirdwebWallet = EIP1193.fromProvider({
-            provider: activeProvider,
+            provider: safeProvider,
           });
           await thirdwebWallet.connect({ client: thirdwebClient });
           await setActiveWallet(thirdwebWallet);
-        } catch (err) {
-          console.error("Thirdweb cüzdan senkronizasyon hatası:", err);
         }
+      } catch (err) {
+        console.error("Thirdweb cüzdan senkronizasyon hatası:", err);
       }
     };
     syncWalletWithThirdweb();
