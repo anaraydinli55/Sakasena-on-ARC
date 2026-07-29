@@ -1,8 +1,5 @@
-import { createThirdwebClient, defineChain } from "thirdweb"; // defineChain eklendi
+import { createThirdwebClient } from "thirdweb";
 import { facilitator, settlePayment } from "thirdweb/x402";
-
-// 💎 Eksik olan Arc Testnet zincir tanımını buraya ekledik:
-const arcTestnet = defineChain(5042002);
 
 const client = createThirdwebClient({ 
   secretKey: process.env.THIRDWEB_SECRET_KEY 
@@ -29,17 +26,11 @@ export default async function handler(req, res) {
     resourceUrl: "https://sakasena-on-arc.vercel.app/api/premium-content",
     method: "GET",
     paymentData: paymentData,
-    network: arcTestnet,
-    price: {
-      amount: "10000", // 0.01 USDC (USDC 6 decimals olduğu için 10000 birim = 0.01 USDC yapar)
-      asset: {
-        // 💎 Önemli: Bu "0x3600..." adresi eğer sizin gerçek Arc USDC adresiniz ise sorun yok.
-        // Eğer constants.js içinde farklı bir adres tanımlıysa onu buraya yazmayı unutmayın.
-        address: "0x3600000000000000000000000000000000000000" 
-      }
-    },
+    network: "eip155:5042002", // Arc Testnet
+    price: "$0.01",
     facilitator: thirdwebX402Facilitator,
-    payTo: "0xf8d59231bD1c74b8878cCF244C4dFFf412C872F5", 
+    // 💎 ÖDEMELERİN DOĞRUDAN SİZİN CÜZDANINIZA GELMESİ İÇİN:
+    payTo: "0xf8d59231bD1c74b8878cCF244C4dFFf412C872F5",
   });
 
   if (result.status === 200) {
