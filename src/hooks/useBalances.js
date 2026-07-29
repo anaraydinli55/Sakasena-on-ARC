@@ -127,7 +127,8 @@ export const useBalances = (provider, account, chainId) => {
     if (activePool === ZERO_ADDRESS) return;
 
     const fetchOnce = async () => {
-      const genericABI = [
+      // 1. Yol: lpShares ve totalShares içeren özel ABI yapısı
+      const customABI = [
         "function tokenA() view returns (address)",
         "function tokenB() view returns (address)",
         "function reserveA() view returns (uint256)",
@@ -135,13 +136,38 @@ export const useBalances = (provider, account, chainId) => {
         "function totalShares() view returns (uint256)",
         "function lpShares(address) view returns (uint256)" 
       ];
-      const contract = new ethers.Contract(activePool, genericABI, freshProvider);
+      
+      // 2. Yol: Standart ERC20 (balanceOf ve totalSupply) içeren ABI yapısı
+      const standardABI = [
+        "function tokenA() view returns (address)",
+        "function tokenB() view returns (address)",
+        "function reserveA() view returns (uint256)",
+        "function reserveB() view returns (uint256)",
+        "function totalSupply() view returns (uint256)",
+        "function balanceOf(address) view returns (uint256)" 
+      ];
 
-      return Promise.all([
-        contract.tokenA(), contract.tokenB(),
-        contract.reserveA(), contract.reserveB(),
-        contract.totalShares(), contract.lpShares(account)
-      ]);
+      try {
+        // Önce özel yapıyı deniyoruz
+        const contract = new ethers.Contract(activePool, customABI, freshProvider);
+        const [tA, tB, resA, resB, shares, userShares] = await Promise.all([
+          contract.tokenA(), contract.tokenB(),
+          contract.reserveA(), contract.reserveB(),
+          contract.totalShares(), contract.lpShares(account)
+        ]);
+        return [tA, tB, resA, resB, shares, userShares];
+      } catch (customErr) {
+        console.warn("Özel havuz ABI sorgusu başarısız, standart ERC20 (balanceOf/totalSupply) deneniyor...");
+        
+        // Eğer özel yapı hata verirse, otomatik olarak standart ERC20 metotlarını deniyoruz
+        const contract = new ethers.Contract(activePool, standardABI, freshProvider);
+        const [tA, tB, resA, resB, shares, userShares] = await Promise.all([
+          contract.tokenA(), contract.tokenB(),
+          contract.reserveA(), contract.reserveB(),
+          contract.totalSupply(), contract.balanceOf(account)
+        ]);
+        return [tA, tB, resA, resB, shares, userShares];
+      }
     };
 
     try {
