@@ -54,21 +54,24 @@ export const Header = ({
         </span>
       </div>
 
-      {/* Nav Tabs */}
-      <div className="grid grid-cols-4 md:flex bg-[#100e1f] p-1 rounded-xl border border-gray-800 shrink-0 w-full md:w-auto max-w-sm md:max-w-none">
-        {getAvailableTabs().map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`px-3.5 py-1.5 rounded-lg text-xs md:text-sm font-semibold capitalize transition ${
-              activeTab === tab 
-                ? "bg-violet-900 text-white shadow-md shadow-violet-900/30" 
-                : "text-gray-400 hover:text-gray-200"
-            }`}
-          >
-            {getTabLabel(tab)}
-          </button>
-        ))}
+      {/* Nav Tabs Wrapper (💎 Taşmayı Önleyen Akıllı Sarmalayıcı) */}
+      <div className="flex-1 flex items-center justify-start md:justify-center space-x-1 md:space-x-2 overflow-x-auto whitespace-nowrap px-4 scrollbar-none">
+        {/* Nav Tabs */}
+        <div className="grid grid-cols-4 md:flex bg-[#100e1f] p-1 rounded-xl border border-gray-800 shrink-0 w-full md:w-auto max-w-sm md:max-w-none">
+          {getAvailableTabs().map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`px-3.5 py-1.5 rounded-lg text-xs md:text-sm font-semibold capitalize transition ${
+                activeTab === tab 
+                  ? "bg-violet-900 text-white shadow-md shadow-violet-900/30" 
+                  : "text-gray-400 hover:text-gray-200"
+              }`}
+            >
+              {getTabLabel(tab)}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Right Side */}
