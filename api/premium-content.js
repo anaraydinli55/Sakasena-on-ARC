@@ -1,5 +1,8 @@
-import { createThirdwebClient } from "thirdweb";
+import { createThirdwebClient, defineChain } from "thirdweb"; // defineChain eklendi
 import { facilitator, settlePayment } from "thirdweb/x402";
+
+// 💎 Eksik olan Arc Testnet zincir tanımını buraya ekledik:
+const arcTestnet = defineChain(5042002);
 
 const client = createThirdwebClient({ 
   secretKey: process.env.THIRDWEB_SECRET_KEY 
@@ -27,11 +30,12 @@ export default async function handler(req, res) {
     method: "GET",
     paymentData: paymentData,
     network: arcTestnet,
-    // 💎 $0.01 string'i yerine, kendi özel USDC token adresinizi ve miktarını tanımlıyoruz:
     price: {
       amount: "10000", // 0.01 USDC (USDC 6 decimals olduğu için 10000 birim = 0.01 USDC yapar)
       asset: {
-        address: "0x3600000000000000000000000000000000000000" // Buraya projenizdeki Arc USDC adresini yapıştırın
+        // 💎 Önemli: Bu "0x3600..." adresi eğer sizin gerçek Arc USDC adresiniz ise sorun yok.
+        // Eğer constants.js içinde farklı bir adres tanımlıysa onu buraya yazmayı unutmayın.
+        address: "0x3600000000000000000000000000000000000000" 
       }
     },
     facilitator: thirdwebX402Facilitator,
