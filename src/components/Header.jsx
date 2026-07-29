@@ -43,7 +43,7 @@ export const Header = ({
   };
 
   return (
-    <header className="border-b border-gray-800 bg-[#0d0b1a] px-6 py-4 flex flex-col md:flex-row items-center justify-between gap-4">
+    <header className="border-b border-gray-800 bg-[#0d0b1a] px-6 py-4 flex flex-col md:flex-row md:flex-wrap lg:flex-nowrap items-center justify-between gap-4 w-full overflow-hidden">
       {/* Logo */}
       <div className="flex items-center space-x-3 shrink-0">
         <span className="text-2xl font-bold bg-gradient-to-r from-violet-400 to-indigo-400 bg-clip-text text-transparent">
@@ -75,7 +75,7 @@ export const Header = ({
       <div className="flex items-center space-x-3 shrink-0">
         {account && (
           // relative class'i eklenerek animasyonun konumlandirilmasi saglandi
-          <div className="relative hidden md:flex items-center space-x-2 bg-gray-900 px-3 py-1.5 rounded-lg text-sm border border-gray-800">
+          <div className="relative flex items-center space-x-2 bg-gray-900 px-3 py-1.5 rounded-lg text-sm border border-gray-800">
             
             {/* 🟢 Kayan ve Yapisan +10 SP Balonu */}
             {showPlusTen && (
