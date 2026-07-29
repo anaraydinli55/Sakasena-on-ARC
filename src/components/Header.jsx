@@ -42,8 +42,8 @@ export const Header = ({
     return labels[tab] || tab;
   };
 
-  return (
-    <header className="border-b border-gray-800 bg-[#0d0b1a] px-6 py-4 flex flex-col md:flex-row flex-wrap items-center justify-between gap-4 w-full">
+ return (
+    <header className="border-b border-gray-800 bg-[#0d0b1a] px-6 py-4 flex flex-row flex-nowrap items-center justify-between w-full overflow-hidden">
       {/* Logo */}
       <div className="flex items-center space-x-3 shrink-0">
         <span className="text-2xl font-bold bg-gradient-to-r from-violet-400 to-indigo-400 bg-clip-text text-transparent">
