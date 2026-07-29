@@ -125,7 +125,7 @@ export const useBalances = (provider, account, chainId) => {
 
     if (activePool === ZERO_ADDRESS) return;
 
-    try {
+    const fetchOnce = async () => {
       const genericABI = [
         "function tokenA() view returns (address)",
         "function tokenB() view returns (address)",
@@ -136,11 +136,22 @@ export const useBalances = (provider, account, chainId) => {
       ];
       const contract = new ethers.Contract(activePool, genericABI, freshProvider);
 
-      const [tA, tB, resA, resB, shares, userShares] = await Promise.all([
+      return Promise.all([
         contract.tokenA(), contract.tokenB(),
         contract.reserveA(), contract.reserveB(),
         contract.totalShares(), contract.lpShares(account)
       ]);
+    };
+
+    try {
+      let tA, tB, resA, resB, shares, userShares;
+      try {
+        [tA, tB, resA, resB, shares, userShares] = await fetchOnce();
+      } catch (firstErr) {
+        // RPC gecici hiccup/rate-limit olabilir - bir kez daha deniyoruz
+        await new Promise(r => setTimeout(r, 400));
+        [tA, tB, resA, resB, shares, userShares] = await fetchOnce();
+      }
 
       const config = getActiveNetworkConfig(currentChainId);
       const getDecimals = (addr) => {
