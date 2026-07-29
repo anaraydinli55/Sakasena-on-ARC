@@ -1,6 +1,5 @@
 import { createThirdwebClient } from "thirdweb";
 import { facilitator, settlePayment } from "thirdweb/x402";
-import { arbitrumSepolia } from "thirdweb/chains";
 
 const client = createThirdwebClient({ 
   secretKey: process.env.THIRDWEB_SECRET_KEY 
@@ -26,7 +25,7 @@ export default async function handler(req, res) {
     resourceUrl: "https://sakasena-on-arc.vercel.app/api/premium-content",
     method: "GET",
     paymentData: paymentData,
-    network: arbitrumSepolia,
+    network: "eip155:5042002", // Arc Testnet
     price: "$0.01",
     facilitator: thirdwebX402Facilitator,
     // 💎 ÖDEMELERİN DOĞRUDAN SİZİN CÜZDANINIZA GELMESİ İÇİN:
