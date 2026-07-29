@@ -17,8 +17,9 @@ export default async function handler(req, res) {
     return res.status(405).end("Method Not Allowed");
   }
 
-  // Node.js üzerinde başlıklar (headers) küçük harflerle req.headers objesinden okunur
-  const paymentData = req.headers["x-payment"];
+  // thirdweb SDK'nın güncel client'ı "payment-signature" header'ı kullanıyor;
+  // eski "x-payment" ile de uyumlu kalmak için ikisini de kontrol ediyoruz
+  const paymentData = req.headers["payment-signature"] || req.headers["x-payment"];
 
   // Ödemeyi doğrula
   const result = await settlePayment({
