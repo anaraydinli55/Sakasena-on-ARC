@@ -267,13 +267,31 @@ function AppContent() {
     if (val === "" || isNaN(val)) setter("0");
   };
 
-  // 💎 HER ISLEM SONRASI +10 SP EKLEYEN VE KAYDEDEN FONKSIYON
-  const increaseSP = () => {
-    setSpPoints(prev => {
-      const next = prev + 10;
-      localStorage.setItem('sakasena_sp_points', next.toString());
-      return next;
-    });
+  // 💎 HER İŞLEM SONRASI VERİTABANINDA PUANI 10 ARTIRAN FONKSİYON
+  const increaseSP = async () => {
+    if (account) {
+      try {
+        // Bağlı cüzdanın puanını veritabanında 10 artırıyoruz
+        const res = await fetch('/api/sp-points', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ address: account, incrementBy: 10 })
+        });
+        const result = await res.json();
+        setSpPoints(result.points);
+      } catch (err) {
+        console.error("Veritabanı puan artırma hatası:", err);
+        // Hata durumunda arayüzün takılmaması için yerel state'i geçici olarak artırıyoruz
+        setSpPoints(prev => prev + 10);
+      }
+    } else {
+      // Cüzdan henüz bağlı değilse sadece tarayıcı hafızasına yazıyoruz
+      setSpPoints(prev => {
+        const next = prev + 10;
+        localStorage.setItem('sakasena_sp_points', next.toString());
+        return next;
+      });
+    }
   };
 
   // Ana işlem fonksiyonu
