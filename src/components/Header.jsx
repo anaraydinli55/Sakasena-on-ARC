@@ -42,89 +42,90 @@ export const Header = ({
     return labels[tab] || tab;
   };
 
- return (
-    <header className="border-b border-gray-800 bg-[#0d0b1a] px-6 py-4 flex flex-row flex-nowrap items-center justify-between w-full overflow-hidden">
-      {/* Logo */}
-      <div className="flex items-center space-x-3 shrink-0">
-        <span className="text-2xl font-bold bg-gradient-to-r from-violet-400 to-indigo-400 bg-clip-text text-transparent">
-          ArcSakasena
-        </span>
-        <span className="text-xs bg-indigo-900 text-indigo-200 px-2.5 py-0.5 rounded-full font-semibold">
-          Arc Chain L1
-        </span>
-      </div>
+  return (
+    <header className="border-b border-gray-800 bg-[#0d0b1a] px-6 py-4 flex flex-col gap-4">
+      {/* Ust satir: Logo + Sag taraf (cuzdan/ag) */}
+      <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+        {/* Logo */}
+        <div className="flex items-center space-x-3 shrink-0">
+          <span className="text-2xl font-bold bg-gradient-to-r from-violet-400 to-indigo-400 bg-clip-text text-transparent">
+            ArcSakasena
+          </span>
+          <span className="text-xs bg-indigo-900 text-indigo-200 px-2.5 py-0.5 rounded-full font-semibold">
+            Arc Chain L1
+          </span>
+        </div>
 
-      {/* Nav Tabs Wrapper (💎 Taşmayı Önleyen Akıllı Sarmalayıcı) */}
-      <div className="flex-1 flex items-center justify-start md:justify-center space-x-1 md:space-x-2 overflow-x-auto whitespace-nowrap px-4 scrollbar-none">
-        {/* Nav Tabs */}
-        <div className="grid grid-cols-4 md:flex bg-[#100e1f] p-1 rounded-xl border border-gray-800 shrink-0 w-full md:w-auto max-w-sm md:max-w-none">
-          {getAvailableTabs().map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-3.5 py-1.5 rounded-lg text-xs md:text-sm font-semibold capitalize transition ${
-                activeTab === tab 
-                  ? "bg-violet-900 text-white shadow-md shadow-violet-900/30" 
-                  : "text-gray-400 hover:text-gray-200"
+        {/* Right Side */}
+        <div className="flex items-center space-x-3 shrink-0">
+          {account && (
+            // relative class'i eklenerek animasyonun konumlandirilmasi saglandi
+            <div className="relative hidden md:flex items-center space-x-2 bg-gray-900 px-3 py-1.5 rounded-lg text-sm border border-gray-800">
+              
+              {/* 🟢 Kayan ve Yapisan +10 SP Balonu */}
+              {showPlusTen && (
+                <span className="animate-float-sp">
+                  +10 SP
+                </span>
+              )}
+
+              <span className="text-violet-400 font-bold">💎 {spPoints} SP</span>
+              <span className="text-gray-500">|</span>
+              <span className="text-gray-300">Gas (USDC): {balances.USDC || "0.00"}</span>
+            </div>
+          )}
+
+          {account && (
+            <select
+              value={chainId || 5042002}
+              onChange={(e) => switchNetwork(Number(e.target.value))}
+              className="bg-[#100e1f] text-white px-3.5 py-2 rounded-xl text-xs font-semibold border border-gray-800 focus:outline-none focus:border-violet-600 transition"
+            >
+              {Object.keys(NETWORKS).map((id) => (
+                <option key={id} value={id}>🌐 {NETWORKS[id].name}</option>
+              ))}
+            </select>
+          )}
+
+          {account ? (
+            <button 
+              onClick={() => switchNetwork(chainId)}
+              className={`px-4 py-2 rounded-xl text-sm font-semibold transition ${
+                NETWORKS[chainId] 
+                  ? "bg-emerald-950 text-emerald-400 border border-emerald-800" 
+                  : "bg-rose-950 text-rose-400 border border-rose-800 animate-pulse"
               }`}
             >
-              {getTabLabel(tab)}
+              {NETWORKS[chainId] ? "Connected" : "Wrong Network"}
             </button>
-          ))}
+          ) : (
+            <button 
+              onClick={connectWallet}
+              className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white px-5 py-2 rounded-xl text-sm font-semibold shadow-lg transition"
+            >
+              Connect Wallet
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Right Side */}
-      <div className="flex items-center space-x-3 shrink-0">
-        {account && (
-          // relative class'i eklenerek animasyonun konumlandirilmasi saglandi
-          <div className="relative flex items-center space-x-2 bg-gray-900 px-3 py-1.5 rounded-lg text-sm border border-gray-800">
-            
-            {/* 🟢 Kayan ve Yapisan +10 SP Balonu */}
-            {showPlusTen && (
-              <span className="animate-float-sp">
-                +10 SP
-              </span>
-            )}
-
-            <span className="text-violet-400 font-bold">💎 {spPoints} SP</span>
-            <span className="text-gray-500">|</span>
-            <span className="text-gray-300">USDC: {balances.USDC || "0.00"}</span>
-          </div>
-        )}
-
-        {account && (
-          <select
-            value={chainId || 5042002}
-            onChange={(e) => switchNetwork(Number(e.target.value))}
-            className="bg-[#100e1f] text-white px-3.5 py-2 rounded-xl text-xs font-semibold border border-gray-800 focus:outline-none focus:border-violet-600 transition"
-          >
-            {Object.keys(NETWORKS).map((id) => (
-              <option key={id} value={id}>🌐 {NETWORKS[id].name}</option>
-            ))}
-          </select>
-        )}
-
-        {account ? (
-          <button 
-            onClick={() => switchNetwork(chainId)}
-            className={`px-4 py-2 rounded-xl text-sm font-semibold transition ${
-              NETWORKS[chainId] 
-                ? "bg-emerald-950 text-emerald-400 border border-emerald-800" 
-                : "bg-rose-950 text-rose-400 border border-rose-800 animate-pulse"
+      {/* Alt satir: Nav Tabs - sigmadiginda kaydirmak yerine alt satira sarar */}
+      <nav className="flex flex-wrap justify-center md:justify-start gap-1.5 bg-[#100e1f] p-1.5 rounded-xl border border-gray-800">
+        {getAvailableTabs().map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`px-3.5 py-1.5 rounded-lg text-xs md:text-sm font-semibold capitalize transition whitespace-nowrap ${
+              activeTab === tab 
+                ? "bg-violet-900 text-white shadow-md shadow-violet-900/30" 
+                : "text-gray-400 hover:text-gray-200 hover:bg-white/5"
             }`}
           >
-            {NETWORKS[chainId] ? "Connected" : "Wrong Network"}
+            {getTabLabel(tab)}
           </button>
-        ) : (
-          <button 
-            onClick={connectWallet}
-            className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white px-5 py-2 rounded-xl text-sm font-semibold shadow-lg transition"
-          >
-            Connect Wallet
-          </button>
-        )}
-      </div>
+        ))}
+      </nav>
     </header>
   );
 };
+
