@@ -20,7 +20,7 @@ export const ARC_ADDRESSES = {
     USDC: "0xbe0f19f85a5cd1cac56e6f31c85f6cae805e56c3",
     EURC: "0xbbc6cd33291edfe9e4e927129901db0e58ba705b",
     BTC: "0x1815df186c43506e7d9113e6c1d19326610aa448",
-    USDC_EURC: "0xE50eeb474BB6D7Afc148da3023836B2Afa358D3c"
+    USDC_EURC: "0xe50eeb474bb6d7afc148da3023836b2afa358d3c" // 🌟 Checksum hatasını engellemek için küçük harf yapıldı
   }
 };
 
@@ -65,4 +65,6 @@ export const isLessThan = (a, b) => BigInt(a.toString()) < BigInt(b.toString());
 // AAVE DESTEK
 export const AAVE_SUPPORTED_CHAIN_IDS = [84532, 11155111, 421614, 11155420];
 export const isAaveSupported = (chainId) => AAVE_SUPPORTED_CHAIN_IDS.includes(Number(chainId));
-export const AAVE_SUPPORTED_TOKENS = ["USDC", "USDT", "DAI", "WETH"];
+
+// 💎 Aave Faucet'ten aldığınız yeni token'ların (WBTC, LINK) engellenmeden görüntülenebilmesi için listeye eklendi:
+export const AAVE_SUPPORTED_TOKENS = ["USDC", "USDT", "DAI", "WETH", "WBTC", "LINK"];
