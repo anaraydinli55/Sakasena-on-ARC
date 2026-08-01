@@ -1,10 +1,11 @@
 // ============================================
-// LENDING/AAVE SEKMESI COMPONENT
+// LENDING/AAVE SEKMESI COMPONENT (GUNCELLESTIRILMIS)
 // ============================================
-import { AAVE_SUPPORTED_TOKENS } from '../constants';
 
 export const LendingTab = ({
-  tokens, balances,
+  tokens,
+  aaveTokens, // 💎 Aave'ye özel yeni token listesi eklendi
+  balances,
   lendingToken, setLendingToken,
   collateralToken, setCollateralToken,
   supplyAmount, setSupplyAmount,
@@ -13,8 +14,13 @@ export const LendingTab = ({
   handleAction, txLoading,
   handleNumberInput, handleFocus, handleBlur
 }) => {
-  // Sadece Aave desteklenen token'lari goster
-  const availableTokens = Object.keys(tokens).filter(t => AAVE_SUPPORTED_TOKENS.includes(t));
+  // Eğer aaveTokens tanımlıysa onu kullan, yoksa standart tokens listesine dön (fallback)
+  const targetTokens = aaveTokens && Object.keys(aaveTokens).length > 0 
+    ? aaveTokens 
+    : tokens;
+
+  // Aave sekmesinde sadece bu hedef token'ların hepsini listeliyoruz (USDC, USDT, WBTC, LINK)
+  const availableTokens = Object.keys(targetTokens);
 
   return (
     <div>
@@ -32,7 +38,7 @@ export const LendingTab = ({
             className="bg-[#211e47] text-white px-3 py-2 rounded-xl font-semibold border border-gray-700 focus:outline-none w-full"
           >
             {availableTokens.map(t => (
-              <option key={t} value={t}>{tokens[t].icon} {tokens[t].symbol}</option>
+              <option key={t} value={t}>{targetTokens[t].icon} {targetTokens[t].symbol}</option>
             ))}
           </select>
         </div>
@@ -40,7 +46,7 @@ export const LendingTab = ({
         <div className="mb-3">
           <div className="flex justify-between items-center mb-1">
             <label className="text-xs text-gray-400">Amount</label>
-            <span className="text-xs text-gray-400">Balance: {balances[collateralToken]}</span>
+            <span className="text-xs text-gray-400">Balance: {balances[collateralToken] || "0.00"}</span>
           </div>
           <input 
             type="number" 
@@ -74,7 +80,7 @@ export const LendingTab = ({
             className="bg-[#211e47] text-white px-3 py-2 rounded-xl font-semibold border border-gray-700 focus:outline-none w-full"
           >
             {availableTokens.map(t => (
-              <option key={t} value={t}>{tokens[t].icon} {tokens[t].symbol}</option>
+              <option key={t} value={t}>{targetTokens[t].icon} {targetTokens[t].symbol}</option>
             ))}
           </select>
         </div>
@@ -82,7 +88,7 @@ export const LendingTab = ({
         <div className="mb-3">
           <div className="flex justify-between items-center mb-1">
             <label className="text-xs text-gray-400">Amount</label>
-            <span className="text-xs text-gray-400">Available: {balances[lendingToken]}</span>
+            <span className="text-xs text-gray-400">Available: {balances[lendingToken] || "0.00"}</span>
           </div>
           <input 
             type="number" 
@@ -116,7 +122,7 @@ export const LendingTab = ({
             className="bg-[#211e47] text-white px-3 py-2 rounded-xl font-semibold border border-gray-700 focus:outline-none w-full"
           >
             {availableTokens.map(t => (
-              <option key={t} value={t}>{tokens[t].icon} {tokens[t].symbol}</option>
+              <option key={t} value={t}>{targetTokens[t].icon} {targetTokens[t].symbol}</option>
             ))}
           </select>
         </div>
@@ -124,7 +130,7 @@ export const LendingTab = ({
         <div className="mb-3">
           <div className="flex justify-between items-center mb-1">
             <label className="text-xs text-gray-400">Amount</label>
-            <span className="text-xs text-gray-400">Balance: {balances[lendingToken]}</span>
+            <span className="text-xs text-gray-400">Balance: {balances[lendingToken] || "0.00"}</span>
           </div>
           <input 
             type="number" 
