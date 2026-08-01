@@ -32,7 +32,7 @@ export const NETWORKS = {
     explorer: "https://sepolia.etherscan.io",
     nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
     tokens: {
-      USDC: { symbol: "USDC", name: "USD Coin", address: "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238", decimals: 6, icon: "💵" },
+      USDC: { symbol: "USDC", name: "USD Coin", address: "0x1c7d4b196cb0c7b01d74fbc6116a902379c7238", decimals: 6, icon: "💵" },
       EURC: { symbol: "EURC", name: "Euro Coin", address: "0x1a05282496e69dbded31b846f25870a19b91234", decimals: 6, icon: "💶" },
       cirBTC: { symbol: "cirBTC", name: "Circle Wrapped Bitcoin", address: "0x0000000000000000000000000000000000000000", decimals: 8, icon: "₿" },
       sakUSD: { symbol: "sakUSD", name: "Sakasena USD", address: "0x0000000000000000000000000000000000000000", decimals: 18, icon: "💴" },
