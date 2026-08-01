@@ -43,7 +43,7 @@ export const NETWORKS = {
     },
     // 💎 AAVE-SPECIFIC TOKENS: Sadece Borrow, Repay ve Supply için resmî Aave Sepolia adresleri
     aaveTokens: {
-      USDC: { symbol: "USDC", name: "USD Coin (Aave)", address: "0x94a9d9ac8a22534e3faca9f4e7f2e2cf85d5e4c8", decimals: 6, icon: "💵" },
+      aUSDC: { symbol: "aUSDC", name: "USD Coin (Aave)", address: "0x94a9d9ac8a22534e3faca9f4e7f2e2cf85d5e4c8", decimals: 6, icon: "💵" },
       USDT: { symbol: "USDT", name: "Tether (Aave)", address: "0x7169d386502ed0613f392c1ac7a6e11155111155", decimals: 6, icon: "💵" },
       WBTC: { symbol: "WBTC", name: "Wrapped BTC (Aave)", address: "0x29f2d40b09200424566f313936082f11393608d7", decimals: 8, icon: "₿" },
       LINK: { symbol: "LINK", name: "ChainLink (Aave)", address: "0xf8db5f31398fef16e87f8f90382025d2d5d788fe", decimals: 18, icon: "🪙" }
@@ -67,7 +67,7 @@ export const NETWORKS = {
     },
     // 💎 AAVE-SPECIFIC TOKENS: Faucet'tan aldığınız tüm yeni coinlerin resmî Base Sepolia Aave adresleri
     aaveTokens: {
-      USDC: { symbol: "USDC", name: "USD Coin (Aave)", address: "0x036cbd53842c5426634e7929541ec2318f3dcf7e", decimals: 6, icon: "💵" },
+      aUSDC: { symbol: "aUSDC", name: "USD Coin (Aave)", address: "0x036cbd53842c5426634e7929541ec2318f3dcf7e", decimals: 6, icon: "💵" },
       USDT: { symbol: "USDT", name: "Tether (Aave)", address: "0x3b07cbd53842c5426634e7929541ec2318f3dcf7e", decimals: 6, icon: "💵" },
       WBTC: { symbol: "WBTC", name: "Wrapped BTC (Aave)", address: "0xfb825da0298aed601595a70ab815c96711a31bc6", decimals: 8, icon: "₿" },
       LINK: { symbol: "LINK", name: "ChainLink (Aave)", address: "0xe52c03842c5426634e7929541ec2318f3dcf7e2f", decimals: 18, icon: "🪙" }
