@@ -544,12 +544,13 @@ function AppContent() {
         const amountParsed = parseUnits(supplyAmount, collatObj.decimals);
 
         // 🌟 GÜVENLİ USCD YÖNLENDİRMESİ: Sadece Aave işlemleri için (Bridge/Swap bozulmaz)
-        let assetAddress = collatObj.address;
-        if (chainId === 84532 && collateralToken === "USDC") {
-          assetAddress = "0xba50Cd2A20f6DA35D788639E581bca8d0B5d4D5f"; // Aave Base Sepolia USDC
-        } else if (chainId === 11155111 && collateralToken === "USDC") {
-          assetAddress = "0x94a9D9AC8a22534E3FaCa9F4e7F2E2cf85d5E4C8"; // Aave Ethereum Sepolia USDC
-        }
+        // App.jsx içindeki aave_supply bloğunda bu satırları bulun ve küçük harf yapın:
+let assetAddress = collatObj.address;
+if (chainId === 84532 && collateralToken === "USDC") {
+  assetAddress = "0xba50cd2a20f6da35d788639e581bca8d0b5d4d5f"; // 🌟 Küçük harf yapıldı
+} else if (chainId === 11155111 && collateralToken === "USDC") {
+  assetAddress = "0x94a9d9ac8a22534e3faca9f4e7f2e2cf85d5e4c8"; // 🌟 Küçük harf yapıldı
+}
 
         const erc20ABI = ["function allowance(address owner, address spender) view returns (uint256)", "function approve(address spender, uint256 amount) returns (bool)"];
         const tokenContract = new ethers.Contract(assetAddress, erc20ABI, signer);
@@ -583,11 +584,11 @@ function AppContent() {
 
         // 🌟 GÜVENLİ USCD YÖNLENDİRMESİ: Sadece Aave işlemleri için (Bridge/Swap bozulmaz)
         let assetAddress = loanObj.address;
-        if (chainId === 84532 && lendingToken === "USDC") {
-          assetAddress = "0xba50Cd2A20f6DA35D788639E581bca8d0B5d4D5f"; // Aave Base Sepolia USDC
-        } else if (chainId === 11155111 && lendingToken === "USDC") {
-          assetAddress = "0x94a9D9AC8a22534E3FaCa9F4e7F2E2cf85d5E4C8"; // Aave Ethereum Sepolia USDC
-        }
+if (chainId === 84532 && lendingToken === "USDC") {
+  assetAddress = "0xba50cd2a20f6da35d788639e581bca8d0b5d4d5f"; // 🌟 Küçük harf yapıldı
+} else if (chainId === 11155111 && lendingToken === "USDC") {
+  assetAddress = "0x94a9d9ac8a22534e3faca9f4e7f2e2cf85d5e4c8"; // 🌟 Küçük harf yapıldı
+}
 
         const aavePoolABI = ["function borrow(address asset, uint256 amount, uint256 interestRateMode, uint16 referralCode, address onBehalfOf) external"];
         const poolContract = new ethers.Contract(config.aavePoolAddress, aavePoolABI, signer);
@@ -613,11 +614,11 @@ function AppContent() {
 
         // 🌟 GÜVENLİ USCD YÖNLENDİRMESİ: Sadece Aave işlemleri için (Bridge/Swap bozulmaz)
         let assetAddress = loanObj.address;
-        if (chainId === 84532 && lendingToken === "USDC") {
-          assetAddress = "0xba50Cd2A20f6DA35D788639E581bca8d0B5d4D5f"; // Aave Base Sepolia USDC
-        } else if (chainId === 11155111 && lendingToken === "USDC") {
-          assetAddress = "0x94a9D9AC8a22534E3FaCa9F4e7F2E2cf85d5E4C8"; // Aave Ethereum Sepolia USDC
-        }
+if (chainId === 84532 && lendingToken === "USDC") {
+  assetAddress = "0xba50cd2a20f6da35d788639e581bca8d0b5d4d5f"; // 🌟 Küçük harf yapıldı
+} else if (chainId === 11155111 && lendingToken === "USDC") {
+  assetAddress = "0x94a9d9ac8a22534e3faca9f4e7f2e2cf85d5e4c8"; // 🌟 Küçük harf yapıldı
+}
 
         const erc20ABI = ["function allowance(address owner, address spender) view returns (uint256)", "function approve(address spender, uint256 amount) returns (bool)"];
         const tokenContract = new ethers.Contract(assetAddress, erc20ABI, signer);
