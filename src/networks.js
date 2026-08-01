@@ -1,9 +1,12 @@
 // ============================================
-// COKLU-ZINCIR SEBEKE KONFIGURASYONLARI (v2 - SADE & DUZELTILMIS)
+// COKLU-ZINCIR SEBEKE KONFIGURASYONLARI (v2 - SİZİN GERÇEK ADRESLERİNİZLE)
 // ============================================
 import { ARC_ADDRESSES } from './constants';
+
+// ZERO_ADDRESS artik constants.js'den geliyor
 export { ZERO_ADDRESS } from './constants';
 
+// HER SEBEKE ICIN AYRI TOKEN ADRESLERI
 export const NETWORKS = {
   5042002: {
     name: "Arc Testnet",
@@ -18,6 +21,7 @@ export const NETWORKS = {
       sakUSD: { symbol: "sakUSD", name: "Sakasena USD", address: ARC_ADDRESSES.sakUSD, decimals: 18, icon: "💴" },
       AAA: { symbol: "AAA", name: "anaraydinli AAA Token", address: ARC_ADDRESSES.AAA, decimals: 18, icon: "🪙" }
     },
+    aaveTokens: {}, 
     minterAddress: ARC_ADDRESSES.MINTER,
     aavePoolAddress: "0x0000000000000000000000000000000000000000",
     isAaveSupported: false
@@ -28,7 +32,6 @@ export const NETWORKS = {
     rpcUrl: "https://rpc.sepolia.org",
     explorer: "https://sepolia.etherscan.io",
     nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
-    // 💎 Sadece tek bir tokens listesi. USDC adresi resmî Aave USDC'si yapıldı.
     tokens: {
       USDC: { symbol: "USDC", name: "USD Coin", address: "0x94a9d9ac8a22534e3faca9f4e7f2e2cf85d5e4c8", decimals: 6, icon: "💵" },
       EURC: { symbol: "EURC", name: "Euro Coin", address: "0x1a05282496e69dbded31b846f25870a19b91234", decimals: 6, icon: "💶" },
@@ -48,13 +51,14 @@ export const NETWORKS = {
     rpcUrl: "https://base-sepolia-rpc.publicnode.com",
     explorer: "https://sepolia.basescan.org",
     nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
-    // 💎 Sadece tek bir tokens listesi. USDC adresi resmî Aave USDC'si yapıldı.
+    // 💎 NATIVE TOKENS: Swap, Pool, Mint, Bridge için kullanılan adresler
+    // Base Sepolia'daki USDC, USDT, WBTC, LINK adresleri sizin resmî Aave'den aldığınız adreslerle güncellendi
     tokens: {
-      USDC: { symbol: "USDC", name: "USD Coin", address: "0x036cbd53842c5426634e7929541ec2318f3dcf7e", decimals: 6, icon: "💵" },
+      USDC: { symbol: "USDC", name: "USD Coin", address: "0xba50cd2a20f6da35d788639e581bca8d0b5d4d5f", decimals: 6, icon: "💵" }, // Sizin USDC Adresiniz (Küçük Harf)
       EURC: { symbol: "EURC", name: "Euro Coin", address: "0x808456652fdb597867f38412077a9182bf77359f", decimals: 6, icon: "💶" },
-      USDT: { symbol: "USDT", name: "Tether", address: "0x3b07cbd53842c5426634e7929541ec2318f3dcf7e", decimals: 6, icon: "💵" },
-      WBTC: { symbol: "WBTC", name: "Wrapped BTC", address: "0xfb825da0298aed601595a70ab815c96711a31bc6", decimals: 8, icon: "₿" },
-      LINK: { symbol: "LINK", name: "ChainLink", address: "0xe52c03842c5426634e7929541ec2318f3dcf7e2f", decimals: 18, icon: "🪙" },
+      USDT: { symbol: "USDT", name: "Tether", address: "0x0a215d8ba66387dca84b284d18c3b4ec3de6e54a", decimals: 6, icon: "💵" }, // Sizin USDT Adresiniz (Küçük Harf)
+      WBTC: { symbol: "WBTC", name: "Wrapped BTC", address: "0x54114591963cf60ef3aa63befd6ec263d98145a4", decimals: 8, icon: "₿" }, // Sizin WBTC Adresiniz (Küçük Harf)
+      LINK: { symbol: "LINK", name: "ChainLink", address: "0x810d46f9a9027e28f9b01f75e2bdde839da61115", decimals: 18, icon: "🪙" }, // Sizin LINK Adresiniz (Küçük Harf)
       sakUSD: { symbol: "sakUSD", name: "Sakasena USD", address: "0x7c45c5ce07e0cf673f48f7aef4837c59c0d3281", decimals: 18, icon: "💴" },
       AAA: { symbol: "AAA", name: "anaraydinli AAA Token", address: "0x0000000000000000000000000000000000000000", decimals: 18, icon: "🪙" }
     },
