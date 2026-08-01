@@ -1,12 +1,9 @@
 // ============================================
-// COKLU-ZINCIR SEBEKE KONFIGURASYONLARI (v2 - DUZELTILMIS)
+// COKLU-ZINCIR SEBEKE KONFIGURASYONLARI (v2 - SADE & DUZELTILMIS)
 // ============================================
 import { ARC_ADDRESSES } from './constants';
-
-// ZERO_ADDRESS artik constants.js'dev geliyor
 export { ZERO_ADDRESS } from './constants';
 
-// HER SEBEKE ICIN AYRI TOKEN ADRESLERI
 export const NETWORKS = {
   5042002: {
     name: "Arc Testnet",
@@ -14,7 +11,6 @@ export const NETWORKS = {
     rpcUrl: "https://rpc.testnet.arc.network",
     explorer: "https://testnet.arcscan.app",
     nativeCurrency: { name: "USDC", symbol: "USDC", decimals: 18 },
-    // 💎 NATIVE TOKENS: Swap, Pool, Mint, Bridge için
     tokens: {
       USDC: { symbol: "USDC", name: "USD Coin", address: ARC_ADDRESSES.USDC, decimals: 6, icon: "💵" },
       EURC: { symbol: "EURC", name: "Euro Coin", address: ARC_ADDRESSES.EURC, decimals: 6, icon: "💶" },
@@ -22,8 +18,6 @@ export const NETWORKS = {
       sakUSD: { symbol: "sakUSD", name: "Sakasena USD", address: ARC_ADDRESSES.sakUSD, decimals: 18, icon: "💴" },
       AAA: { symbol: "AAA", name: "anaraydinli AAA Token", address: ARC_ADDRESSES.AAA, decimals: 18, icon: "🪙" }
     },
-    // Arc Testnet'te Aave desteklenmediği için boş bırakıyoruz
-    aaveTokens: {}, 
     minterAddress: ARC_ADDRESSES.MINTER,
     aavePoolAddress: "0x0000000000000000000000000000000000000000",
     isAaveSupported: false
@@ -34,19 +28,15 @@ export const NETWORKS = {
     rpcUrl: "https://rpc.sepolia.org",
     explorer: "https://sepolia.etherscan.io",
     nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
-    // 💎 NATIVE TOKENS: Swap, Pool, Mint, Bridge için (Standart Sepolia USDC & EURC)
+    // 💎 Sadece tek bir tokens listesi. USDC adresi resmî Aave USDC'si yapıldı.
     tokens: {
-      USDC: { symbol: "USDC", name: "USD Coin", address: "0x1c7d4b196cb0c7b01d74fbc6116a902379c7238", decimals: 6, icon: "💵" },
+      USDC: { symbol: "USDC", name: "USD Coin", address: "0x94a9d9ac8a22534e3faca9f4e7f2e2cf85d5e4c8", decimals: 6, icon: "💵" },
       EURC: { symbol: "EURC", name: "Euro Coin", address: "0x1a05282496e69dbded31b846f25870a19b91234", decimals: 6, icon: "💶" },
+      USDT: { symbol: "USDT", name: "Tether", address: "0x7169d386502ed0613f392c1ac7a6e11155111155", decimals: 6, icon: "💵" },
+      WBTC: { symbol: "WBTC", name: "Wrapped BTC", address: "0x29f2d40b09200424566f313936082f11393608d7", decimals: 8, icon: "₿" },
+      LINK: { symbol: "LINK", name: "ChainLink", address: "0xf8db5f31398fef16e87f8f90382025d2d5d788fe", decimals: 18, icon: "🪙" },
       sakUSD: { symbol: "sakUSD", name: "Sakasena USD", address: "0x0000000000000000000000000000000000000000", decimals: 18, icon: "💴" },
       AAA: { symbol: "AAA", name: "anaraydinli AAA Token", address: "0x0000000000000000000000000000000000000000", decimals: 18, icon: "🪙" }
-    },
-    // 💎 AAVE-SPECIFIC TOKENS: Sadece Borrow, Repay ve Supply için resmî Aave Sepolia adresleri
-    aaveTokens: {
-      aUSDC: { symbol: "aUSDC", name: "USD Coin (Aave)", address: "0x94a9d9ac8a22534e3faca9f4e7f2e2cf85d5e4c8", decimals: 6, icon: "💵" },
-      USDT: { symbol: "USDT", name: "Tether (Aave)", address: "0x7169d386502ed0613f392c1ac7a6e11155111155", decimals: 6, icon: "💵" },
-      WBTC: { symbol: "WBTC", name: "Wrapped BTC (Aave)", address: "0x29f2d40b09200424566f313936082f11393608d7", decimals: 8, icon: "₿" },
-      LINK: { symbol: "LINK", name: "ChainLink (Aave)", address: "0xf8db5f31398fef16e87f8f90382025d2d5d788fe", decimals: 18, icon: "🪙" }
     },
     minterAddress: "0x0000000000000000000000000000000000000000",
     aavePoolAddress: "0x6ae43d3271ff6888e7fc43fd7321a503ff738951",
@@ -58,19 +48,15 @@ export const NETWORKS = {
     rpcUrl: "https://base-sepolia-rpc.publicnode.com",
     explorer: "https://sepolia.basescan.org",
     nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
-    // 💎 NATIVE TOKENS: Swap, Pool, Mint, Bridge için
+    // 💎 Sadece tek bir tokens listesi. USDC adresi resmî Aave USDC'si yapıldı.
     tokens: {
       USDC: { symbol: "USDC", name: "USD Coin", address: "0x036cbd53842c5426634e7929541ec2318f3dcf7e", decimals: 6, icon: "💵" },
       EURC: { symbol: "EURC", name: "Euro Coin", address: "0x808456652fdb597867f38412077a9182bf77359f", decimals: 6, icon: "💶" },
+      USDT: { symbol: "USDT", name: "Tether", address: "0x3b07cbd53842c5426634e7929541ec2318f3dcf7e", decimals: 6, icon: "💵" },
+      WBTC: { symbol: "WBTC", name: "Wrapped BTC", address: "0xfb825da0298aed601595a70ab815c96711a31bc6", decimals: 8, icon: "₿" },
+      LINK: { symbol: "LINK", name: "ChainLink", address: "0xe52c03842c5426634e7929541ec2318f3dcf7e2f", decimals: 18, icon: "🪙" },
       sakUSD: { symbol: "sakUSD", name: "Sakasena USD", address: "0x7c45c5ce07e0cf673f48f7aef4837c59c0d3281", decimals: 18, icon: "💴" },
       AAA: { symbol: "AAA", name: "anaraydinli AAA Token", address: "0x0000000000000000000000000000000000000000", decimals: 18, icon: "🪙" }
-    },
-    // 💎 AAVE-SPECIFIC TOKENS: Faucet'tan aldığınız tüm yeni coinlerin resmî Base Sepolia Aave adresleri
-    aaveTokens: {
-      aUSDC: { symbol: "aUSDC", name: "USD Coin (Aave)", address: "0x036cbd53842c5426634e7929541ec2318f3dcf7e", decimals: 6, icon: "💵" },
-      USDT: { symbol: "USDT", name: "Tether (Aave)", address: "0x3b07cbd53842c5426634e7929541ec2318f3dcf7e", decimals: 6, icon: "💵" },
-      WBTC: { symbol: "WBTC", name: "Wrapped BTC (Aave)", address: "0xfb825da0298aed601595a70ab815c96711a31bc6", decimals: 8, icon: "₿" },
-      LINK: { symbol: "LINK", name: "ChainLink (Aave)", address: "0xe52c03842c5426634e7929541ec2318f3dcf7e2f", decimals: 18, icon: "🪙" }
     },
     minterAddress: "0x20b45703967b5ed4d36c9d8bea38d4d44e64fd67",
     aavePoolAddress: "0x8bab6d1b75f19e9ed9fce8b9bd338844ff79ae27",
@@ -89,10 +75,6 @@ export const NETWORKS = {
       sakUSD: { symbol: "sakUSD", name: "Sakasena USD", address: "0x0000000000000000000000000000000000000000", decimals: 18, icon: "💴" },
       AAA: { symbol: "AAA", name: "anaraydinli AAA Token", address: "0x0000000000000000000000000000000000000000", decimals: 18, icon: "🪙" }
     },
-    // Arbitrum Sepolia Aave Faucet Tokenleri (İhtiyaca göre doldurabilirsiniz)
-    aaveTokens: {
-      USDC: { symbol: "USDC", name: "USD Coin (Aave)", address: "0x75faf114eafb1bdbe2f0316df893fd58ce46aa4d", decimals: 6, icon: "💵" }
-    },
     minterAddress: "0x0000000000000000000000000000000000000000",
     aavePoolAddress: "0x76ad72ba9760775ffbc87eeaf493ad5b4c965c40",
     isAaveSupported: true
@@ -109,9 +91,6 @@ export const NETWORKS = {
       cirBTC: { symbol: "cirBTC", name: "Circle Wrapped Bitcoin", address: "0x0000000000000000000000000000000000000000", decimals: 8, icon: "₿" },
       sakUSD: { symbol: "sakUSD", name: "Sakasena USD", address: "0x0000000000000000000000000000000000000000", decimals: 18, icon: "💴" },
       AAA: { symbol: "AAA", name: "anaraydinli AAA Token", address: "0x0000000000000000000000000000000000000000", decimals: 18, icon: "🪙" }
-    },
-    aaveTokens: {
-      USDC: { symbol: "USDC", name: "USD Coin (Aave)", address: "0x5fd84259d66cd46123540766be93dfe6d43130d7", decimals: 6, icon: "💵" }
     },
     minterAddress: "0x0000000000000000000000000000000000000000",
     aavePoolAddress: "0x1204a117c54535ca5122e478ee1dfb4914dfee123",
@@ -131,7 +110,6 @@ export const NETWORKS = {
       sakUSD: { symbol: "sakUSD", name: "Sakasena USD", address: "0x0000000000000000000000000000000000000000", decimals: 18, icon: "💴" },
       AAA: { symbol: "AAA", name: "anaraydinli AAA Token", address: "0x0000000000000000000000000000000000000000", decimals: 18, icon: "🪙" }
     },
-    aaveTokens: {},
     minterAddress: "0x0000000000000000000000000000000000000000",
     aavePoolAddress: "0x0000000000000000000000000000000000000000",
     isAaveSupported: false
@@ -149,7 +127,6 @@ export const NETWORKS = {
       sakUSD: { symbol: "sakUSD", name: "Sakasena USD", address: "0x0000000000000000000000000000000000000000", decimals: 18, icon: "💴" },
       AAA: { symbol: "AAA", name: "anaraydinli AAA Token", address: "0x0000000000000000000000000000000000000000", decimals: 18, icon: "🪙" }
     },
-    aaveTokens: {},
     minterAddress: "0x0000000000000000000000000000000000000000",
     aavePoolAddress: "0x0000000000000000000000000000000000000000",
     isAaveSupported: false
