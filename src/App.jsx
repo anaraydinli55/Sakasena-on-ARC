@@ -777,6 +777,7 @@ function AppContent() {
       case "lending":
         return (
           <LendingTab {...commonProps}
+            aaveTokens={getActiveNetworkConfig(chainId).aaveTokens} // 💎 Aave-specific tokenlar bağlanıyor
             lendingToken={lendingToken} setLendingToken={setLendingToken}
             collateralToken={collateralToken} setCollateralToken={setCollateralToken}
             supplyAmount={supplyAmount} setSupplyAmount={setSupplyAmount}
