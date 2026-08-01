@@ -67,4 +67,5 @@ export const AAVE_SUPPORTED_CHAIN_IDS = [84532, 11155111, 421614, 11155420];
 export const isAaveSupported = (chainId) => AAVE_SUPPORTED_CHAIN_IDS.includes(Number(chainId));
 
 // 💎 Aave Faucet'ten aldığınız yeni token'ların (WBTC, LINK) engellenmeden görüntülenebilmesi için listeye eklendi:
-export const AAVE_SUPPORTED_TOKENS = ["USDC", "USDT", "DAI", "WETH", "WBTC", "LINK"];
+// constants.js içindeki güncel liste:
+export const AAVE_SUPPORTED_TOKENS = ["USDC", "aUSDC", "USDT", "DAI", "WETH", "WBTC", "LINK"];
