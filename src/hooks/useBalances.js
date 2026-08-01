@@ -1,5 +1,5 @@
 // ============================================
-// BALANS VE HAVUZ VERILERI HOOK'U (v2 - Ag degisimi takibi)
+// BALANS VE HAVUZ VERILERI HOOK'U (v2 - Çakışma Önleyici & Fallback Destekli)
 // ============================================
 import { useState, useCallback, useEffect } from 'react';
 import { ethers } from 'ethers';
@@ -55,18 +55,12 @@ export const useBalances = (provider, account, chainId) => {
 
     const config = getActiveNetworkConfig(currentChainId);
 
-    // 💎 HEM STANDART HEM DE AAVE TOKENS LİSTESİNİ BİRLEŞTİRİYORUZ
-    const allNetworkTokens = {
-      ...config.tokens,
-      ...(config.aaveTokens || {})
-    };
-
     try {
       const minABI = ["function balanceOf(address owner) view returns (uint256)"];
       const newBalances = {};
 
-      for (const key of Object.keys(allNetworkTokens)) {
-  const token = allNetworkTokens[key]; // token nesnesi artık allNetworkTokens'tan okunur
+      for (const key of Object.keys(config.tokens)) {
+        const token = config.tokens[key];
         if (token.address && token.address !== ZERO_ADDRESS) { 
           try {
             const contract = new ethers.Contract(token.address, minABI, freshProvider);
@@ -119,13 +113,11 @@ export const useBalances = (provider, account, chainId) => {
     const currentChainId = await getCurrentChainId();
     if (!currentChainId) return;
 
-    // Aktif havuz adresini seçelim
     let activePool = activeTab === "pool"
       ? getPoolAddress(activePoolType, "AAA") 
       : getPoolAddress(fromToken, toToken);
 
-    // 💎 İstatistik kartlarının her zaman güncel kalabilmesi için varsayılan koruma:
-    // Eğer havuz adresi bulunamadıysa, standart USDC-AAA havuzunu sorguluyoruz.
+    // İstatistik kartlarının her zaman güncel kalabilmesi için varsayılan koruma:
     if (!activePool || activePool === ZERO_ADDRESS) {
       activePool = getPoolAddress("USDC", "AAA");
     }
@@ -133,7 +125,7 @@ export const useBalances = (provider, account, chainId) => {
     if (activePool === ZERO_ADDRESS) return;
 
     const fetchOnce = async () => {
-      // 1. Yol: lpShares ve totalShares içeren özel ABI yapısı
+      // 1. Yol: lpShares ve totalShares içeren özel ABI
       const customABI = [
         "function tokenA() view returns (address)",
         "function tokenB() view returns (address)",
@@ -143,7 +135,7 @@ export const useBalances = (provider, account, chainId) => {
         "function lpShares(address) view returns (uint256)" 
       ];
       
-      // 2. Yol: Standart ERC20 (balanceOf ve totalSupply) içeren ABI yapısı
+      // 2. Yol: Standart ERC20 (balanceOf ve totalSupply) içeren ABI
       const standardABI = [
         "function tokenA() view returns (address)",
         "function tokenB() view returns (address)",
@@ -154,7 +146,6 @@ export const useBalances = (provider, account, chainId) => {
       ];
 
       try {
-        // Önce özel yapıyı deniyoruz
         const contract = new ethers.Contract(activePool, customABI, freshProvider);
         const [tA, tB, resA, resB, shares, userShares] = await Promise.all([
           contract.tokenA(), contract.tokenB(),
@@ -164,8 +155,6 @@ export const useBalances = (provider, account, chainId) => {
         return [tA, tB, resA, resB, shares, userShares];
       } catch (customErr) {
         console.warn("Özel havuz ABI sorgusu başarısız, standart ERC20 (balanceOf/totalSupply) deneniyor...");
-        
-        // Eğer özel yapı hata verirse, otomatik olarak standart ERC20 metotlarını deniyoruz
         const contract = new ethers.Contract(activePool, standardABI, freshProvider);
         const [tA, tB, resA, resB, shares, userShares] = await Promise.all([
           contract.tokenA(), contract.tokenB(),
@@ -186,8 +175,10 @@ export const useBalances = (provider, account, chainId) => {
       }
 
       const config = getActiveNetworkConfig(currentChainId);
+      
+      // 💎 toLowerCase() undefined çökmesini engelleyen emniyetli fonksiyon:
       const getDecimals = (addr) => {
-        if (!addr) return 18; // 💎 Boş veya tanımlanmamış adres geldiğinde çökmesini kesin olarak engeller!
+        if (!addr) return 18; 
         for (const key of Object.keys(config.tokens)) {
           const tokenAddr = config.tokens[key].address;
           if (tokenAddr && tokenAddr.toLowerCase() === addr.toLowerCase()) 
@@ -242,7 +233,7 @@ export const useBalances = (provider, account, chainId) => {
       console.log('Ag degisimi algilandi, balanslar yenileniyor...');
       await new Promise(r => setTimeout(r, 1000));
       await fetchBalances();
-      await fetchPoolReserves(); // Ağ değiştiğinde havuzları da yeniliyoruz
+      await fetchPoolReserves(); 
     };
 
     window.ethereum.on('chainChanged', handleChainChanged);
@@ -259,15 +250,13 @@ export const useBalances = (provider, account, chainId) => {
   useEffect(() => {
     if (!account) return;
 
-    // 💎 HEM BALANSLARI HEM DE HAVUZLARI YENİLEYEN AKILLI SİSTEM
     const refreshAllData = () => {
       fetchBalances();
-      fetchPoolReserves(); // Parametre yoksa otomatik olarak varsayılan USDC-AAA havuzunu günceller
+      fetchPoolReserves(); 
     };
 
     refreshAllData();
 
-    // Her 5 saniyede bir hem balansları hem de havuzları güncelliyoruz
     const interval = setInterval(refreshAllData, 5000);
     return () => clearInterval(interval);
   }, [account, fetchBalances, fetchPoolReserves]);
