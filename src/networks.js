@@ -33,7 +33,7 @@ export const NETWORKS = {
     nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
     tokens: {
       USDC: { symbol: "USDC", name: "USD Coin", address: "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238", decimals: 6, icon: "💵" },
-      EURC: { symbol: "EURC", name: "Euro Coin", address: "0x1a05282496E69D8BDeD31b846F25870A19B91234", decimals: 6, icon: "💶" },
+      EURC: { symbol: "EURC", name: "Euro Coin", address: "0x1a05282496e69dbded31b846f25870a19b91234", decimals: 6, icon: "💶" },
       cirBTC: { symbol: "cirBTC", name: "Circle Wrapped Bitcoin", address: "0x0000000000000000000000000000000000000000", decimals: 8, icon: "₿" },
       sakUSD: { symbol: "sakUSD", name: "Sakasena USD", address: "0x0000000000000000000000000000000000000000", decimals: 18, icon: "💴" },
       AAA: { symbol: "AAA", name: "anaraydinli AAA Token", address: "0x0000000000000000000000000000000000000000", decimals: 18, icon: "🪙" }
