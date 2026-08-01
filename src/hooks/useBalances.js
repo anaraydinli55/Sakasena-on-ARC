@@ -55,12 +55,18 @@ export const useBalances = (provider, account, chainId) => {
 
     const config = getActiveNetworkConfig(currentChainId);
 
+    // 💎 HEM STANDART HEM DE AAVE TOKENS LİSTESİNİ BİRLEŞTİRİYORUZ
+    const allNetworkTokens = {
+      ...config.tokens,
+      ...(config.aaveTokens || {})
+    };
+
     try {
       const minABI = ["function balanceOf(address owner) view returns (uint256)"];
       const newBalances = {};
 
-      for (const key of Object.keys(config.tokens)) {
-        const token = config.tokens[key];
+      for (const key of Object.keys(allNetworkTokens)) {
+  const token = allNetworkTokens[key]; // token nesnesi artık allNetworkTokens'tan okunur
         if (token.address && token.address !== ZERO_ADDRESS) { 
           try {
             const contract = new ethers.Contract(token.address, minABI, freshProvider);
