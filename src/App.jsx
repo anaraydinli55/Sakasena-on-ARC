@@ -543,7 +543,7 @@ function AppContent() {
           setTxLoading(false); return;
         }
 
-        // 💎 Aave destekli ağda aaveTokens listesini, yoksa standart tokens listesini kaynak alır
+        // Aave destekli ağda aaveTokens listesini, yoksa standart tokens listesini kaynak alır
         const targetTokens = config.aaveTokens && Object.keys(config.aaveTokens).length > 0 
           ? config.aaveTokens 
           : config.tokens;
@@ -554,7 +554,7 @@ function AppContent() {
         }
 
         const amountParsed = parseUnits(supplyAmount, collatObj.decimals);
-        const assetAddress = collatObj.address.toLowerCase(); // 💎 Checksum hatasını önlemek için küçük harfe çevrildi
+        const assetAddress = collatObj.address.toLowerCase(); // Checksum engelleme
 
         const erc20ABI = ["function allowance(address owner, address spender) view returns (uint256)", "function approve(address spender, uint256 amount) returns (bool)"];
         const tokenContract = new ethers.Contract(assetAddress, erc20ABI, signer);
@@ -589,7 +589,6 @@ function AppContent() {
           setTxLoading(false); return;
         }
 
-        // 💎 Aave destekli ağda aaveTokens listesini, yoksa standart tokens listesini kaynak alır
         const targetTokens = config.aaveTokens && Object.keys(config.aaveTokens).length > 0 
           ? config.aaveTokens 
           : config.tokens;
@@ -600,7 +599,7 @@ function AppContent() {
         }
 
         const amountParsed = parseUnits(borrowAmount, loanObj.decimals);
-        const assetAddress = loanObj.address.toLowerCase(); // 💎 Checksum hatasını önlemek için küçük harfe çevrildi
+        const assetAddress = loanObj.address.toLowerCase(); // Checksum engelleme
 
         const aavePoolABI = ["function borrow(address asset, uint256 amount, uint256 interestRateMode, uint16 referralCode, address onBehalfOf) external"];
         const poolContract = new ethers.Contract(config.aavePoolAddress, aavePoolABI, signer);
@@ -624,6 +623,46 @@ function AppContent() {
           alert(`Aave V3 sadece su token'lari destekler: ${AAVE_SUPPORTED_TOKENS.join(", ")}`);
           setTxLoading(false); return;
         }
+
+        const targetTokens = config.aaveTokens && Object.keys(config.aaveTokens).length > 0 
+          ? config.aaveTokens 
+          : config.tokens;
+
+        const loanObj = targetTokens[lendingToken] || config.tokens[lendingToken];
+        if (!loanObj || !loanObj.address) {
+          alert("Token adresi bulunamadi."); setTxLoading(false); return;
+        }
+
+        const amountParsed = parseUnits(repayAmount, loanObj.decimals);
+        const assetAddress = loanObj.address.toLowerCase(); // Checksum engelleme
+
+        const erc20ABI = ["function allowance(address owner, address spender) view returns (uint256)", "function approve(address spender, uint256 amount) returns (bool)"];
+        const tokenContract = new ethers.Contract(assetAddress, erc20ABI, signer);
+        const currentAllowance = await tokenContract.allowance(account, config.aavePoolAddress);
+        
+        if (isLessThan(currentAllowance, amountParsed)) {
+          const appTx = await tokenContract.approve(config.aavePoolAddress, MAX_UINT256, { gasLimit: 800000 });
+          await appTx.wait();
+          await new Promise(resolve => setTimeout(resolve, 5000));
+        }
+        
+        const aavePoolABI = ["function repay(address asset, uint256 amount, uint256 interestRateMode, address onBehalfOf) external returns (uint256)"];
+        const poolContract = new ethers.Contract(config.aavePoolAddress, aavePoolABI, signer);
+        const tx = await poolContract.repay(assetAddress, amountParsed, 2, account, { gasLimit: 1000000 });
+        await tx.wait();
+        
+        alert("Borc odendi!");
+        setRepayAmount("0");
+        increaseSP(); // 💎 +10 SP Eklendi
+        await fetchBalances();
+      }
+
+    } catch (err) {
+      console.error(err);
+      alert(`Islem sirasinda hata: ${err.reason || err.message || err}`);
+    }
+    setTxLoading(false);
+  };
 
         // 💎 Aave destekli ağda aaveTokens listesini, yoksa standart tokens listesini kaynak alır
         const targetTokens = config.aaveTokens && Object.keys(config.aaveTokens).length > 0 
