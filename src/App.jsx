@@ -1,5 +1,5 @@
 // ============================================
-// ANA APP COMPONENT (DUZELTILMIS & THIRDWEB x402 ENTEGRELI)
+// ANA APP COMPONENT (TAM & GUNCEL SURUM)
 // Bütün parçaları birleştirir
 // ============================================
 import { useState, useEffect, useCallback } from 'react';
@@ -52,13 +52,11 @@ function PremiumWidget({ client, increaseSP }) {
   const handleUnlock = async () => {
     try {
       // Vercel'deki /api/premium-content endpoint'ine ödemeli istek gönderiyoruz
-      // NOT: fetchWithPayment güncel thirdweb SDK'sında yanıtı otomatik JSON'a
-      // parse ediyor; ham bir Response objesi dönmüyor, o yüzden ayrıca .json() çağırmıyoruz
       const result = await fetchWithPayment("/api/premium-content");
 
       if (result.success) {
         setPremiumContent(result.data);
-        increaseSP(); // Başarılı ödemede kullanıcının SP puanını +10 artırır
+        await increaseSP(); // Başarılı ödemede kullanıcının SP puanını +10 artırır
         alert("Ödeme başarıyla doğrulandı! Premium analiz açıldı.");
       } else {
         alert("Ödeme doğrulanamadı.");
@@ -130,7 +128,6 @@ function AppContent() {
       try {
         // 💎 Çakışma Önleyici Akıllı Sağlayıcı Seçici
         const getSafeProvider = () => {
-          // 1. Kendi useWallet'ınızdan gelen ethers provider'ının alt sağlayıcısını kontrol et
           if (provider?.provider && typeof provider.provider.request === "function") {
             return provider.provider;
           }
@@ -140,16 +137,13 @@ function AppContent() {
 
           if (typeof window === "undefined" || !window.ethereum) return null;
 
-          // 2. Tarayıcıda birden fazla cüzdan varsa (window.ethereum.providers dizisi varsa)
           if (window.ethereum.providers && Array.isArray(window.ethereum.providers)) {
-            // MetaMask veya Rabby sağlayıcısını filtrele (en standart protokolleri kullananlar)
             const safeProvider = window.ethereum.providers.find(p => p.isMetaMask || p.isRabby);
             if (safeProvider && typeof safeProvider.request === "function") {
               return safeProvider;
             }
           }
 
-          // 3. Klasik window.ethereum'u dene (eğer request fonksiyonu varsa)
           if (typeof window.ethereum.request === "function") {
             return window.ethereum;
           }
@@ -302,7 +296,6 @@ function AppContent() {
   const increaseSP = async () => {
     if (account) {
       try {
-        // Bağlı cüzdanın puanını veritabanında 10 artırıyoruz
         const res = await fetch('/api/sp-points', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -312,11 +305,9 @@ function AppContent() {
         setSpPoints(result.points);
       } catch (err) {
         console.error("Veritabanı puan artırma hatası:", err);
-        // Hata durumunda arayüzün takılmaması için yerel state'i geçici olarak artırıyoruz
         setSpPoints(prev => prev + 10);
       }
     } else {
-      // Cüzdan henüz bağlı değilse sadece tarayıcı hafızasına yazıyoruz
       setSpPoints(prev => {
         const next = prev + 10;
         localStorage.setItem('sakasena_sp_points', next.toString());
@@ -365,7 +356,7 @@ function AppContent() {
         await swapTx.wait();
 
         alert("Swap basariyla tamamlandi!");
-        increaseSP(); // 💎 +10 SP Eklendi
+        await increaseSP(); 
         await fetchBalances(); await fetchPoolReserves(activePoolType, fromToken, toToken, activeTab);
       }
 
@@ -405,7 +396,7 @@ function AppContent() {
         await lpTx.wait();
 
         alert("Likidite eklendi!");
-        increaseSP(); // 💎 +10 SP Eklendi
+        await increaseSP(); 
         await fetchBalances(); await fetchPoolReserves(activePoolType, fromToken, toToken, activeTab);
       }
 
@@ -428,7 +419,7 @@ function AppContent() {
         const mintTx = await minterContract.mint(collateralObj.address, amountInParsed, { gasLimit: 1000000 });
         await mintTx.wait();
         alert("sakUSD basildi!");
-        increaseSP(); // 💎 +10 SP Eklendi
+        await increaseSP(); 
         await fetchBalances();
       }
 
@@ -451,7 +442,7 @@ function AppContent() {
         const redeemTx = await minterContract.redeem(collateralObj.address, amountToBurnParsed, { gasLimit: 1000000 });
         await redeemTx.wait();
         alert("Teminat geri alindi!");
-        increaseSP(); // 💎 +10 SP Eklendi
+        await increaseSP(); 
         await fetchBalances();
       }
 
@@ -468,7 +459,7 @@ function AppContent() {
         await tx.wait();
         alert(`${sendAmount} ${sendToken} gonderildi!`);
         setSendAmount("0"); setSendRecipient("");
-        increaseSP(); // 💎 +10 SP Eklendi
+        await increaseSP(); 
         await fetchBalances();
       }
 
@@ -491,7 +482,7 @@ function AppContent() {
         await stakeTx.wait();
         alert("sakUSD stake edildi!");
         setStakeAmountInput("0");
-        increaseSP(); // 💎 +10 SP Eklendi
+        await increaseSP(); 
         await fetchBalances(); await fetchSavingsData();
       }
 
@@ -506,7 +497,7 @@ function AppContent() {
         await unstakeTx.wait();
         alert("Geri cekim talebi olusturuldu! 14 gun sonra cekebilirsiniz.");
         setUnstakeAmountInput("0");
-        increaseSP(); // 💎 +10 SP Eklendi
+        await increaseSP(); 
         await fetchSavingsData();
       }
 
@@ -516,7 +507,7 @@ function AppContent() {
         const claimTx = await minterContract.claimRewards({ gasLimit: 1000000 });
         await claimTx.wait();
         alert("Oduller talep edildi!");
-        increaseSP(); // 💎 +10 SP Eklendi
+        await increaseSP(); 
         await fetchBalances(); await fetchSavingsData();
       }
 
@@ -527,7 +518,7 @@ function AppContent() {
         const claimTx = await minterContract.claimUnstaked(requestIndex, { gasLimit: 1000000 });
         await claimTx.wait();
         alert("Geri cekim tamamlandi!");
-        increaseSP(); // 💎 +10 SP Eklendi
+        await increaseSP(); 
         await fetchSavingsData();
       }
 
@@ -543,7 +534,6 @@ function AppContent() {
           setTxLoading(false); return;
         }
 
-        // Aave destekli ağda aaveTokens listesini, yoksa standart tokens listesini kaynak alır
         const targetTokens = config.aaveTokens && Object.keys(config.aaveTokens).length > 0 
           ? config.aaveTokens 
           : config.tokens;
@@ -554,7 +544,7 @@ function AppContent() {
         }
 
         const amountParsed = parseUnits(supplyAmount, collatObj.decimals);
-        const assetAddress = collatObj.address.toLowerCase(); // Checksum engelleme
+        const assetAddress = collatObj.address.toLowerCase(); 
 
         const erc20ABI = ["function allowance(address owner, address spender) view returns (uint256)", "function approve(address spender, uint256 amount) returns (bool)"];
         const tokenContract = new ethers.Contract(assetAddress, erc20ABI, signer);
@@ -573,7 +563,7 @@ function AppContent() {
         
         alert("Girov Aave'ye yerlestirildi!");
         setSupplyAmount("0");
-        increaseSP(); // 💎 +10 SP Eklendi
+        await increaseSP(); 
         await fetchBalances();
       }
 
@@ -599,7 +589,7 @@ function AppContent() {
         }
 
         const amountParsed = parseUnits(borrowAmount, loanObj.decimals);
-        const assetAddress = loanObj.address.toLowerCase(); // Checksum engelleme
+        const assetAddress = loanObj.address.toLowerCase();
 
         const aavePoolABI = ["function borrow(address asset, uint256 amount, uint256 interestRateMode, uint16 referralCode, address onBehalfOf) external"];
         const poolContract = new ethers.Contract(config.aavePoolAddress, aavePoolABI, signer);
@@ -608,7 +598,7 @@ function AppContent() {
         
         alert("Borc alma tamamlandi!");
         setBorrowAmount("0");
-        increaseSP(); // 💎 +10 SP Eklendi
+        await increaseSP(); 
         await fetchBalances();
       }
 
@@ -634,7 +624,7 @@ function AppContent() {
         }
 
         const amountParsed = parseUnits(repayAmount, loanObj.decimals);
-        const assetAddress = loanObj.address.toLowerCase(); // Checksum engelleme
+        const assetAddress = loanObj.address.toLowerCase(); 
 
         const erc20ABI = ["function allowance(address owner, address spender) view returns (uint256)", "function approve(address spender, uint256 amount) returns (bool)"];
         const tokenContract = new ethers.Contract(assetAddress, erc20ABI, signer);
@@ -653,65 +643,7 @@ function AppContent() {
         
         alert("Borc odendi!");
         setRepayAmount("0");
-        increaseSP(); // 💎 +10 SP Eklendi
-        await fetchBalances();
-      }
-
-    } catch (err) {
-      console.error(err);
-      alert(`Islem sirasinda hata: ${err.reason || err.message || err}`);
-    }
-    setTxLoading(false);
-  };
-
-        // 💎 Aave destekli ağda aaveTokens listesini, yoksa standart tokens listesini kaynak alır
-        const targetTokens = config.aaveTokens && Object.keys(config.aaveTokens).length > 0 
-          ? config.aaveTokens 
-          : config.tokens;
-
-        const loanObj = targetTokens[lendingToken] || config.tokens[lendingToken];
-        if (!loanObj || !loanObj.address) {
-          alert("Token adresi bulunamadi."); setTxLoading(false); return;
-        }
-
-        const amountParsed = parseUnits(repayAmount, loanObj.decimals);
-        const assetAddress = loanObj.address.toLowerCase(); // 💎 Checksum hatasını önlemek için küçük harfe çevrildi
-
-        const erc20ABI = ["function allowance(address owner, address spender) view returns (uint256)", "function approve(address spender, uint256 amount) returns (bool)"];
-        const tokenContract = new ethers.Contract(assetAddress, erc20ABI, signer);
-        const currentAllowance = await tokenContract.allowance(account, config.aavePoolAddress);
-        
-        if (isLessThan(currentAllowance, amountParsed)) {
-          const appTx = await tokenContract.approve(config.aavePoolAddress, MAX_UINT256, { gasLimit: 800000 });
-          await appTx.wait();
-          await new Promise(resolve => setTimeout(resolve, 5000));
-        }
-        
-        const aavePoolABI = ["function repay(address asset, uint256 amount, uint256 interestRateMode, address onBehalfOf) external returns (uint256)"];
-        const poolContract = new ethers.Contract(config.aavePoolAddress, aavePoolABI, signer);
-        const tx = await poolContract.repay(assetAddress, amountParsed, 2, account, { gasLimit: 1000000 });
-        await tx.wait();
-        
-        alert("Borc odendi!");
-        setRepayAmount("0");
-        increaseSP(); // 💎 +10 SP Eklendi
-        await fetchBalances();
-      }
-        const erc20ABI = ["function allowance(address owner, address spender) view returns (uint256)", "function approve(address spender, uint256 amount) returns (bool)"];
-        const tokenContract = new ethers.Contract(assetAddress, erc20ABI, signer);
-        const currentAllowance = await tokenContract.allowance(account, config.aavePoolAddress);
-        if (isLessThan(currentAllowance, amountParsed)) {
-          const appTx = await tokenContract.approve(config.aavePoolAddress, MAX_UINT256, { gasLimit: 800000 });
-          await appTx.wait();
-          await new Promise(resolve => setTimeout(resolve, 5000));
-        }
-        const aavePoolABI = ["function repay(address asset, uint256 amount, uint256 interestRateMode, address onBehalfOf) external returns (uint256)"];
-        const poolContract = new ethers.Contract(config.aavePoolAddress, aavePoolABI, signer);
-        const tx = await poolContract.repay(assetAddress, amountParsed, 2, account, { gasLimit: 1000000 });
-        await tx.wait();
-        alert("Borc odendi!");
-        setRepayAmount("0");
-        increaseSP(); // 💎 +10 SP Eklendi
+        await increaseSP(); 
         await fetchBalances();
       }
 
@@ -754,7 +686,7 @@ function AppContent() {
         await tx.wait();
 
         alert("1 Aave USDC basariyla cuzdaniniza aktarildi!");
-        increaseSP(); // 💎 +10 SP Eklendi
+        await increaseSP(); 
         await fetchBalances();
       } catch (err) {
         console.error("Aave Faucet Hatasi:", err);
@@ -780,7 +712,7 @@ function AppContent() {
         const tx = await aaaContract.mint(account, parseUnits("10", 18), { gasLimit: 1000000 });
         await tx.wait();
         alert("10 AAA token aktarildi!");
-        increaseSP(); // 💎 Faucet işlemine de +10 SP Eklendi
+        await increaseSP(); 
         await fetchBalances();
       }
     } catch (err) {
