@@ -729,6 +729,14 @@ function AppContent() {
       handleNumberInput, handleFocus, handleBlur
     };
 
+    // App.jsx içindeki commonProps alanına aaveTokens satırını ekleyin:
+  const commonProps = {
+    tokens, 
+    aaveTokens: getActiveNetworkConfig(chainId).aaveTokens, // 💎 Aave-specific tokenlar buraya bağlandı
+    balances, handleAction, txLoading,
+    handleNumberInput, handleFocus, handleBlur
+  };
+
     switch (activeTab) {
       case "swap":
         return (
