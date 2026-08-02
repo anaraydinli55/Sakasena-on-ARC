@@ -531,7 +531,9 @@ function AppContent() {
         await fetchSavingsData();
       }
 
-      // AAVE SUPPLY
+      // ============================================
+      // AAVE SUPPLY (Tedarik Etme)
+      // ============================================
       if (type === "aave_supply") {
         if (!config.isAaveSupported) {
           alert("Bu sebekede Aave V3 desteklenmiyor."); setTxLoading(false); return;
@@ -540,37 +542,44 @@ function AppContent() {
           alert(`Aave V3 sadece su token'lari destekler: ${AAVE_SUPPORTED_TOKENS.join(", ")}`);
           setTxLoading(false); return;
         }
-        const collatObj = config.tokens[collateralToken];
-        const amountParsed = parseUnits(supplyAmount, collatObj.decimals);
 
-        // 🌟 GÜVENLİ USCD YÖNLENDİRMESİ: Sadece Aave işlemleri için (Bridge/Swap bozulmaz)
-        // App.jsx içindeki aave_supply bloğunda bu satırları bulun ve küçük harf yapın:
-let assetAddress = collatObj.address;
-if (chainId === 84532 && collateralToken === "USDC") {
-  assetAddress = "0xba50cd2a20f6da35d788639e581bca8d0b5d4d5f"; // 🌟 Küçük harf yapıldı
-} else if (chainId === 11155111 && collateralToken === "USDC") {
-  assetAddress = "0x94a9d9ac8a22534e3faca9f4e7f2e2cf85d5e4c8"; // 🌟 Küçük harf yapıldı
-}
+        // 💎 Aave destekli ağda aaveTokens listesini, yoksa standart tokens listesini kaynak alır
+        const targetTokens = config.aaveTokens && Object.keys(config.aaveTokens).length > 0 
+          ? config.aaveTokens 
+          : config.tokens;
+
+        const collatObj = targetTokens[collateralToken] || config.tokens[collateralToken];
+        if (!collatObj || !collatObj.address) {
+          alert("Token adresi bulunamadi."); setTxLoading(false); return;
+        }
+
+        const amountParsed = parseUnits(supplyAmount, collatObj.decimals);
+        const assetAddress = collatObj.address.toLowerCase(); // 💎 Checksum hatasını önlemek için küçük harfe çevrildi
 
         const erc20ABI = ["function allowance(address owner, address spender) view returns (uint256)", "function approve(address spender, uint256 amount) returns (bool)"];
         const tokenContract = new ethers.Contract(assetAddress, erc20ABI, signer);
         const currentAllowance = await tokenContract.allowance(account, config.aavePoolAddress);
+        
         if (isLessThan(currentAllowance, amountParsed)) {
           const appTx = await tokenContract.approve(config.aavePoolAddress, MAX_UINT256, { gasLimit: 800000 });
           await appTx.wait();
           await new Promise(resolve => setTimeout(resolve, 5000));
         }
+        
         const aavePoolABI = ["function supply(address asset, uint256 amount, address onBehalfOf, uint16 referralCode) external"];
         const poolContract = new ethers.Contract(config.aavePoolAddress, aavePoolABI, signer);
         const tx = await poolContract.supply(assetAddress, amountParsed, account, 0, { gasLimit: 1000000 });
         await tx.wait();
+        
         alert("Girov Aave'ye yerlestirildi!");
         setSupplyAmount("0");
         increaseSP(); // 💎 +10 SP Eklendi
         await fetchBalances();
       }
 
-      // AAVE BORROW
+      // ============================================
+      // AAVE BORROW (Borç Alma)
+      // ============================================
       if (type === "aave_borrow") {
         if (!config.isAaveSupported) {
           alert("Bu sebekede Aave V3 desteklenmiyor."); setTxLoading(false); return;
@@ -579,28 +588,34 @@ if (chainId === 84532 && collateralToken === "USDC") {
           alert(`Aave V3 sadece su token'lari destekler: ${AAVE_SUPPORTED_TOKENS.join(", ")}`);
           setTxLoading(false); return;
         }
-        const loanObj = config.tokens[lendingToken];
-        const amountParsed = parseUnits(borrowAmount, loanObj.decimals);
 
-        // 🌟 GÜVENLİ USCD YÖNLENDİRMESİ: Sadece Aave işlemleri için (Bridge/Swap bozulmaz)
-        let assetAddress = loanObj.address;
-if (chainId === 84532 && lendingToken === "USDC") {
-  assetAddress = "0xba50cd2a20f6da35d788639e581bca8d0b5d4d5f"; // 🌟 Küçük harf yapıldı
-} else if (chainId === 11155111 && lendingToken === "USDC") {
-  assetAddress = "0x94a9d9ac8a22534e3faca9f4e7f2e2cf85d5e4c8"; // 🌟 Küçük harf yapıldı
-}
+        // 💎 Aave destekli ağda aaveTokens listesini, yoksa standart tokens listesini kaynak alır
+        const targetTokens = config.aaveTokens && Object.keys(config.aaveTokens).length > 0 
+          ? config.aaveTokens 
+          : config.tokens;
+
+        const loanObj = targetTokens[lendingToken] || config.tokens[lendingToken];
+        if (!loanObj || !loanObj.address) {
+          alert("Token adresi bulunamadi."); setTxLoading(false); return;
+        }
+
+        const amountParsed = parseUnits(borrowAmount, loanObj.decimals);
+        const assetAddress = loanObj.address.toLowerCase(); // 💎 Checksum hatasını önlemek için küçük harfe çevrildi
 
         const aavePoolABI = ["function borrow(address asset, uint256 amount, uint256 interestRateMode, uint16 referralCode, address onBehalfOf) external"];
         const poolContract = new ethers.Contract(config.aavePoolAddress, aavePoolABI, signer);
         const tx = await poolContract.borrow(assetAddress, amountParsed, 2, 0, account, { gasLimit: 1200000 });
         await tx.wait();
+        
         alert("Borc alma tamamlandi!");
         setBorrowAmount("0");
         increaseSP(); // 💎 +10 SP Eklendi
         await fetchBalances();
       }
 
-      // AAVE REPAY
+      // ============================================
+      // AAVE REPAY (Borç Geri Ödeme)
+      // ============================================
       if (type === "aave_repay") {
         if (!config.isAaveSupported) {
           alert("Bu sebekede Aave V3 desteklenmiyor."); setTxLoading(false); return;
@@ -609,17 +624,40 @@ if (chainId === 84532 && lendingToken === "USDC") {
           alert(`Aave V3 sadece su token'lari destekler: ${AAVE_SUPPORTED_TOKENS.join(", ")}`);
           setTxLoading(false); return;
         }
-        const loanObj = config.tokens[lendingToken];
+
+        // 💎 Aave destekli ağda aaveTokens listesini, yoksa standart tokens listesini kaynak alır
+        const targetTokens = config.aaveTokens && Object.keys(config.aaveTokens).length > 0 
+          ? config.aaveTokens 
+          : config.tokens;
+
+        const loanObj = targetTokens[lendingToken] || config.tokens[lendingToken];
+        if (!loanObj || !loanObj.address) {
+          alert("Token adresi bulunamadi."); setTxLoading(false); return;
+        }
+
         const amountParsed = parseUnits(repayAmount, loanObj.decimals);
+        const assetAddress = loanObj.address.toLowerCase(); // 💎 Checksum hatasını önlemek için küçük harfe çevrildi
 
-        // 🌟 GÜVENLİ USCD YÖNLENDİRMESİ: Sadece Aave işlemleri için (Bridge/Swap bozulmaz)
-        let assetAddress = loanObj.address;
-if (chainId === 84532 && lendingToken === "USDC") {
-  assetAddress = "0xba50cd2a20f6da35d788639e581bca8d0b5d4d5f"; // 🌟 Küçük harf yapıldı
-} else if (chainId === 11155111 && lendingToken === "USDC") {
-  assetAddress = "0x94a9d9ac8a22534e3faca9f4e7f2e2cf85d5e4c8"; // 🌟 Küçük harf yapıldı
-}
-
+        const erc20ABI = ["function allowance(address owner, address spender) view returns (uint256)", "function approve(address spender, uint256 amount) returns (bool)"];
+        const tokenContract = new ethers.Contract(assetAddress, erc20ABI, signer);
+        const currentAllowance = await tokenContract.allowance(account, config.aavePoolAddress);
+        
+        if (isLessThan(currentAllowance, amountParsed)) {
+          const appTx = await tokenContract.approve(config.aavePoolAddress, MAX_UINT256, { gasLimit: 800000 });
+          await appTx.wait();
+          await new Promise(resolve => setTimeout(resolve, 5000));
+        }
+        
+        const aavePoolABI = ["function repay(address asset, uint256 amount, uint256 interestRateMode, address onBehalfOf) external returns (uint256)"];
+        const poolContract = new ethers.Contract(config.aavePoolAddress, aavePoolABI, signer);
+        const tx = await poolContract.repay(assetAddress, amountParsed, 2, account, { gasLimit: 1000000 });
+        await tx.wait();
+        
+        alert("Borc odendi!");
+        setRepayAmount("0");
+        increaseSP(); // 💎 +10 SP Eklendi
+        await fetchBalances();
+      }
         const erc20ABI = ["function allowance(address owner, address spender) view returns (uint256)", "function approve(address spender, uint256 amount) returns (bool)"];
         const tokenContract = new ethers.Contract(assetAddress, erc20ABI, signer);
         const currentAllowance = await tokenContract.allowance(account, config.aavePoolAddress);
