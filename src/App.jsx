@@ -395,12 +395,28 @@ function AppContent() {
           "function addLiquidity(uint256 amountA, uint256 amountB) external returns (uint256)"
         ], signer);
 
-        // 🔍 DİNAMİK TOKEN SIRALAMASI SORGULAMA
-        const poolTokenA = await poolContract.tokenA();
+        // 🔍 GÜVENLİ DİNAMİK TOKEN SIRALAMASI SORGULAMA (Safe Try/Catch)
+        let poolTokenA;
+        try {
+          // 1. Önce özel kontratlar için tokenA() sorgulamayı deneyelim
+          poolTokenA = await poolContract.tokenA();
+        } catch (e) {
+          try {
+            // 2. Eğer başarısız olursa standart Uniswap V2 havuzları için token0() sorgulayalım
+            const standardPoolContract = new ethers.Contract(activePool, [
+              "function token0() view returns (address)"
+            ], signer);
+            poolTokenA = await standardPoolContract.token0();
+          } catch (e2) {
+            // 3. İki fonksiyon da yoksa, stabil tokenı varsayılan tokenA kabul edelim (eski çalışan halimiz)
+            poolTokenA = stableTokenObj.address;
+          }
+        }
+
         const isStableTokenA = poolTokenA.toLowerCase() === stableTokenObj.address.toLowerCase();
 
-        // Eğer havuzun tokenA'sı bizim EURC/USDC tokenimiz ise sırayla (stable, AAA) göndeririz.
-        // Eğer havuzun tokenA'sı AAA ise sırayı tam tersi (AAA, stable) yaparız.
+        // Eğer havuzun birinci tokeni bizim EURC/USDC tokenimiz ise sırayla (stable, AAA) göndeririz.
+        // Eğer havuzun birinci tokeni AAA ise sırayı tam tersi (AAA, stable) yaparız.
         const arg1 = isStableTokenA ? stableParsed : aaaParsed;
         const arg2 = isStableTokenA ? aaaParsed : stableParsed;
 
