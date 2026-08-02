@@ -1,5 +1,5 @@
 // ============================================
-// ANA APP COMPONENT (TAM & GUNCEL SURUM)
+// ANA APP COMPONENT (TAM & GUNCEL SURUM - DUZELTILMIS)
 // Bütün parçaları birleştirir
 // ============================================
 import { useState, useEffect, useCallback } from 'react';
@@ -724,18 +724,13 @@ function AppContent() {
 
   // Aktif sekmeyi render et
   const renderTab = () => {
+    // 💎 TEK BİR ORTAK PROPS TANIMI (aaveTokens dahil edildi)
     const commonProps = {
-      tokens, balances, handleAction, txLoading,
+      tokens, 
+      aaveTokens: getActiveNetworkConfig(chainId).aaveTokens, // 💎 Buraya bağlandı!
+      balances, handleAction, txLoading,
       handleNumberInput, handleFocus, handleBlur
     };
-
-    // App.jsx içindeki commonProps alanına aaveTokens satırını ekleyin:
-  const commonProps = {
-    tokens, 
-    aaveTokens: getActiveNetworkConfig(chainId).aaveTokens, // 💎 Aave-specific tokenlar buraya bağlandı
-    balances, handleAction, txLoading,
-    handleNumberInput, handleFocus, handleBlur
-  };
 
     switch (activeTab) {
       case "swap":
@@ -795,7 +790,6 @@ function AppContent() {
       case "lending":
         return (
           <LendingTab {...commonProps}
-            aaveTokens={getActiveNetworkConfig(chainId).aaveTokens} // 💎 Aave-specific tokenlar bağlanıyor
             lendingToken={lendingToken} setLendingToken={setLendingToken}
             collateralToken={collateralToken} setCollateralToken={setCollateralToken}
             supplyAmount={supplyAmount} setSupplyAmount={setSupplyAmount}
@@ -852,4 +846,3 @@ export default function App() {
     </ThirdwebProvider>
   );
 }
-
