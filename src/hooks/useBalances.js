@@ -89,10 +89,18 @@ export const useBalances = (provider, account, chainId) => {
         }
       }
 
-      const allTokens = ["USDC", "aUSDC", "EURC", "cirBTC", "sakUSD", "WUSDC", "AAA", "USDT", "DAI"];
+      // 💎 Sabit whitelist yerine, o an aktif agda gercekten var olan
+      // TUM token key'lerini (Aave dahil) dinamik olarak birlestiriyoruz.
+      // Onceki sabit liste WBTC ve LINK'i icermedigi icin bu iki token'in
+      // bakiyesi zincirden dogru cekilse bile ekrana hic yansimiyordu.
+      const knownTokenKeys = new Set([
+        ...Object.keys(config.tokens || {}),
+        ...Object.keys(config.aaveTokens || {}),
+        "aUSDC", "WUSDC", "DAI" // legacy/gorunum icin geriye donuk uyumluluk
+      ]);
       setBalances(prev => {
         const merged = { ...prev };
-        for (const t of allTokens) {
+        for (const t of knownTokenKeys) {
           if (newBalances[t] !== undefined) {
             merged[t] = newBalances[t];
           } else if (merged[t] === undefined) {
