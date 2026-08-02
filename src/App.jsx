@@ -566,7 +566,11 @@ function AppContent() {
           await poolContract.supply.staticCall(assetAddress, amountParsed, account, 0);
         } catch (simErr) {
           const raw = simErr?.reason || simErr?.shortMessage || simErr?.message || String(simErr);
-          throw new Error(`Aave supply simulasyonu basarisiz: ${raw}`);
+          // 🔍 Ham revert verisini (4-byte custom error selector'u) de yakala -
+          // ethers ismini cozemedigi custom error'larda bile bu veri elimizde olur.
+          const rawData = simErr?.data || simErr?.info?.error?.data || simErr?.error?.data || null;
+          console.error("Simulasyon ham hata verisi (selector):", rawData, simErr);
+          throw new Error(`Aave supply simulasyonu basarisiz: ${raw}${rawData ? " | raw: " + rawData : ""}`);
         }
 
         const tx = await poolContract.supply(assetAddress, amountParsed, account, 0, { gasLimit: 1000000 });
@@ -609,7 +613,11 @@ function AppContent() {
           await poolContract.borrow.staticCall(assetAddress, amountParsed, 2, 0, account);
         } catch (simErr) {
           const raw = simErr?.reason || simErr?.shortMessage || simErr?.message || String(simErr);
-          throw new Error(`Aave borrow simulasyonu basarisiz: ${raw}`);
+          // 🔍 Ham revert verisini (4-byte custom error selector'u) de yakala -
+          // ethers ismini cozemedigi custom error'larda bile bu veri elimizde olur.
+          const rawData = simErr?.data || simErr?.info?.error?.data || simErr?.error?.data || null;
+          console.error("Simulasyon ham hata verisi (selector):", rawData, simErr);
+          throw new Error(`Aave borrow simulasyonu basarisiz: ${raw}${rawData ? " | raw: " + rawData : ""}`);
         }
 
         const tx = await poolContract.borrow(assetAddress, amountParsed, 2, 0, account, { gasLimit: 1200000 });
@@ -662,7 +670,11 @@ function AppContent() {
           await poolContract.repay.staticCall(assetAddress, amountParsed, 2, account);
         } catch (simErr) {
           const raw = simErr?.reason || simErr?.shortMessage || simErr?.message || String(simErr);
-          throw new Error(`Aave repay simulasyonu basarisiz: ${raw}`);
+          // 🔍 Ham revert verisini (4-byte custom error selector'u) de yakala -
+          // ethers ismini cozemedigi custom error'larda bile bu veri elimizde olur.
+          const rawData = simErr?.data || simErr?.info?.error?.data || simErr?.error?.data || null;
+          console.error("Simulasyon ham hata verisi (selector):", rawData, simErr);
+          throw new Error(`Aave repay simulasyonu basarisiz: ${raw}${rawData ? " | raw: " + rawData : ""}`);
         }
 
         const tx = await poolContract.repay(assetAddress, amountParsed, 2, account, { gasLimit: 1000000 });
@@ -873,4 +885,5 @@ export default function App() {
     </ThirdwebProvider>
   );
 }
+
 
