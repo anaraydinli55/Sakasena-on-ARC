@@ -558,6 +558,17 @@ function AppContent() {
         
         const aavePoolABI = ["function supply(address asset, uint256 amount, address onBehalfOf, uint16 referralCode) external"];
         const poolContract = new ethers.Contract(config.aavePoolAddress, aavePoolABI, signer);
+
+        // 🔍 Once staticCall ile simule et - gercek Aave hata kodunu (orn. "28"=FROZEN,
+        // "29"=PAUSED, "51"=SUPPLY_CAP_EXCEEDED) yakalamak icin. Boylece kullaniciya
+        // "reason=null" yerine asil sebep gosterilir, gas da bosa harcanmaz.
+        try {
+          await poolContract.supply.staticCall(assetAddress, amountParsed, account, 0);
+        } catch (simErr) {
+          const raw = simErr?.reason || simErr?.shortMessage || simErr?.message || String(simErr);
+          throw new Error(`Aave supply simulasyonu basarisiz: ${raw}`);
+        }
+
         const tx = await poolContract.supply(assetAddress, amountParsed, account, 0, { gasLimit: 1000000 });
         await tx.wait();
         
@@ -593,6 +604,14 @@ function AppContent() {
 
         const aavePoolABI = ["function borrow(address asset, uint256 amount, uint256 interestRateMode, uint16 referralCode, address onBehalfOf) external"];
         const poolContract = new ethers.Contract(config.aavePoolAddress, aavePoolABI, signer);
+
+        try {
+          await poolContract.borrow.staticCall(assetAddress, amountParsed, 2, 0, account);
+        } catch (simErr) {
+          const raw = simErr?.reason || simErr?.shortMessage || simErr?.message || String(simErr);
+          throw new Error(`Aave borrow simulasyonu basarisiz: ${raw}`);
+        }
+
         const tx = await poolContract.borrow(assetAddress, amountParsed, 2, 0, account, { gasLimit: 1200000 });
         await tx.wait();
         
@@ -638,6 +657,14 @@ function AppContent() {
         
         const aavePoolABI = ["function repay(address asset, uint256 amount, uint256 interestRateMode, address onBehalfOf) external returns (uint256)"];
         const poolContract = new ethers.Contract(config.aavePoolAddress, aavePoolABI, signer);
+
+        try {
+          await poolContract.repay.staticCall(assetAddress, amountParsed, 2, account);
+        } catch (simErr) {
+          const raw = simErr?.reason || simErr?.shortMessage || simErr?.message || String(simErr);
+          throw new Error(`Aave repay simulasyonu basarisiz: ${raw}`);
+        }
+
         const tx = await poolContract.repay(assetAddress, amountParsed, 2, account, { gasLimit: 1000000 });
         await tx.wait();
         
@@ -846,3 +873,4 @@ export default function App() {
     </ThirdwebProvider>
   );
 }
+
