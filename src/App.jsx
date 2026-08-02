@@ -360,7 +360,9 @@ function AppContent() {
         await fetchBalances(); await fetchPoolReserves(activePoolType, fromToken, toToken, activeTab);
       }
 
-      // ADD LIQUIDITY
+      // ============================================
+      // ADD LIQUIDITY (DÜZELTİLMİŞ & DİNAMİK SIRALAMALI)
+      // ============================================
       if (type === "add_lp") {
         const activePool = getPoolAddress(activePoolType, "AAA");
         if (!lpUSDC || !lpAAA || parseFloat(lpUSDC) <= 0 || parseFloat(lpAAA) <= 0) {
@@ -392,7 +394,17 @@ function AppContent() {
           "function tokenA() view returns (address)",
           "function addLiquidity(uint256 amountA, uint256 amountB) external returns (uint256)"
         ], signer);
-        let lpTx = await poolContract.addLiquidity(stableParsed, aaaParsed, { gasLimit: 1000000 });
+
+        // 🔍 DİNAMİK TOKEN SIRALAMASI SORGULAMA
+        const poolTokenA = await poolContract.tokenA();
+        const isStableTokenA = poolTokenA.toLowerCase() === stableTokenObj.address.toLowerCase();
+
+        // Eğer havuzun tokenA'sı bizim EURC/USDC tokenimiz ise sırayla (stable, AAA) göndeririz.
+        // Eğer havuzun tokenA'sı AAA ise sırayı tam tersi (AAA, stable) yaparız.
+        const arg1 = isStableTokenA ? stableParsed : aaaParsed;
+        const arg2 = isStableTokenA ? aaaParsed : stableParsed;
+
+        let lpTx = await poolContract.addLiquidity(arg1, arg2, { gasLimit: 1000000 });
         await lpTx.wait();
 
         alert("Likidite eklendi!");
