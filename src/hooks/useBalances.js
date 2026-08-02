@@ -1,5 +1,5 @@
 // ============================================
-// BALANS VE HAVUZ VERILERI HOOK'U (v2 - Çakışma Önleyici & Fallback Destekli)
+// BALANS VE HAVUZ VERILERI HOOK'U (v2 - Çakışma Önleyici & Standart Ayrıştırıcı)
 // ============================================
 import { useState, useCallback, useEffect } from 'react';
 import { ethers } from 'ethers';
@@ -8,7 +8,7 @@ import { getActiveNetworkConfig, getPoolAddress } from '../networks';
 
 export const useBalances = (provider, account, chainId) => {
   const [balances, setBalances] = useState({ 
-    USDC: "0.00", EURC: "0.00", cirBTC: "0.0000", 
+    USDC: "0.00", aUSDC: "0.00", EURC: "0.00", cirBTC: "0.0000", // 💎 aUSDC eklendi
     sakUSD: "0.00", WUSDC: "0.00", AAA: "0.00", USDT: "0.00", DAI: "0.00" 
   });
 
@@ -43,7 +43,7 @@ export const useBalances = (provider, account, chainId) => {
   // ============================================
   const fetchBalances = useCallback(async () => {
     if (!account) {
-      setBalances({ USDC: "0.00", EURC: "0.00", cirBTC: "0.0000", sakUSD: "0.00", WUSDC: "0.00", AAA: "0.00", USDT: "0.00", DAI: "0.00" });
+      setBalances({ USDC: "0.00", aUSDC: "0.00", EURC: "0.00", cirBTC: "0.0000", sakUSD: "0.00", WUSDC: "0.00", AAA: "0.00", USDT: "0.00", DAI: "0.00" });
       return;
     }
 
@@ -55,12 +55,18 @@ export const useBalances = (provider, account, chainId) => {
 
     const config = getActiveNetworkConfig(currentChainId);
 
+    // 💎 Hem standart hem de Aave token'larını çakışma olmadan okumak için birleştiriyoruz:
+    const allNetworkTokens = {
+      ...config.tokens,
+      ...(config.aaveTokens || {})
+    };
+
     try {
       const minABI = ["function balanceOf(address owner) view returns (uint256)"];
       const newBalances = {};
 
-      for (const key of Object.keys(config.tokens)) {
-        const token = config.tokens[key];
+      for (const key of Object.keys(allNetworkTokens)) {
+        const token = allNetworkTokens[key];
         if (token.address && token.address !== ZERO_ADDRESS) { 
           try {
             const contract = new ethers.Contract(token.address, minABI, freshProvider);
@@ -83,7 +89,7 @@ export const useBalances = (provider, account, chainId) => {
         }
       }
 
-      const allTokens = ["USDC", "EURC", "cirBTC", "sakUSD", "WUSDC", "AAA", "USDT", "DAI"];
+      const allTokens = ["USDC", "aUSDC", "EURC", "cirBTC", "sakUSD", "WUSDC", "AAA", "USDT", "DAI"];
       setBalances(prev => {
         const merged = { ...prev };
         for (const t of allTokens) {
@@ -177,12 +183,17 @@ export const useBalances = (provider, account, chainId) => {
       const config = getActiveNetworkConfig(currentChainId);
       
       // 💎 toLowerCase() undefined çökmesini engelleyen emniyetli fonksiyon:
+      // Hem standart hem de Aave token listelerindeki ondalık haneleri başarıyla tarar:
       const getDecimals = (addr) => {
         if (!addr) return 18; 
-        for (const key of Object.keys(config.tokens)) {
-          const tokenAddr = config.tokens[key].address;
+        const allTokens = {
+          ...config.tokens,
+          ...(config.aaveTokens || {})
+        };
+        for (const key of Object.keys(allTokens)) {
+          const tokenAddr = allTokens[key].address;
           if (tokenAddr && tokenAddr.toLowerCase() === addr.toLowerCase()) 
-            return config.tokens[key].decimals;
+            return allTokens[key].decimals;
         }
         return 18;
       };
