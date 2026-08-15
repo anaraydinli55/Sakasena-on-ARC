@@ -1,5 +1,7 @@
+
+
 // ============================================
-// HEADER COMPONENT (DUZELTILMIS)
+// HEADER COMPONENT (DUZELTILMIS & NFT MINT EKLEME)
 // Menuler duzenlendi ve Kayan +10 SP Efekti Eklendi
 // ============================================
 import { useState, useEffect, useRef } from 'react';
@@ -23,11 +25,12 @@ export const Header = ({
     prevSpRef.current = spPoints;
   }, [spPoints]);
 
-  // "lending" her agda her zaman menude gorunsun diye baseTabs icine yerlestirdik
+  // "nft-mint" sekmesi kullanılabilir sekmelerin sonuna eklendi
   const getAvailableTabs = () => {
-    return ["swap", "pool", "bridge", "mint", "savings", "send", "lending", "faucet"];
+    return ["swap", "pool", "bridge", "mint", "savings", "send", "lending", "faucet", "nft-mint"];
   };
 
+  // "nft-mint" anahtarı için "Mint NFT" etiketi tanımlandı
   const getTabLabel = (tab) => {
     const labels = {
       swap: "Swap", 
@@ -37,7 +40,8 @@ export const Header = ({
       savings: "Savings", 
       send: "Send", 
       faucet: "Faucet",
-      lending: "Borrow & Repay"
+      lending: "Borrow & Repay",
+      "nft-mint": "Mint NFT" // 👈 Yeni NFT Tab etiketi
     };
     return labels[tab] || tab;
   };
@@ -128,4 +132,3 @@ export const Header = ({
     </header>
   );
 };
-
