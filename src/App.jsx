@@ -36,6 +36,7 @@ import { SendTab } from './components/SendTab';
 import { LendingTab } from './components/LendingTab';
 import { FaucetTab } from './components/FaucetTab';
 import CCTPBridgeTab from './components/CCTPBridge';
+import MintNFT from './components/MintNFT'; // 👈 YENİ EKLEDİĞİMİZ SATIR
 
 // 💎 Thirdweb Client Başlatma (Sağladığınız Client ID ile)
 const thirdwebClient = createThirdwebClient({
@@ -866,6 +867,15 @@ function AppContent() {
         );
       case "faucet":
         return <FaucetTab handleFaucet={handleFaucet} txLoading={txLoading} />;
+      case "nft-mint": // 👈 YENİ EKLEDİĞİMİZ NFT MINT DURUMU
+        return (
+          <MintNFT 
+            provider={provider} 
+            account={account} 
+            chainId={chainId} 
+            onMintSuccess={increaseSP} // NFT mint edilince +10 SP puanı kazandırır
+          />
+        );
       default:
         return <SwapTab {...commonProps} />;
     }
