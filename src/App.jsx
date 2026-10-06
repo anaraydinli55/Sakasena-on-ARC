@@ -17,6 +17,8 @@ import {
   isAaveSupported, AAVE_SUPPORTED_TOKENS 
 } from './constants';
 
+import { notify, validateAmount, validateAddress, extractErrorMessage } from './utils/notify';
+
 import { NETWORKS, getActiveNetworkConfig, getPoolAddress } from './networks';
 
 // Hook'lar
@@ -57,14 +59,14 @@ function PremiumWidget({ client, increaseSP }) {
 
       if (result.success) {
         setPremiumContent(result.data);
-        await increaseSP(); // Başarılı ödemede kullanıcının SP puanını +10 artırır
-        alert("Ödeme başarıyla doğrulandı! Premium analiz açıldı.");
+        await increaseSP();
+        notify.success("Ödeme doğrulandı! Premium analiz açıldı.");
       } else {
-        alert("Ödeme doğrulanamadı.");
+        notify.error("Ödeme doğrulanamadı.");
       }
     } catch (error) {
       console.error("Ödeme işlemi hatası:", error);
-      alert("Ödeme işlemi sırasında bir hata oluştu veya iptal edildi.");
+      notify.error(extractErrorMessage(error));
     }
   };
 
@@ -252,24 +254,13 @@ function AppContent() {
     setTokens(config.tokens);
   }, [chainId]);
 
-  // Verileri yükle
+  // Verileri yükle (sekme/token/pool değişiminde)
   useEffect(() => {
     if (account && provider) {
-      const loadAllData = async () => {
-        await fetchBalances();
-        await fetchPoolReserves(activePoolType, fromToken, toToken, activeTab);
-        await fetchSavingsData();
-      };
-      loadAllData();
+      fetchPoolReserves(activePoolType, fromToken, toToken, activeTab);
+      fetchSavingsData();
     }
-  }, [account, chainId, provider, activeTab, activePoolType, fromToken, toToken]);
-
-  // YENI (Sadece ilk yukleme icin):
-  useEffect(() => {
-    if (account) {
-      fetchBalances();
-    }
-  }, [account]);
+  }, [account, chainId, provider, activeTab, activePoolType, fromToken, toToken, fetchPoolReserves, fetchSavingsData]);
 
   // Yardımcı fonksiyonlar
   const handlePercentClick = (percent, balance, decimals, setter) => {
@@ -323,6 +314,7 @@ function AppContent() {
     setTxLoading(true);
 
     if (!NETWORKS[chainId]) {
+      notify.info("Desteklenmeyen ağ. Arc Testnet'e geçiliyor...");
       await switchNetwork(5042002);
       setTxLoading(false);
       return;
@@ -334,7 +326,7 @@ function AppContent() {
       // SWAP
       if (type === "swap") {
         if (chainId !== 5042002) {
-          alert("Swap yalniz Arc Testnet'de aktiftir.");
+          notify.error("Swap yalnızca Arc Testnet'de aktiftir.");
           await switchNetwork(5042002); setTxLoading(false); return;
         }
         const activePool = getPoolAddress(fromToken, toToken);
@@ -356,7 +348,7 @@ function AppContent() {
         const swapTx = await poolContract.swap(tokenInObj.address, amountInParsed, { gasLimit: 1000000 });
         await swapTx.wait();
 
-        alert("Swap basariyla tamamlandi!");
+        notify.success("Swap başarıyla tamamlandı!");
         await increaseSP(); 
         await fetchBalances(); await fetchPoolReserves(activePoolType, fromToken, toToken, activeTab);
       }
@@ -367,7 +359,7 @@ function AppContent() {
       if (type === "add_lp") {
         const activePool = getPoolAddress(activePoolType, "AAA");
         if (!lpUSDC || !lpAAA || parseFloat(lpUSDC) <= 0 || parseFloat(lpAAA) <= 0) {
-          alert("Lutfen her iki miktar alanini da doldurun."); setTxLoading(false); return;
+          notify.error("Lütfen her iki miktar alanını da doldurun."); setTxLoading(false); return;
         }
         const stableTokenObj = config.tokens[activePoolType];
         const stableParsed = parseUnits(lpUSDC, stableTokenObj.decimals);
@@ -424,16 +416,14 @@ function AppContent() {
         let lpTx = await poolContract.addLiquidity(arg1, arg2, { gasLimit: 1000000 });
         await lpTx.wait();
 
-        alert("Likidite eklendi!");
+        notify.success("Likidite başarıyla eklendi!");
         await increaseSP(); 
         await fetchBalances(); await fetchPoolReserves(activePoolType, fromToken, toToken, activeTab);
       }
 
       // MINT SAKUSD
       if (type === "mint_sakusd") {
-        if (!mintAmount || isNaN(mintAmount) || parseFloat(mintAmount) <= 0) {
-          alert("Gecersiz miktar."); setTxLoading(false); return;
-        }
+        if (!validateAmount(mintAmount, "Mint miktarı")) { setTxLoading(false); return; }
         const collateralObj = config.tokens[mintCollateral];
         const amountInParsed = parseUnits(mintAmount, collateralObj.decimals);
         const erc20ABI = ["function allowance(address owner, address spender) view returns (uint256)", "function approve(address spender, uint256 amount) returns (bool)"];
@@ -447,16 +437,14 @@ function AppContent() {
         const minterContract = new ethers.Contract(config.minterAddress, ["function mint(address collateralToken, uint256 amountIn) external"], signer);
         const mintTx = await minterContract.mint(collateralObj.address, amountInParsed, { gasLimit: 1000000 });
         await mintTx.wait();
-        alert("sakUSD basildi!");
+        notify.success("sakUSD başarıyla basıldı!");
         await increaseSP(); 
         await fetchBalances();
       }
 
       // REDEEM SAKUSD
       if (type === "redeem_sakusd") {
-        if (!redeemAmount || isNaN(redeemAmount) || parseFloat(redeemAmount) <= 0) {
-          alert("Gecersiz miktar."); setTxLoading(false); return;
-        }
+        if (!validateAmount(redeemAmount, "Redeem miktarı")) { setTxLoading(false); return; }
         const collateralObj = config.tokens[mintCollateral];
         const amountToBurnParsed = parseUnits(redeemAmount, 18); 
         const erc20ABI = ["function allowance(address owner, address spender) view returns (uint256)", "function approve(address spender, uint256 amount) returns (bool)"];
@@ -470,23 +458,22 @@ function AppContent() {
         const minterContract = new ethers.Contract(config.minterAddress, ["function redeem(address collateralToken, uint256 sakUSDAmount) external"], signer);
         const redeemTx = await minterContract.redeem(collateralObj.address, amountToBurnParsed, { gasLimit: 1000000 });
         await redeemTx.wait();
-        alert("Teminat geri alindi!");
+        notify.success("Teminat başarıyla geri alındı!");
         await increaseSP(); 
         await fetchBalances();
       }
 
       // SEND TOKEN
       if (type === "send_token") {
-        if (!sendRecipient || !sendAmount || parseFloat(sendAmount) <= 0) {
-          alert("Lutfen alici adresi ve miktar girin."); setTxLoading(false); return;
-        }
+        if (!validateAddress(sendRecipient)) { setTxLoading(false); return; }
+        if (!validateAmount(sendAmount, "Gönderme miktarı")) { setTxLoading(false); return; }
         const tokenObj = config.tokens[sendToken];
         const amountParsed = parseUnits(sendAmount, tokenObj.decimals);
         const erc20ABI = ["function transfer(address to, uint256 amount) returns (bool)"];
         const tokenContract = new ethers.Contract(tokenObj.address, erc20ABI, signer);
         const tx = await tokenContract.transfer(sendRecipient, amountParsed, { gasLimit: 100000 });
         await tx.wait();
-        alert(`${sendAmount} ${sendToken} gonderildi!`);
+        notify.success(`${sendAmount} ${sendToken} başarıyla gönderildi!`);
         setSendAmount("0"); setSendRecipient("");
         await increaseSP(); 
         await fetchBalances();
@@ -494,9 +481,7 @@ function AppContent() {
 
       // STAKE
       if (type === "stake_sakusd") {
-        if (!stakeAmountInput || isNaN(stakeAmountInput) || parseFloat(stakeAmountInput) <= 0) {
-          alert("Gecersiz miktar."); setTxLoading(false); return;
-        }
+        if (!validateAmount(stakeAmountInput, "Stake miktarı")) { setTxLoading(false); return; }
         const amountParsed = parseUnits(stakeAmountInput, 18);
         const erc20ABI = ["function allowance(address owner, address spender) view returns (uint256)", "function approve(address spender, uint256 amount) returns (bool)"];
         const sakusdContract = new ethers.Contract(config.tokens.sakUSD.address, erc20ABI, signer);
@@ -509,7 +494,7 @@ function AppContent() {
         const minterContract = new ethers.Contract(config.minterAddress, ["function stake(uint256 amount) external"], signer);
         const stakeTx = await minterContract.stake(amountParsed, { gasLimit: 1000000 });
         await stakeTx.wait();
-        alert("sakUSD stake edildi!");
+        notify.success("sakUSD başarıyla stake edildi!");
         setStakeAmountInput("0");
         await increaseSP(); 
         await fetchBalances(); await fetchSavingsData();
@@ -517,14 +502,12 @@ function AppContent() {
 
       // REQUEST UNSTAKE
       if (type === "request_unstake") {
-        if (!unstakeAmountInput || isNaN(unstakeAmountInput) || parseFloat(unstakeAmountInput) <= 0) {
-          alert("Gecersiz miktar."); setTxLoading(false); return;
-        }
+        if (!validateAmount(unstakeAmountInput, "Unstake miktarı")) { setTxLoading(false); return; }
         const amountParsed = parseUnits(unstakeAmountInput, 18);
         const minterContract = new ethers.Contract(config.minterAddress, ["function requestUnstake(uint256 amount) external"], signer);
         const unstakeTx = await minterContract.requestUnstake(amountParsed, { gasLimit: 1000000 });
         await unstakeTx.wait();
-        alert("Geri cekim talebi olusturuldu! 14 gun sonra cekebilirsiniz.");
+        notify.success("Geri çekim talebi oluşturuldu! 14 gün sonra çekebilirsiniz.");
         setUnstakeAmountInput("0");
         await increaseSP(); 
         await fetchSavingsData();
@@ -535,7 +518,7 @@ function AppContent() {
         const minterContract = new ethers.Contract(config.minterAddress, ["function claimRewards() external"], signer);
         const claimTx = await minterContract.claimRewards({ gasLimit: 1000000 });
         await claimTx.wait();
-        alert("Oduller talep edildi!");
+        notify.success("Ödüller başarıyla talep edildi!");
         await increaseSP(); 
         await fetchBalances(); await fetchSavingsData();
       }
@@ -546,7 +529,7 @@ function AppContent() {
         const minterContract = new ethers.Contract(config.minterAddress, ["function claimUnstaked(uint256 requestIndex) external"], signer);
         const claimTx = await minterContract.claimUnstaked(requestIndex, { gasLimit: 1000000 });
         await claimTx.wait();
-        alert("Geri cekim tamamlandi!");
+        notify.success("Geri çekim başarıyla tamamlandı!");
         await increaseSP(); 
         await fetchSavingsData();
       }
@@ -556,10 +539,10 @@ function AppContent() {
       // ============================================
       if (type === "aave_supply") {
         if (!config.isAaveSupported) {
-          alert("Bu sebekede Aave V3 desteklenmiyor."); setTxLoading(false); return;
+          notify.error("Bu ağda Aave V3 desteklenmiyor."); setTxLoading(false); return;
         }
         if (!AAVE_SUPPORTED_TOKENS.includes(collateralToken)) {
-          alert(`Aave V3 sadece su token'lari destekler: ${AAVE_SUPPORTED_TOKENS.join(", ")}`);
+          notify.error(`Aave V3 sadece şu token'ları destekler: ${AAVE_SUPPORTED_TOKENS.join(", ")}`);
           setTxLoading(false); return;
         }
 
@@ -569,7 +552,7 @@ function AppContent() {
 
         const collatObj = targetTokens[collateralToken] || config.tokens[collateralToken];
         if (!collatObj || !collatObj.address) {
-          alert("Token adresi bulunamadi."); setTxLoading(false); return;
+          notify.error("Token adresi bulunamadı."); setTxLoading(false); return;
         }
 
         const amountParsed = parseUnits(supplyAmount, collatObj.decimals);
@@ -605,7 +588,7 @@ function AppContent() {
         const tx = await poolContract.supply(assetAddress, amountParsed, account, 0, { gasLimit: 1000000 });
         await tx.wait();
         
-        alert("Girov Aave'ye yerlestirildi!");
+        notify.success("Teminat Aave'ye başarıyla yerleştirildi!");
         setSupplyAmount("0");
         await increaseSP(); 
         await fetchBalances();
@@ -616,10 +599,10 @@ function AppContent() {
       // ============================================
       if (type === "aave_borrow") {
         if (!config.isAaveSupported) {
-          alert("Bu sebekede Aave V3 desteklenmiyor."); setTxLoading(false); return;
+          notify.error("Bu ağda Aave V3 desteklenmiyor."); setTxLoading(false); return;
         }
         if (!AAVE_SUPPORTED_TOKENS.includes(lendingToken)) {
-          alert(`Aave V3 sadece su token'lari destekler: ${AAVE_SUPPORTED_TOKENS.join(", ")}`);
+          notify.error(`Aave V3 sadece şu token'ları destekler: ${AAVE_SUPPORTED_TOKENS.join(", ")}`);
           setTxLoading(false); return;
         }
 
@@ -629,7 +612,7 @@ function AppContent() {
 
         const loanObj = targetTokens[lendingToken] || config.tokens[lendingToken];
         if (!loanObj || !loanObj.address) {
-          alert("Token adresi bulunamadi."); setTxLoading(false); return;
+          notify.error("Token adresi bulunamadı."); setTxLoading(false); return;
         }
 
         const amountParsed = parseUnits(borrowAmount, loanObj.decimals);
@@ -652,7 +635,7 @@ function AppContent() {
         const tx = await poolContract.borrow(assetAddress, amountParsed, 2, 0, account, { gasLimit: 1200000 });
         await tx.wait();
         
-        alert("Borc alma tamamlandi!");
+        notify.success("Borç alma başarıyla tamamlandı!");
         setBorrowAmount("0");
         await increaseSP(); 
         await fetchBalances();
@@ -663,10 +646,10 @@ function AppContent() {
       // ============================================
       if (type === "aave_repay") {
         if (!config.isAaveSupported) {
-          alert("Bu sebekede Aave V3 desteklenmiyor."); setTxLoading(false); return;
+          notify.error("Bu ağda Aave V3 desteklenmiyor."); setTxLoading(false); return;
         }
         if (!AAVE_SUPPORTED_TOKENS.includes(lendingToken)) {
-          alert(`Aave V3 sadece su token'lari destekler: ${AAVE_SUPPORTED_TOKENS.join(", ")}`);
+          notify.error(`Aave V3 sadece şu token'ları destekler: ${AAVE_SUPPORTED_TOKENS.join(", ")}`);
           setTxLoading(false); return;
         }
 
@@ -676,7 +659,7 @@ function AppContent() {
 
         const loanObj = targetTokens[lendingToken] || config.tokens[lendingToken];
         if (!loanObj || !loanObj.address) {
-          alert("Token adresi bulunamadi."); setTxLoading(false); return;
+          notify.error("Token adresi bulunamadı."); setTxLoading(false); return;
         }
 
         const amountParsed = parseUnits(repayAmount, loanObj.decimals);
@@ -709,15 +692,15 @@ function AppContent() {
         const tx = await poolContract.repay(assetAddress, amountParsed, 2, account, { gasLimit: 1000000 });
         await tx.wait();
         
-        alert("Borc odendi!");
+        notify.success("Borç başarıyla ödendi!");
         setRepayAmount("0");
         await increaseSP(); 
         await fetchBalances();
       }
 
     } catch (err) {
-      console.error(err);
-      alert(`Islem sirasinda hata: ${err.reason || err.message || err}`);
+      console.error("İşlem hatası:", err);
+      notify.error(extractErrorMessage(err));
     }
     setTxLoading(false);
   };
@@ -727,10 +710,10 @@ function AppContent() {
     // 🌟 AAVE USDC Doğrudan Basma Mantığı (Ethereum Sepolia veya Base Sepolia üzerindeyken)
     if (tokenSymbol === "AAVE_USDC") {
       if (!account || !provider) {
-        alert("Lutfen once cuzdaninizi baglayin."); return;
+        notify.error("Lütfen önce cüzdanınızı bağlayın."); return;
       }
       if (chainId !== 11155111 && chainId !== 84532) {
-        alert("Bu islem yalnizca Ethereum Sepolia veya Base Sepolia aglarinda aktiftir."); return;
+        notify.error("Bu işlem yalnızca Ethereum Sepolia veya Base Sepolia ağlarında aktiftir."); return;
       }
 
       setTxLoading(true);
@@ -753,12 +736,12 @@ function AppContent() {
         const tx = await faucetContract.mint(underlyingUSDC, account, amountToMint, { gasLimit: 500000 });
         await tx.wait();
 
-        alert("1 Aave USDC basariyla cuzdaniniza aktarildi!");
+        notify.success("1 Aave USDC başarıyla cüzdanınıza aktarıldı!");
         await increaseSP(); 
         await fetchBalances();
       } catch (err) {
-        console.error("Aave Faucet Hatasi:", err);
-        alert(`Aave Faucet basarisiz: ${err.reason || err.message}`);
+        console.error("Aave Faucet hatası:", err);
+        notify.error(extractErrorMessage(err));
       }
       setTxLoading(false);
       return;
@@ -769,7 +752,7 @@ function AppContent() {
       window.open("https://faucet.circle.com/", "_blank"); return;
     }
     if (chainId !== ARC_CHAIN_ID || !provider || !account) {
-      alert("Lutfen cuzdaninizi baglayin ve Arc Testnet'e gecin."); return;
+      notify.error("Lütfen cüzdanınızı bağlayın ve Arc Testnet'e geçin."); return;
     }
     setTxLoading(true);
     try {
@@ -779,13 +762,13 @@ function AppContent() {
         const aaaContract = new ethers.Contract(ARC_ADDRESSES.AAA, aaaABI, signer);
         const tx = await aaaContract.mint(account, parseUnits("10", 18), { gasLimit: 1000000 });
         await tx.wait();
-        alert("10 AAA token aktarildi!");
+        notify.success("10 AAA token başarıyla aktarıldı!");
         await increaseSP(); 
         await fetchBalances();
       }
     } catch (err) {
-      console.error("Faucet hatasi:", err);
-      alert("Faucet basarisiz. Owner yetkisini kontrol edin.");
+      console.error("Faucet hatası:", err);
+      notify.error("Faucet başarısız. Owner yetkisini kontrol edin.");
     }
     setTxLoading(false);
   };

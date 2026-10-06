@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { ethers } from 'ethers';
 import { getProviderInstance, getSignerInstance } from '../constants';
 import { NETWORKS } from '../networks';
+import { notify } from '../utils/notify';
 
 export const useWallet = () => {
   const [provider, setProvider] = useState(null);
@@ -43,7 +44,7 @@ export const useWallet = () => {
 
   const connectWallet = useCallback(async () => {
     if (!window.ethereum) {
-      alert("Lutfen MetaMask veya Rabby Wallet kurun.");
+      notify.error("Lütfen MetaMask veya Rabby Wallet kurun.");
       return;
     }
     try {
@@ -83,7 +84,7 @@ const switchNetwork = useCallback(async (targetChainId) => {
         });
       } catch (addError) {
         console.error("Sebeke cuzdana eklenemedi:", addError);
-        alert(`Lutfen cuzdaninizdan manuel olarak ${config.name} agina gecin.`);
+        notify.error(`Lütfen cüzdanınızdan manuel olarak ${config.name} ağına geçin.`);
       }
     }
   }, []);

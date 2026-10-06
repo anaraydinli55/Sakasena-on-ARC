@@ -107,7 +107,7 @@ export const useBalances = (provider, account, chainId) => {
             merged[t] = "0.00";
           }
         }
-        console.log('Balanslar guncellendi:', currentChainId, merged);
+        // Balanslar güncellendi
         return merged;
       });
     } catch (err) {
@@ -249,7 +249,6 @@ export const useBalances = (provider, account, chainId) => {
     if (!window.ethereum) return;
 
     const handleChainChanged = async () => {
-      console.log('Ag degisimi algilandi, balanslar yenileniyor...');
       await new Promise(r => setTimeout(r, 1000));
       await fetchBalances();
       await fetchPoolReserves(); 
